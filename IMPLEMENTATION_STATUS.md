@@ -68,3 +68,5 @@
 ## 部署方式
 
 只使用原 Compose 项目及其数据库等配套服务。`scripts/update.ps1` 从当前源码构建并替换同名 `pentagi` 应用；不新增第二套展示容器，不制作旧版备份。当前部署实况与复核命令见 `DEPLOYMENT.md`。
+
+版本管理：所有改动只提交到本机分支 `codex/research-development`，不推送到远端仓库，`main` 与 origin 保持原样；需要历史快照或回退时用本地分支上的提交。
