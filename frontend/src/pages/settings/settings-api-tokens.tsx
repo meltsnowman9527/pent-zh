@@ -110,15 +110,15 @@ const getStatusDisplay = (
     const expired = isTokenExpired(token);
 
     if (expired) {
-        return { label: 'expired', variant: 'destructive' };
+        return { label: uiText('expired'), variant: 'destructive' };
     }
 
     if (token.status === 'active') {
-        return { label: 'active', variant: 'default' };
+        return { label: uiText('active'), variant: 'default' };
     }
 
     if (token.status === 'revoked') {
-        return { label: 'revoked', variant: 'outline' };
+        return { label: uiText('revoked'), variant: 'outline' };
     }
 
     return { label: token.status, variant: 'secondary' };
@@ -528,7 +528,7 @@ function SettingsAPITokens() {
                     const isCreating = token.id === 'create-new';
 
                     if (isCreating) {
-                        return <Badge variant="default">active</Badge>;
+                        return <Badge variant="default">{uiText('active')}</Badge>;
                     }
 
                     const isEditing = editingTokenId === token.tokenId;
@@ -554,8 +554,12 @@ function SettingsAPITokens() {
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectGroup>
-                                                <SelectItem value={TokenStatusEnum.Active}>active</SelectItem>
-                                                <SelectItem value={TokenStatusEnum.Revoked}>revoked</SelectItem>
+                                                <SelectItem value={TokenStatusEnum.Active}>
+                                                    {uiText('active')}
+                                                </SelectItem>
+                                                <SelectItem value={TokenStatusEnum.Revoked}>
+                                                    {uiText('revoked')}
+                                                </SelectItem>
                                             </SelectGroup>
                                         </SelectContent>
                                     </Select>

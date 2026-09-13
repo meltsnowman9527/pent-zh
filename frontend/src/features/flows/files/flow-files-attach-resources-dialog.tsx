@@ -218,9 +218,9 @@ function FlowFilesAttachResourcesDialogBody({
                         {uiText('Attach resources')}
                     </DialogTitle>
                     <DialogDescription>
-                        Pick files and/or folders from your global library — they will be copied into{' '}
-                        <code>resources/</code> of this flow and made available at <code>/work/resources</code> inside
-                        the container.
+                        {uiText('Pick files and/or folders from your global library — they will be copied into')}{' '}
+                        <code>resources/</code> {uiText('of this flow and made available at')}{' '}
+                        <code>/work/resources</code> {uiText('inside the container.')}
                     </DialogDescription>
                 </DialogHeader>
 

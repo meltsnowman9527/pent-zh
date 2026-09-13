@@ -3,8 +3,11 @@
 // so a missing translation is greppable from the call site's literal.
 const messages = {
     ' ({count} uses)': '（{count} 处）',
+    '. Click the arrow on a folder row or double-click the row to drill in.':
+        '。单击文件夹行上的箭头或双击该行可继续深入。',
     'about {guide}': '关于 {guide}',
     Account: '账户',
+    active: '有效',
     'Active ({count})': '进行中（{count}）',
     Adaptive: '自适应',
     'Adaptive lets the model decide how much to think; budget uses a fixed token budget; off disables thinking.':
@@ -89,6 +92,8 @@ const messages = {
     Blockquote: '引用',
     Bold: '加粗',
     'Browse files': '浏览文件',
+    'Browse the running container and select files or directories to sync into the local cache under':
+        '浏览运行中的容器，选择要同步到本地缓存目录',
     Budget: '预算',
     'Bullet list': '无序列表',
     'Cache In': '缓存读取',
@@ -308,6 +313,7 @@ const messages = {
     'Execution time and tool calls breakdown per flow': '各任务流程的耗时与工具调用明细',
     'Expand all': '全部展开',
     'Expiration date is required': '请选择过期时间',
+    expired: '已过期',
     Expires: '过期时间',
     'Extra Body': '附加请求体',
     'Extra Body (JSON)': '附加请求体（JSON）',
@@ -449,6 +455,7 @@ const messages = {
     'Insert row above': '在上方插入行',
     'Insert row below': '在下方插入行',
     'Insert table': '插入表格',
+    'inside the container.': '中可用。',
     'Invalid email address': '邮箱格式不正确',
     'Invalid login': '请输入有效的邮箱或登录账号',
     'Invalid login or password': '账号或密码错误',
@@ -613,6 +620,7 @@ const messages = {
     'Number of tool executions per day': '每天的工具执行次数',
     'OAuth account': '第三方登录账户',
     'Off (no thinking)': '关闭（不启用思考）',
+    'of this flow and made available at': '目录，并在此任务流程容器内的',
     'Only http(s) or base64 raster image URLs are allowed.': '仅支持 http(s) 或 base64 的位图地址。',
     'Only http, https, mailto and tel links are allowed.': '仅支持 http、https、mailto 与 tel 链接。',
     Open: '打开',
@@ -645,6 +653,8 @@ const messages = {
     'PDF generation failed:': 'PDF 生成失败：',
     'PentAGI is working... Click Stop to interrupt': 'PentAGI 正在执行……点击“停止”可中断',
     'Pick date': '选择日期',
+    'Pick files and/or folders from your global library — they will be copied into':
+        '从全局资源库中选择文件或文件夹，它们会被复制到',
     'Please confirm your input.': '请确认你的输入。',
     'Please fix the following validation errors:': '请修正以下校验错误：',
     'Please wait while we fetch prompt information': '正在获取提示词信息，请稍候',
@@ -760,6 +770,7 @@ const messages = {
     'Resources attached': '资源已附加',
     Result: '结果',
     'Retrieved from {target}': '已从 {target} 检索',
+    revoked: '已撤销',
     'Rich editor': '富文本',
     Right: '右对齐',
     'Row actions': '行操作',
@@ -821,6 +832,7 @@ const messages = {
     'Session expired. Please login again.': '会话已过期，请重新登录。',
     Settings: '设置',
     'Short title or question this document answers': '简短标题，或该文档回答的问题',
+    'Show all matching {title}': '显示全部匹配的{title}',
     'Show details': '展开详情',
     'Showing {start}–{end} of {total}': '第 {start}–{end} 条，共 {total} 条',
     'Show password': '显示密码',
@@ -896,6 +908,7 @@ const messages = {
     'The prompt "{id}" could not be found or is not supported for editing.': '提示词“{id}”不存在，或不支持编辑。',
     'The template you are looking for does not exist.': '要查找的提示词模板不存在。',
     'The type of language model provider': '语言模型服务的类型',
+    Thinking: '思考',
     'This assistant session has ended. Create a new one to continue.': '该交互助手会话已结束，请新建一个以继续。',
     'This flow has ended. Create a new one to continue.': '该任务流程已结束，请新建一个以继续。',
     'This model supports only adaptive thinking and cannot be disabled.': '该模型仅支持自适应思考，无法关闭。',

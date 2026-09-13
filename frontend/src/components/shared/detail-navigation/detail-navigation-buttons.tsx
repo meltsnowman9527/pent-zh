@@ -76,7 +76,7 @@ export function DetailNavigationButtons<T extends { id: string }>({
                         <span style={{ minWidth: `${widestLabel.length}ch` }}>{controller.positionLabel}</span>
                     </Button>
                 </TooltipTrigger>
-                <TooltipContent>Show all matching {lowerTitle}</TooltipContent>
+                <TooltipContent>{uiText('Show all matching {title}', { title: lowerTitle })}</TooltipContent>
             </Tooltip>
             <Tooltip>
                 <TooltipTrigger asChild>

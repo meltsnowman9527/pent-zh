@@ -383,8 +383,11 @@ function FlowFilesPullDialogForm({ cachedFiles, flowId, onClose, onSuccess }: Fl
                         {uiText('Pull from container')}
                     </DialogTitle>
                     <DialogDescription>
-                        Browse the running container and select files or directories to sync into the local cache under{' '}
-                        <code>container/</code>. Click the arrow on a folder row or double-click the row to drill in.
+                        {uiText(
+                            'Browse the running container and select files or directories to sync into the local cache under',
+                        )}{' '}
+                        <code>container/</code>
+                        {uiText('. Click the arrow on a folder row or double-click the row to drill in.')}
                     </DialogDescription>
                 </DialogHeader>
 

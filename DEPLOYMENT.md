@@ -21,8 +21,8 @@
 ## 当前部署实况（2026-09-13 复核）
 
 - `.env` 中 `PENTAGI_IMAGE=pentagi-local:latest`，本地镜像由 `Dockerfile.local` 从当前源码构建，构建过程包含 `go test -race ./pkg/controller`。
-- `pentagi` 应用容器最近一次重建于 2026-09-13 16:37:37（中文化第九批：providers/hooks/lib 侧遗漏的 toast 与登录错误文案、后端错误码 → 中文映射、ErrorState 原始诊断折叠区），运行 `pentagi-local:latest`；`pgvector`、`scraper`、`pgexporter` 仍为原配套容器，原数据库卷未替换。
-- 容器内 `/opt/pentagi/fe/index.html` 与本地 `frontend/dist/index.html` 校验值一致（md5 `4850c27f6af2354f3c28f8f7a419f7eb`），说明运行界面就是当前源码的构建产物；中文分片为 `assets/zh-CN-CZO_8hL0.js`。
+- `pentagi` 应用容器最近一次重建于 2026-09-13 17:18:49（中文化残留英文补漏：模型用量卡片标题、文件页无匹配空态、附加资源与从容器拉取弹窗说明、详情导航提示、API 令牌状态标签、复制消息的 Markdown 小标题），运行 `pentagi-local:latest`；`pgvector`、`scraper`、`pgexporter` 仍为原配套容器，原数据库卷未替换。
+- 容器内 `/opt/pentagi/fe/index.html` 与本地 `frontend/dist/index.html` 校验值一致（md5 `56adcc7cbed48967c6dbfba73ef91128`），说明运行界面就是当前源码的构建产物。
 - https://localhost:8443 返回 200；数据库 `pentagidb` 中保留原有 provider 配置与历史任务。
 
 ## 复核方式

@@ -182,8 +182,10 @@ function FlowFiles() {
                 </EmptyMedia>
                 <EmptyTitle>{uiText('No matches')}</EmptyTitle>
                 <EmptyDescription>
-                    {uiText('No files match')}
-                    <code>{search.debouncedQuery.trim()}</code>. Try a different query.
+                    {uiText('No {entity} match {query}. Try a different query.', {
+                        entity: uiText('Files'),
+                        query: `「${search.debouncedQuery.trim()}」`,
+                    })}
                 </EmptyDescription>
             </EmptyHeader>
         </Empty>

@@ -165,7 +165,7 @@ export function FlowDashboardOverview({ flowId }: { flowId: string }) {
             {!!modelAgentRows.length && (
                 <Card>
                     <CardHeader>
-                        <CardTitle>Usage by Model &amp; Provider</CardTitle>
+                        <CardTitle>{uiText('Usage by Model & Provider')}</CardTitle>
                         <CardDescription>
                             {uiText('LLM token usage and costs grouped by model and provider, with agent types used')}
                         </CardDescription>
