@@ -24,17 +24,12 @@ func (f *waitingFlowWorker) Stop(context.Context) error           { return f.wai
 func (f *waitingFlowWorker) Finish(context.Context) error         { return f.wait() }
 func (f *waitingFlowWorker) Rename(context.Context, string) error { return f.wait() }
 
-type waitingCreateQuerier struct {
-	database.Querier
-	wait func() error
-}
-
-func (q *waitingCreateQuerier) CreateFlow(context.Context, database.CreateFlowParams) (database.Flow, error) {
-	return database.Flow{}, q.wait()
-}
-
 // A slow model/database/worker operation must not make the task list and
 // unrelated task lookup wait for the entire lifecycle operation to finish.
+//
+// Creation is part of this list on purpose: the heavy half (provider probe,
+// docker preparation) moved to the job runner, but the row insert is still a
+// request-time database write and must not hold the registry lock.
 func TestFlowRegistryResponsiveDuringSlowMutation(t *testing.T) {
 	for _, operation := range []string{"create", "assistant", "stop", "finish", "rename"} {
 		t.Run(operation, func(t *testing.T) {
@@ -43,17 +38,25 @@ func TestFlowRegistryResponsiveDuringSlowMutation(t *testing.T) {
 			unblock := func() { once.Do(func() { close(release) }) }
 			defer unblock()
 			wait := func() error { close(entered); <-release; return nil }
-			fc := &flowController{
-				mx: &sync.Mutex{},
-				flows: map[int64]FlowWorker{
-					1: &waitingFlowWorker{id: 1, wait: wait},
-					2: &waitingFlowWorker{id: 2},
-				},
-				db: &waitingCreateQuerier{wait: func() error {
-					_ = wait()
-					return errors.New("controlled create failure")
-				}},
+
+			store := newFakeFlowJobStore()
+			// The job record of a stop/finish is keyed by a flow row; the registry
+			// entry alone is not enough.
+			store.flows[1] = database.Flow{ID: 1, UserID: 1, Status: database.FlowStatusRunning}
+			store.createFlowWait = func() error {
+				if err := wait(); err != nil {
+					return err
+				}
+
+				return errors.New("controlled create failure")
 			}
+
+			fc, _ := newJobTestController(store)
+			fc.flows = map[int64]FlowWorker{
+				1: &waitingFlowWorker{id: 1, wait: wait},
+				2: &waitingFlowWorker{id: 2},
+			}
+
 			ctx := context.Background()
 			done := make(chan error, 1)
 			go func() {
@@ -67,7 +70,9 @@ func TestFlowRegistryResponsiveDuringSlowMutation(t *testing.T) {
 				case "stop":
 					done <- fc.StopFlow(ctx, 1)
 				case "finish":
-					done <- fc.FinishFlow(ctx, 1)
+					// The request-time half of finishing only records the job; the
+					// cleanup that owns the slow shutdown is finishFlow.
+					done <- fc.finishFlow(ctx, 1)
 				case "rename":
 					done <- fc.RenameFlow(ctx, 1, "renamed")
 				}
@@ -115,13 +120,17 @@ func TestFlowRegistryResponsiveDuringSlowMutation(t *testing.T) {
 func TestFinishFailureKeepsFlowAvailableForRetry(t *testing.T) {
 	failure := errors.New("worker shutdown failed")
 	fw := &waitingFlowWorker{id: 1, wait: func() error { return failure }}
-	fc := &flowController{mx: &sync.Mutex{}, flows: map[int64]FlowWorker{1: fw}}
-	require.ErrorIs(t, fc.FinishFlow(context.Background(), 1), failure)
+	store := newFakeFlowJobStore()
+	fc, _ := newJobTestController(store)
+	fc.flows = map[int64]FlowWorker{1: fw}
+
+	require.ErrorIs(t, fc.finishFlow(context.Background(), 1), failure)
 	actual, err := fc.GetFlow(context.Background(), 1)
 	require.NoError(t, err)
 	require.Same(t, fw, actual)
+
 	fw.wait = func() error { return nil }
-	require.NoError(t, fc.FinishFlow(context.Background(), 1))
+	require.NoError(t, fc.finishFlow(context.Background(), 1))
 	_, err = fc.GetFlow(context.Background(), 1)
 	require.ErrorIs(t, err, ErrFlowNotFound)
 }
@@ -131,11 +140,14 @@ func TestConcurrentFinishOnlyShutsDownWorkerOnce(t *testing.T) {
 	var once sync.Once
 	defer once.Do(func() { close(release) })
 	fw := &waitingFlowWorker{id: 1, wait: func() error { close(entered); <-release; return nil }}
-	fc := &flowController{mx: &sync.Mutex{}, flows: map[int64]FlowWorker{1: fw}}
+	store := newFakeFlowJobStore()
+	fc, _ := newJobTestController(store)
+	fc.flows = map[int64]FlowWorker{1: fw}
+
 	done := make(chan error, 2)
-	go func() { done <- fc.FinishFlow(context.Background(), 1) }()
+	go func() { done <- fc.finishFlow(context.Background(), 1) }()
 	<-entered
-	go func() { done <- fc.FinishFlow(context.Background(), 1) }()
+	go func() { done <- fc.finishFlow(context.Background(), 1) }()
 	once.Do(func() { close(release) })
 	first, second := <-done, <-done
 	if first != nil {

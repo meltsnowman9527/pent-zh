@@ -2,6 +2,8 @@ package controller
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -33,7 +35,7 @@ type FlowController interface {
 		prvtype provider.ProviderType,
 		functions *tools.Functions,
 		resources []database.UserResource,
-	) (FlowWorker, error)
+	) (int64, error)
 	CreateAssistant(
 		ctx context.Context,
 		userID int64,
@@ -50,6 +52,7 @@ type FlowController interface {
 	GetFlow(ctx context.Context, flowID int64) (FlowWorker, error)
 	StopFlow(ctx context.Context, flowID int64) error
 	FinishFlow(ctx context.Context, flowID int64) error
+	GetLatestFlowJob(ctx context.Context, flowID int64) (database.FlowJob, bool)
 	RenameFlow(ctx context.Context, flowID int64, title string) error
 	RenameFlowsProvider(ctx context.Context, userID int64, oldName, newName provider.ProviderName) error
 	ResetFlowsProviderToDefault(
@@ -85,6 +88,19 @@ type flowController struct {
 	vslc        VectorStoreLogController
 	tclc        ToolCallLogController
 	sc          ScreenshotController
+	// jobs runs create/stop/finish work in the background and keeps the record of
+	// it. Guarded by its own mutex, not by lifecycleMX: the whole point is that a
+	// request returns before the slow part starts.
+	jobs      *flowJobRunner
+	recentMX  sync.Mutex
+	recentSub map[string]recentFlowCreate
+}
+
+// recentFlowCreate remembers a create submission for flowJobSubmitWindow, so a
+// double submit is answered with the flow already being initialized.
+type recentFlowCreate struct {
+	flowID   int64
+	accepted time.Time
 }
 
 func NewFlowController(
@@ -94,23 +110,27 @@ func NewFlowController(
 	provs providers.ProviderController,
 	subs subscriptions.SubscriptionsController,
 ) FlowController {
-	return &flowController{
-		db:     db,
-		mx:     &sync.Mutex{},
-		cfg:    cfg,
-		flows:  make(map[int64]FlowWorker),
-		docker: docker,
-		provs:  provs,
-		subs:   subs,
-		alc:    NewAgentLogController(db),
-		mlc:    NewMsgLogController(db),
-		aslc:   NewAssistantLogController(db),
-		slc:    NewSearchLogController(db),
-		tlc:    NewTermLogController(db),
-		vslc:   NewVectorStoreLogController(db),
-		tclc:   NewToolCallLogController(db),
-		sc:     NewScreenshotController(db),
+	fc := &flowController{
+		db:        db,
+		mx:        &sync.Mutex{},
+		cfg:       cfg,
+		flows:     make(map[int64]FlowWorker),
+		docker:    docker,
+		provs:     provs,
+		subs:      subs,
+		alc:       NewAgentLogController(db),
+		mlc:       NewMsgLogController(db),
+		aslc:      NewAssistantLogController(db),
+		slc:       NewSearchLogController(db),
+		tlc:       NewTermLogController(db),
+		vslc:      NewVectorStoreLogController(db),
+		tclc:      NewToolCallLogController(db),
+		sc:        NewScreenshotController(db),
+		recentSub: map[string]recentFlowCreate{},
 	}
+	fc.jobs = newFlowJobRunner(fc)
+
+	return fc
 }
 
 func (fc *flowController) LoadFlows(ctx context.Context) error {
@@ -153,9 +173,20 @@ func (fc *flowController) LoadFlows(ctx context.Context) error {
 		fc.mx.Unlock()
 	}
 
+	// Jobs left queued or running by a previous process are picked up here, so a
+	// restart either finishes the work or records why it could not.
+	fc.jobs.Start(ctx)
+
 	return nil
 }
 
+// CreateFlow persists the flow row and a queued lifecycle job, then returns
+// without waiting for initialization. Provider probing, docker preparation and
+// the subscription publishes happen on the job runner, so a slow model or a slow
+// docker daemon no longer holds the request (and the registry lock) hostage.
+//
+// The returned id is usable right away: the flow row exists with status
+// `created`, which is what the UI shows as "initializing".
 func (fc *flowController) CreateFlow(
 	ctx context.Context,
 	userID int64,
@@ -164,44 +195,110 @@ func (fc *flowController) CreateFlow(
 	prvtype provider.ProviderType,
 	functions *tools.Functions,
 	resources []database.UserResource,
-) (FlowWorker, error) {
+) (int64, error) {
 	fc.lifecycleMX.Lock()
 	defer fc.lifecycleMX.Unlock()
 
-	fw, err := NewFlowWorker(ctx, newFlowWorkerCtx{
-		userID:    userID,
-		input:     input,
-		prvname:   prvname,
-		prvtype:   prvtype,
-		functions: functions,
-		resources: resources,
-		flowWorkerCtx: flowWorkerCtx{
-			db:     fc.db,
-			cfg:    fc.cfg,
-			docker: fc.docker,
-			provs:  fc.provs,
-			subs:   fc.subs,
-			flowProviderControllers: flowProviderControllers{
-				mlc:  fc.mlc,
-				aslc: fc.aslc,
-				alc:  fc.alc,
-				slc:  fc.slc,
-				tlc:  fc.tlc,
-				vslc: fc.vslc,
-				tclc: fc.tclc,
-				sc:   fc.sc,
-			},
-		},
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create flow worker: %w", err)
+	if flowID, ok := fc.recentCreateFlow(userID, input, prvname); ok {
+		logrus.WithContext(ctx).WithFields(logrus.Fields{
+			"flow_id":    flowID,
+			"user_id":    userID,
+			"duplicate":  true,
+			"window_sec": int(flowJobSubmitWindow / time.Second),
+		}).Info("duplicate flow creation reused the flow already initializing")
+
+		return flowID, nil
 	}
 
-	fc.mx.Lock()
-	fc.flows[fw.GetFlowID()] = fw
-	fc.mx.Unlock()
+	flow, err := createFlowRow(ctx, fc.db, userID, prvname, prvtype)
+	if err != nil {
+		return 0, err
+	}
 
-	return fw, nil
+	functionsBlob, err := json.Marshal(functions)
+	if err != nil {
+		return flow.ID, fmt.Errorf("failed to encode flow functions: %w", err)
+	}
+
+	payload, err := encodeFlowJobPayload(flowJobPayload{
+		Input:     input,
+		Functions: functionsBlob,
+		Resources: resources,
+	})
+	if err != nil {
+		return flow.ID, err
+	}
+
+	job, err := fc.db.CreateFlowJob(ctx, database.CreateFlowJobParams{
+		FlowID:        flow.ID,
+		UserID:        userID,
+		Kind:          FlowJobKindCreate,
+		CorrelationID: newFlowJobCorrelationID(FlowJobKindCreate),
+		Payload:       payload,
+		MaxAttempts:   flowJobMaxAttempts,
+	})
+	if err != nil {
+		return flow.ID, fmt.Errorf("failed to queue flow %d initialization: %w", flow.ID, err)
+	}
+
+	logrus.WithContext(ctx).WithFields(logrus.Fields{
+		"flow_id":        flow.ID,
+		"user_id":        userID,
+		"job_id":         job.ID,
+		"correlation_id": job.CorrelationID,
+		"provider_name":  prvname.String(),
+	}).Info("flow initialization queued")
+
+	fc.rememberCreateFlow(userID, input, prvname, flow.ID)
+	fc.jobs.enqueue(job.ID)
+
+	return flow.ID, nil
+}
+
+// recentCreateKey identifies an identical create submission: same user, same
+// provider, same task text.
+func recentCreateKey(userID int64, input string, prvname provider.ProviderName) string {
+	sum := sha256.Sum256([]byte(input))
+
+	return fmt.Sprintf("%d|%s|%x", userID, prvname.String(), sum[:8])
+}
+
+func (fc *flowController) rememberCreateFlow(userID int64, input string, prvname provider.ProviderName, flowID int64) {
+	fc.recentMX.Lock()
+	defer fc.recentMX.Unlock()
+
+	fc.pruneRecentCreateFlows()
+
+	fc.recentSub[recentCreateKey(userID, input, prvname)] = recentFlowCreate{
+		flowID:   flowID,
+		accepted: time.Now(),
+	}
+}
+
+func (fc *flowController) recentCreateFlow(userID int64, input string, prvname provider.ProviderName) (int64, bool) {
+	fc.recentMX.Lock()
+	defer fc.recentMX.Unlock()
+
+	fc.pruneRecentCreateFlows()
+
+	record, ok := fc.recentSub[recentCreateKey(userID, input, prvname)]
+	if !ok {
+		return 0, false
+	}
+
+	return record.flowID, true
+}
+
+// pruneRecentCreateFlows drops submissions older than the window. Called with
+// recentMX held.
+func (fc *flowController) pruneRecentCreateFlows() {
+	cutoff := time.Now().Add(-flowJobSubmitWindow)
+
+	for key, record := range fc.recentSub {
+		if record.accepted.Before(cutoff) {
+			delete(fc.recentSub, key)
+		}
+	}
 }
 
 func (fc *flowController) CreateAssistant(
@@ -242,14 +339,22 @@ func (fc *flowController) CreateAssistant(
 	}
 
 	newFlow := func() error {
-		fw, err = NewFlowWorker(ctx, newFlowWorkerCtx{
-			userID:        userID,
-			input:         input,
-			dryRun:        true,
-			prvname:       prvname,
-			prvtype:       prvtype,
-			functions:     functions,
-			flowWorkerCtx: flowWorkerCtx,
+		flow, err := createFlowRow(ctx, fc.db, userID, prvname, prvtype)
+		if err != nil {
+			return err
+		}
+
+		fw, err = NewFlowWorker(ctx, flow, newFlowWorkerCtx{
+			userID:    userID,
+			input:     input,
+			dryRun:    true,
+			prvname:   prvname,
+			prvtype:   prvtype,
+			functions: functions,
+			// A failed assistant start has no job record to report itself through,
+			// so the row it just created is removed again.
+			dropRowOnFailure: true,
+			flowWorkerCtx:    flowWorkerCtx,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to create flow worker: %w", err)
@@ -378,15 +483,57 @@ func (fc *flowController) StopFlow(ctx context.Context, flowID int64) error {
 		return err
 	}
 
-	err = flow.Stop(ctx)
+	// Stopping is a bounded wait (stopTaskTimeout), so it stays in the request —
+	// but it is recorded like every other lifecycle operation, which is what makes
+	// "how long did stopping take, and where" answerable.
+	job, err := fc.createLifecycleJob(ctx, flowID, FlowJobKindStop, flowJobPayload{})
 	if err != nil {
+		return err
+	}
+
+	claimed, err := fc.db.ClaimFlowJob(ctx, job.ID)
+	if err != nil {
+		return fmt.Errorf("failed to claim stop job %d: %w", job.ID, err)
+	}
+
+	rec := newLifecycleRecorder(fc.db, claimed)
+
+	err = rec.Step(ctx, "stop", "stopping", func(ctx context.Context) error {
+		return flow.Stop(ctx)
+	})
+	if err != nil {
+		rec.Fail(ctx, err)
+
 		return fmt.Errorf("failed to stop flow %d: %w", flowID, err)
 	}
+
+	rec.Succeed(ctx)
 
 	return nil
 }
 
+// FinishFlow queues the cleanup and returns as soon as it is recorded. The
+// caller learns the outcome from the flow's job (GetLatestFlowJob), not from a
+// success that only means "the request did not fail".
 func (fc *flowController) FinishFlow(ctx context.Context, flowID int64) error {
+	if _, err := fc.GetFlow(ctx, flowID); err != nil {
+		return err
+	}
+
+	job, err := fc.createLifecycleJob(ctx, flowID, FlowJobKindFinish, flowJobPayload{})
+	if err != nil {
+		return err
+	}
+
+	fc.jobs.enqueue(job.ID)
+
+	return nil
+}
+
+// finishFlow is the cleanup itself, run by the lifecycle job runner: stop the
+// tasks, finish the assistants, release the executor and only then mark the flow
+// finished.
+func (fc *flowController) finishFlow(ctx context.Context, flowID int64) error {
 	fc.lifecycleMX.Lock()
 	defer fc.lifecycleMX.Unlock()
 
@@ -395,8 +542,7 @@ func (fc *flowController) FinishFlow(ctx context.Context, flowID int64) error {
 		return err
 	}
 
-	err = flow.Finish(ctx)
-	if err != nil {
+	if err := flow.Finish(ctx); err != nil {
 		return fmt.Errorf("failed to finish flow %d: %w", flowID, err)
 	}
 
@@ -405,6 +551,40 @@ func (fc *flowController) FinishFlow(ctx context.Context, flowID int64) error {
 	fc.mx.Unlock()
 
 	return nil
+}
+
+// createLifecycleJob writes the durable record of a lifecycle operation. The
+// partial unique index on (flow_id, kind) makes a concurrent duplicate fail here
+// instead of running the work twice.
+func (fc *flowController) createLifecycleJob(
+	ctx context.Context,
+	flowID int64,
+	kind string,
+	payload flowJobPayload,
+) (database.FlowJob, error) {
+	flow, err := fc.db.GetFlow(ctx, flowID)
+	if err != nil {
+		return database.FlowJob{}, fmt.Errorf("failed to load flow %d for a %s job: %w", flowID, kind, err)
+	}
+
+	encoded, err := encodeFlowJobPayload(payload)
+	if err != nil {
+		return database.FlowJob{}, err
+	}
+
+	job, err := fc.db.CreateFlowJob(ctx, database.CreateFlowJobParams{
+		FlowID:        flowID,
+		UserID:        flow.UserID,
+		Kind:          kind,
+		CorrelationID: newFlowJobCorrelationID(kind),
+		Payload:       encoded,
+		MaxAttempts:   flowJobMaxAttempts,
+	})
+	if err != nil {
+		return database.FlowJob{}, fmt.Errorf("a %s job for flow %d is already queued or running", kind, flowID)
+	}
+
+	return job, nil
 }
 
 func (fc *flowController) RenameFlow(ctx context.Context, flowID int64, title string) error {

@@ -365,14 +365,14 @@ func (s *FlowService) CreateFlow(c *gin.Context) {
 		return
 	}
 
-	fw, err := s.fc.CreateFlow(c, int64(uid), createFlow.Input, prvname, prvtype, createFlow.Functions, dbResources)
+	flowID, err := s.fc.CreateFlow(c, int64(uid), createFlow.Input, prvname, prvtype, createFlow.Functions, dbResources)
 	if err != nil {
 		logger.FromContext(c).WithError(err).Errorf("error creating flow")
 		response.Error(c, response.ErrInternal, err)
 		return
 	}
 
-	err = s.db.Model(&flow).Where("id = ?", fw.GetFlowID()).Take(&flow).Error
+	err = s.db.Model(&flow).Where("id = ?", flowID).Take(&flow).Error
 	if err != nil {
 		logger.FromContext(c).WithError(err).Errorf("error getting flow by id")
 		response.Error(c, response.ErrInternal, err)

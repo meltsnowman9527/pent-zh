@@ -7,16 +7,20 @@ package database
 import (
 	"context"
 	"database/sql"
+	"time"
 )
 
 type Querier interface {
 	AddFavoriteFlow(ctx context.Context, arg AddFavoriteFlowParams) (UserPreference, error)
+	ClaimFlowJob(ctx context.Context, id int64) (FlowJob, error)
+	CompleteFlowJob(ctx context.Context, arg CompleteFlowJobParams) (FlowJob, error)
 	CreateAPIToken(ctx context.Context, arg CreateAPITokenParams) (ApiToken, error)
 	CreateAgentLog(ctx context.Context, arg CreateAgentLogParams) (Agentlog, error)
 	CreateAssistant(ctx context.Context, arg CreateAssistantParams) (Assistant, error)
 	CreateAssistantLog(ctx context.Context, arg CreateAssistantLogParams) (Assistantlog, error)
 	CreateContainer(ctx context.Context, arg CreateContainerParams) (Container, error)
 	CreateFlow(ctx context.Context, arg CreateFlowParams) (Flow, error)
+	CreateFlowJob(ctx context.Context, arg CreateFlowJobParams) (FlowJob, error)
 	CreateFlowTemplate(ctx context.Context, arg CreateFlowTemplateParams) (FlowTemplate, error)
 	CreateMsgChain(ctx context.Context, arg CreateMsgChainParams) (Msgchain, error)
 	CreateMsgLog(ctx context.Context, arg CreateMsgLogParams) (Msglog, error)
@@ -36,6 +40,7 @@ type Querier interface {
 	DeleteAPIToken(ctx context.Context, id int64) (ApiToken, error)
 	DeleteAssistant(ctx context.Context, id int64) (Assistant, error)
 	DeleteFavoriteFlow(ctx context.Context, arg DeleteFavoriteFlowParams) (UserPreference, error)
+	DeleteFinishedFlowJobsOlderThan(ctx context.Context, updatedAt time.Time) error
 	DeleteFlow(ctx context.Context, id int64) (Flow, error)
 	DeleteFlowAssistantLog(ctx context.Context, id int64) error
 	// Delete all memory-type documents for a specific flow.
@@ -64,9 +69,11 @@ type Querier interface {
 	// (providers_name_user_id_unique is partial on deleted_at IS NULL). Mirrors the
 	// guard GetUserProvider already applies on the rename path.
 	DeleteUserProvider(ctx context.Context, arg DeleteUserProviderParams) (Provider, error)
+	FailFlowJob(ctx context.Context, arg FailFlowJobParams) (FlowJob, error)
 	GetAPIToken(ctx context.Context, id int64) (ApiToken, error)
 	GetAPITokenByTokenID(ctx context.Context, tokenID string) (ApiToken, error)
 	GetAPITokens(ctx context.Context) ([]ApiToken, error)
+	GetActiveFlowJob(ctx context.Context, arg GetActiveFlowJobParams) (FlowJob, error)
 	// Get toolcalls stats for all flows
 	GetAllFlowsToolcallsStats(ctx context.Context) ([]GetAllFlowsToolcallsStatsRow, error)
 	GetAllFlowsUsageStats(ctx context.Context) ([]GetAllFlowsUsageStatsRow, error)
@@ -89,6 +96,7 @@ type Querier interface {
 	GetFlowAssistantLogs(ctx context.Context, arg GetFlowAssistantLogsParams) ([]Assistantlog, error)
 	GetFlowAssistants(ctx context.Context, flowID int64) ([]Assistant, error)
 	GetFlowContainers(ctx context.Context, flowID int64) ([]Container, error)
+	GetFlowJob(ctx context.Context, id int64) (FlowJob, error)
 	GetFlowMsgChains(ctx context.Context, flowID int64) ([]Msgchain, error)
 	GetFlowMsgLogs(ctx context.Context, flowID int64) ([]Msglog, error)
 	GetFlowPrimaryContainer(ctx context.Context, flowID int64) (Container, error)
@@ -131,6 +139,8 @@ type Querier interface {
 	GetFlowsStatsByDayLastWeek(ctx context.Context, userID int64) ([]GetFlowsStatsByDayLastWeekRow, error)
 	// Fetch a single knowledge document by its UUID (admin view — no user_id check).
 	GetKnowledgeDocument(ctx context.Context, uuid string) (GetKnowledgeDocumentRow, error)
+	GetLatestFlowJob(ctx context.Context, flowID int64) (FlowJob, error)
+	GetLatestFlowJobsByFlowIDs(ctx context.Context, dollar_1 []int64) ([]FlowJob, error)
 	GetMsgChain(ctx context.Context, id int64) (Msgchain, error)
 	// Get all msgchains for a flow (including task and subtask level)
 	GetMsgchainsForFlow(ctx context.Context, flowID int64) ([]GetMsgchainsForFlowRow, error)
@@ -251,8 +261,14 @@ type Querier interface {
 	ListAllKnowledgeDocuments(ctx context.Context) ([]ListAllKnowledgeDocumentsRow, error)
 	// List non-memory knowledge documents belonging to a specific flow (admin scoped).
 	ListFlowKnowledgeDocuments(ctx context.Context, flowID sql.NullString) ([]ListFlowKnowledgeDocumentsRow, error)
+	ListPendingFlowJobs(ctx context.Context, limit int64) ([]FlowJob, error)
 	// List all non-memory knowledge documents owned by a specific user (user-scoped view).
 	ListUserKnowledgeDocuments(ctx context.Context, userID sql.NullString) ([]ListUserKnowledgeDocumentsRow, error)
+	// A job left running belongs to a process that died. It goes back to the queue
+	// (keeping its attempts count) so start-up can retry or fail it explicitly
+	// rather than leaving it "running" forever.
+	RecoverInterruptedFlowJobs(ctx context.Context) ([]FlowJob, error)
+	RequeueFlowJob(ctx context.Context, arg RequeueFlowJobParams) (FlowJob, error)
 	// Vector similarity search over all knowledge documents (admin view, no user filter).
 	// Returns rows ordered by cosine similarity descending (highest score first).
 	// embedding    query vector as a PostgreSQL vector literal, e.g. '[0.1,0.2,...]'
@@ -288,6 +304,7 @@ type Querier interface {
 	UpdateContainerStatus(ctx context.Context, arg UpdateContainerStatusParams) (Container, error)
 	UpdateContainerStatusLocalID(ctx context.Context, arg UpdateContainerStatusLocalIDParams) (Container, error)
 	UpdateFlow(ctx context.Context, arg UpdateFlowParams) (Flow, error)
+	UpdateFlowJobProgress(ctx context.Context, arg UpdateFlowJobProgressParams) (FlowJob, error)
 	UpdateFlowLanguage(ctx context.Context, arg UpdateFlowLanguageParams) (Flow, error)
 	UpdateFlowProvider(ctx context.Context, arg UpdateFlowProviderParams) (Flow, error)
 	UpdateFlowStatus(ctx context.Context, arg UpdateFlowStatusParams) (Flow, error)

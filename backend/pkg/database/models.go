@@ -9,6 +9,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/sqlc-dev/pqtype"
@@ -949,6 +950,25 @@ type Flow struct {
 	TraceID            sql.NullString  `json:"trace_id"`
 	ModelProviderType  ProviderType    `json:"model_provider_type"`
 	ToolCallIDTemplate string          `json:"tool_call_id_template"`
+}
+
+type FlowJob struct {
+	ID            int64           `json:"id"`
+	FlowID        int64           `json:"flow_id"`
+	UserID        int64           `json:"user_id"`
+	Kind          string          `json:"kind"`
+	Status        string          `json:"status"`
+	Step          string          `json:"step"`
+	Attempts      int16           `json:"attempts"`
+	MaxAttempts   int16           `json:"max_attempts"`
+	Error         sql.NullString  `json:"error"`
+	CorrelationID string          `json:"correlation_id"`
+	Payload       json.RawMessage `json:"payload"`
+	Segments      json.RawMessage `json:"segments"`
+	CreatedAt     time.Time       `json:"created_at"`
+	StartedAt     sql.NullTime    `json:"started_at"`
+	FinishedAt    sql.NullTime    `json:"finished_at"`
+	UpdatedAt     time.Time       `json:"updated_at"`
 }
 
 type FlowTemplate struct {

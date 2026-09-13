@@ -73,19 +73,19 @@ func (r *mutationResolver) CreateFlow(ctx context.Context, modelProvider string,
 	}
 	prvtype := prv.Type()
 
-	fw, err := r.Controller.CreateFlow(ctx, uid, input, prvname, prvtype, nil, dbResources)
+	flowID, err := r.Controller.CreateFlow(ctx, uid, input, prvname, prvtype, nil, dbResources)
 	if err != nil {
 		return nil, err
 	}
 
-	flow, err := r.DB.GetFlow(ctx, fw.GetFlowID())
+	flow, err := r.DB.GetFlow(ctx, flowID)
 	if err != nil {
 		return nil, err
 	}
 
 	var containers []database.Container
 	if _, _, err = validatePermission(ctx, "containers.view"); err == nil {
-		containers, err = r.DB.GetFlowContainers(ctx, fw.GetFlowID())
+		containers, err = r.DB.GetFlowContainers(ctx, flowID)
 		if err != nil {
 			return nil, err
 		}

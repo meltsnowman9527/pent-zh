@@ -81,6 +81,16 @@ type newFlowWorkerCtx struct {
 	functions *tools.Functions
 	resources []database.UserResource
 
+	// recording is the lifecycle job that owns this initialization, when there is
+	// one. Nil on the synchronous paths (assistant creation), which then simply
+	// record nothing.
+	recording *lifecycleRecorder
+	// dropRowOnFailure keeps the old behaviour for callers that create the row
+	// themselves and have no other way to report a failed start: the row is
+	// removed again. The job runner keeps the row and marks it failed instead, so
+	// the UI can show why a task never started.
+	dropRowOnFailure bool
+
 	flowWorkerCtx
 }
 
@@ -122,28 +132,53 @@ type flowInput struct {
 	done  chan error
 }
 
+// createFlowRow is the synchronous part of creating a flow: one INSERT that
+// gives the caller an id to return. Everything expensive — provider probing,
+// docker preparation, subscription publishing — happens after this, either in
+// the caller's request (assistant path) or on the lifecycle job runner.
+func createFlowRow(
+	ctx context.Context,
+	db database.Querier,
+	userID int64,
+	prvname provider.ProviderName,
+	prvtype provider.ProviderType,
+) (database.Flow, error) {
+	flow, err := db.CreateFlow(ctx, database.CreateFlowParams{
+		Title:              "untitled",
+		Status:             database.FlowStatusCreated,
+		Model:              "unknown",
+		ModelProviderName:  prvname.String(),
+		ModelProviderType:  database.ProviderType(prvtype),
+		Language:           "English",
+		ToolCallIDTemplate: cast.ToolCallIDTemplate,
+		Functions:          []byte("{}"),
+		UserID:             userID,
+	})
+	if err != nil {
+		obs.LogErrorOrCancel(logrus.WithContext(ctx), err, "failed to create flow in DB")
+		return database.Flow{}, fmt.Errorf("failed to create flow in DB: %w", err)
+	}
+
+	logrus.WithContext(ctx).WithFields(logrus.Fields{
+		"flow_id":       flow.ID,
+		"user_id":       userID,
+		"provider_name": prvname.String(),
+		"provider_type": prvtype.String(),
+	}).Info("flow created in DB")
+
+	return flow, nil
+}
+
+// NewFlowWorker initializes the worker for an existing flow row: provider,
+// tools executor, container preparation and the input that starts the task. The
+// row must already exist (createFlowRow or a lifecycle job created it).
 func NewFlowWorker(
 	ctx context.Context,
+	flow database.Flow,
 	fwc newFlowWorkerCtx,
 ) (_ FlowWorker, err error) {
 	ctx, span := obs.Observer.NewSpan(ctx, obs.SpanKindInternal, "controller.NewFlowWorker")
 	defer span.End()
-
-	flow, err := fwc.db.CreateFlow(ctx, database.CreateFlowParams{
-		Title:              "untitled",
-		Status:             database.FlowStatusCreated,
-		Model:              "unknown",
-		ModelProviderName:  fwc.prvname.String(),
-		ModelProviderType:  database.ProviderType(fwc.prvtype),
-		Language:           "English",
-		ToolCallIDTemplate: cast.ToolCallIDTemplate,
-		Functions:          []byte("{}"),
-		UserID:             fwc.userID,
-	})
-	if err != nil {
-		obs.LogErrorOrCancel(logrus.WithContext(ctx), err, "failed to create flow in DB")
-		return nil, fmt.Errorf("failed to create flow in DB: %w", err)
-	}
 
 	logger := logrus.WithContext(ctx).WithFields(logrus.Fields{
 		"flow_id":       flow.ID,
@@ -151,7 +186,10 @@ func NewFlowWorker(
 		"provider_name": fwc.prvname.String(),
 		"provider_type": fwc.prvtype.String(),
 	})
-	logger.Info("flow created in DB")
+
+	if fwc.recording != nil {
+		fwc.recording.Mark(ctx, "db")
+	}
 
 	// Held separately because `flow` is reassigned below by UpdateFlow, which — like every sqlc query —
 	// returns a zero-valued row alongside an error, and a cleanup aimed at id 0 deletes nothing.
@@ -160,7 +198,7 @@ func NewFlowWorker(
 	// DeleteFlow is a soft delete and the listings filter on deleted_at, so this is what keeps a flow
 	// the caller was told it never got out of the UI. Disarmed once the worker goroutine owns the flow —
 	// from there a failure is the worker's to unwind, not ours.
-	cleanupFlow := true
+	cleanupFlow := fwc.dropRowOnFailure
 	defer func() {
 		if err == nil || !cleanupFlow {
 			return
@@ -215,6 +253,10 @@ func NewFlowWorker(
 		return nil, wrapErrorEndSpan(ctx, flowSpan, "failed to get flow provider", err)
 	}
 
+	// The provider probe talks to the model service, so this is where a slow or
+	// unreachable provider shows up as its own segment.
+	fwc.recording.Mark(ctx, "provider")
+
 	functionsBlob, err := json.Marshal(fwc.functions)
 	if err != nil {
 		return nil, wrapErrorEndSpan(ctx, flowSpan, "failed to marshal functions", err)
@@ -238,6 +280,8 @@ func NewFlowWorker(
 	if err != nil {
 		return nil, wrapErrorEndSpan(ctx, flowSpan, "failed to create flow provider workers", err)
 	}
+
+	fwc.recording.Mark(ctx, "workers")
 
 	flowProvider.SetAgentLogProvider(workers.alw)
 	flowProvider.SetMsgLogProvider(workers.mlw)
@@ -295,12 +339,18 @@ func NewFlowWorker(
 		return nil, wrapErrorEndSpan(ctx, flowSpan, "failed to prepare flow resources", err)
 	}
 
+	// Container preparation is the docker half of the wait: a slow daemon or a cold
+	// image lands here, not on the provider segment.
+	fwc.recording.Mark(ctx, "docker")
+
 	containers, err := fwc.db.GetFlowContainers(ctx, flow.ID)
 	if err != nil {
 		return nil, wrapErrorEndSpan(ctx, flowSpan, "failed to get flow containers", err)
 	}
 
 	fw.flowCtx.Publisher.FlowCreated(ctx, flow, containers)
+
+	fwc.recording.Mark(ctx, "publish")
 
 	cleanupFlow = false
 
@@ -311,6 +361,8 @@ func NewFlowWorker(
 		if err := fw.PutInput(ctx, fwc.input, nil, fwc.resources); err != nil {
 			return nil, wrapErrorEndSpan(ctx, flowSpan, "failed to run flow worker", err)
 		}
+
+		fwc.recording.Mark(ctx, "input")
 	}
 
 	flowSpan.End(langfuse.WithSpanStatus("flow worker started"))
