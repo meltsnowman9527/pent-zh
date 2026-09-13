@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { uiText } from '@/locales/zh-CN';
 
 import { returnFocusToEditor } from './markdown-editor-focus';
 import { ImageEditForm } from './markdown-editor-image-edit-form';
@@ -27,7 +28,7 @@ export function ImagePopover({ disabled, editor }: ImagePopoverProps) {
                 <TooltipTrigger asChild>
                     <PopoverTrigger asChild>
                         <Button
-                            aria-label="Insert image"
+                            aria-label={uiText('Insert image')}
                             data-toolbar-item=""
                             disabled={disabled}
                             size="icon-sm"
@@ -38,7 +39,7 @@ export function ImagePopover({ disabled, editor }: ImagePopoverProps) {
                         </Button>
                     </PopoverTrigger>
                 </TooltipTrigger>
-                <TooltipContent>Insert image</TooltipContent>
+                <TooltipContent>{uiText('Insert image')}</TooltipContent>
             </Tooltip>
             <PopoverContent
                 align="start"

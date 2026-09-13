@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import type { FileNode } from '@/components/shared/file-manager';
 
 import { api, getApiErrorMessage } from '@/lib/axios';
+import { uiText } from '@/locales/zh-CN';
 
 import { RESOURCES_API_PATH } from './resources-constants';
 import { buildPathsQuery, pluralizeItems } from './resources-utils';
@@ -63,16 +64,16 @@ export function useResourcesDelete({ onAfterDelete }: UseResourcesDeleteParams =
 
                 if (filesToDelete.length === 1) {
                     const [single] = filesToDelete;
-                    toast.success(single?.isDir ? 'Directory deleted' : 'Resource deleted');
+                    toast.success(single?.isDir ? uiText('Directory deleted') : uiText('Resource deleted'));
                 } else {
                     toast.success(`${filesToDelete.length} ${pluralizeItems(filesToDelete.length)} deleted`);
                 }
 
                 onAfterDelete?.();
             } catch (error) {
-                const description = getApiErrorMessage(error, 'Failed to delete resource');
+                const description = getApiErrorMessage(error, uiText('Failed to delete resource'));
 
-                toast.error('Delete failed', { description });
+                toast.error(uiText('Delete failed'), { description });
             }
         },
         [onAfterDelete],

@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { routes } from '@/lib/routes';
+import { uiText } from '@/locales/zh-CN';
 
 const { navigate } = vi.hoisted(() => ({ navigate: vi.fn() }));
 const { toastError } = vi.hoisted(() => ({ toastError: vi.fn() }));
@@ -48,8 +49,8 @@ describe('Knowledge detail load states', () => {
 
         render(<Knowledge />);
 
-        expect(screen.getByText('Error loading knowledge document')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /Try again/ })).toBeInTheDocument();
+        expect(screen.getByText(uiText('Error loading knowledge document'))).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: uiText('Try again') })).toBeInTheDocument();
         expect(navigate).not.toHaveBeenCalled();
     });
 
@@ -63,7 +64,7 @@ describe('Knowledge detail load states', () => {
 
         render(<Knowledge />);
 
-        expect(screen.queryByText('Error loading knowledge document')).not.toBeInTheDocument();
+        expect(screen.queryByText(uiText('Error loading knowledge document'))).not.toBeInTheDocument();
         expect(toastError).toHaveBeenCalled();
         expect(navigate).toHaveBeenCalledWith(routes.knowledges, { replace: true });
     });

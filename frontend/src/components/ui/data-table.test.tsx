@@ -8,6 +8,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { uiText } from '@/locales/zh-CN';
 
 import { cycleColumnSort, DataTable, DataTableColumnHeader } from './data-table';
 
@@ -617,7 +618,7 @@ describe('DataTable — controlled pageIndex reconciliation', () => {
         // Open the rows-per-page select and pick "All".
         const trigger = screen.getByRole('combobox');
         await user.click(trigger);
-        const option = await screen.findByRole('option', { name: 'All' });
+        const option = await screen.findByRole('option', { name: uiText('All') });
         await user.click(option);
 
         // "All" collapses the dataset to a single page; the parent has to
@@ -686,6 +687,10 @@ describe('DataTable — controlled pageIndex reconciliation', () => {
 });
 
 describe('DataTable — empty results', () => {
+    const emptyTitle = uiText('No {entity} yet', { entity: 'flows' });
+    const filterEmptyDescription = (query: string) =>
+        uiText('No {entity} match {query}. Try a different query.', { entity: 'flows', query: `「${query}」` });
+
     it('does not render "Page 1 of 0" when there are no rows', () => {
         render(
             <DataTable<Row>
@@ -695,8 +700,8 @@ describe('DataTable — empty results', () => {
             { wrapper: Wrapper },
         );
 
-        expect(screen.queryByText(/Page 1 of 0/)).not.toBeInTheDocument();
-        expect(screen.getByText('No results')).toBeInTheDocument();
+        expect(screen.queryByText(uiText('Page {page} of {total}', { page: 1, total: 0 }))).not.toBeInTheDocument();
+        expect(screen.getByText(uiText('No results'))).toBeInTheDocument();
     });
 
     it('renders the bare "No results." cell when `empty.entityName` is omitted (legacy fallback)', () => {
@@ -708,9 +713,9 @@ describe('DataTable — empty results', () => {
             { wrapper: Wrapper },
         );
 
-        expect(screen.getByText('No results.')).toBeInTheDocument();
+        expect(screen.getByText(uiText('No results.'))).toBeInTheDocument();
         // The shadcn Empty title is NOT rendered without `entityName`.
-        expect(screen.queryByText('No matches')).not.toBeInTheDocument();
+        expect(screen.queryByText(uiText('No matches'))).not.toBeInTheDocument();
     });
 
     it('renders a data-empty Empty block ("No <entity> yet") when `entityName` is set and no filter is active', () => {
@@ -723,11 +728,11 @@ describe('DataTable — empty results', () => {
             { wrapper: Wrapper },
         );
 
-        expect(screen.getByText('No flows yet')).toBeInTheDocument();
+        expect(screen.getByText(emptyTitle)).toBeInTheDocument();
         // No filter ⇒ no "match" description.
-        expect(screen.queryByText(/Try a different query/)).not.toBeInTheDocument();
+        expect(screen.queryByText(filterEmptyDescription(''))).not.toBeInTheDocument();
         // Pagination footer also uses the entity copy.
-        expect(screen.getByText('No flows')).toBeInTheDocument();
+        expect(screen.getByText(uiText('No {entity}', { entity: 'flows' }))).toBeInTheDocument();
     });
 
     it('renders a filter-empty Empty block ("No <entity> match …") when `entityName` is set and a filter is active', async () => {
@@ -747,11 +752,11 @@ describe('DataTable — empty results', () => {
         // No row in ROWS has the substring "ZZZZZZ" — guarantees an empty subset.
         await user.type(input, 'ZZZZZZ');
 
-        expect(await screen.findByText('No matches')).toBeInTheDocument();
+        expect(await screen.findByText(uiText('No matches'))).toBeInTheDocument();
         // Description cites the query and offers the next-step hint.
-        const description = await screen.findByText(/Try a different query/);
+        const description = await screen.findByText(filterEmptyDescription('ZZZZZZ'));
         expect(description).toHaveTextContent('ZZZZZZ');
-        expect(description.textContent).toMatch(/^No flows match/);
+        expect(description.textContent).toContain('flows');
     });
 
     it('assigns a non-empty unique id and matching name to the filter field', () => {
@@ -898,7 +903,7 @@ describe('DataTable — multi-column search', () => {
             { wrapper: Wrapper },
         );
 
-        await user.click(screen.getByRole('button', { name: /Search in/ }));
+        await user.click(screen.getByRole('button', { name: uiText('Search in') }));
         // Uncheck the `Role` column so "reader" can no longer match Charlie.
         await user.click(await screen.findByRole('menuitemcheckbox', { name: /role/i }));
 
@@ -909,7 +914,7 @@ describe('DataTable — multi-column search', () => {
         const input = screen.getByPlaceholderText('Filter...');
         await user.type(input, 'reader');
 
-        expect(await screen.findByText('No results.')).toBeInTheDocument();
+        expect(await screen.findByText(uiText('No results.'))).toBeInTheDocument();
     });
 
     it('persists the narrowed search column set to the unified storage slot', async () => {
@@ -922,7 +927,7 @@ describe('DataTable — multi-column search', () => {
             { wrapper: Wrapper },
         );
 
-        await user.click(screen.getByRole('button', { name: /Search in/ }));
+        await user.click(screen.getByRole('button', { name: uiText('Search in') }));
         await user.click(await screen.findByRole('menuitemcheckbox', { name: /role/i }));
 
         const stored = JSON.parse(localStorage.getItem('table_4_/flows') ?? '{}');
@@ -950,7 +955,7 @@ describe('DataTable — multi-column search', () => {
         // TanStack short-circuited the filter pipeline. The composite-value
         // implementation produces a new `globalFilter` object reference, so
         // the pipeline re-runs and Alpha must disappear without retyping.
-        await user.click(screen.getByRole('button', { name: /Search in/ }));
+        await user.click(screen.getByRole('button', { name: uiText('Search in') }));
         await user.click(await screen.findByRole('menuitemcheckbox', { name: /role/i }));
 
         await waitFor(() => {
@@ -995,7 +1000,7 @@ describe('DataTable — multi-column search', () => {
         );
 
         // Picker is visible — confirms multi-mode activation via the array prop.
-        expect(screen.getByRole('button', { name: /Search in/ })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: uiText('Search in') })).toBeInTheDocument();
 
         const input = screen.getByPlaceholderText('Filter...');
         await user.type(input, 'user');
@@ -1026,7 +1031,7 @@ describe('DataTable — multi-column search', () => {
         );
 
         expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: /Search in/ })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: uiText('Search in') })).not.toBeInTheDocument();
     });
 
     it('does not render the picker in legacy single-column mode', () => {
@@ -1040,9 +1045,9 @@ describe('DataTable — multi-column search', () => {
         );
 
         expect(screen.getByRole('textbox')).toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: /Search in/ })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: uiText('Search in') })).not.toBeInTheDocument();
         // The "Columns" trigger still renders.
-        expect(screen.getByRole('button', { name: /Columns/ })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: uiText('Columns') })).toBeInTheDocument();
     });
 });
 

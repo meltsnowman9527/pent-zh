@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/sidebar';
 import { routes } from '@/lib/routes';
 import { getSafeReturnUrl } from '@/lib/utils/auth';
+import { uiText } from '@/locales/zh-CN';
 
 interface MenuItem {
     icon?: ReactNode;
@@ -34,25 +35,25 @@ const menuItems: readonly MenuItem[] = [
         icon: <User className="size-4" />,
         id: 'account',
         path: routes.settings.account,
-        title: 'Account',
+        title: uiText('Account'),
     },
     {
         icon: <Plug className="size-4" />,
         id: 'providers',
         path: routes.settings.providers,
-        title: 'Providers',
+        title: uiText('Providers'),
     },
     {
         icon: <FileText className="size-4" />,
         id: 'prompts',
         path: routes.settings.prompts,
-        title: 'Prompts',
+        title: uiText('Prompts'),
     },
     {
         icon: <Key className="size-4" />,
         id: 'api-tokens',
         path: routes.settings.apiTokens,
-        title: 'API Tokens',
+        title: uiText('API Tokens'),
     },
 ] as const;
 
@@ -71,7 +72,7 @@ export function SettingsSidebar() {
                             <SettingsIcon className="size-6" />
                         </div>
                         <div className="grid flex-1 text-left leading-tight">
-                            <span className="truncate font-semibold">Settings</span>
+                            <span className="truncate font-semibold">{uiText('Settings')}</span>
                         </div>
                     </SidebarMenuItem>
                 </SidebarMenu>
@@ -94,7 +95,7 @@ export function SettingsSidebar() {
                 <SidebarMenuButton asChild>
                     <NavLink to={returnUrl}>
                         <ArrowLeft />
-                        Back to App
+                        {uiText('Back to App')}
                     </NavLink>
                 </SidebarMenuButton>
             </SidebarFooter>

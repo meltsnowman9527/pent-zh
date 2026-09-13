@@ -2,6 +2,8 @@ import type { AxiosError, AxiosRequestConfig } from 'axios';
 
 import Axios from 'axios';
 
+import { localizeApiErrorText } from '@/lib/errors';
+import { uiText } from '@/locales/zh-CN';
 import { AUTH_STORAGE_KEY } from '@/providers/user-provider';
 
 import { Log } from './log';
@@ -84,7 +86,9 @@ axios.interceptors.response.use(
 
                 case 200: {
                     Log.error(
-                        'Failed to parse the return value, please check if the response is returned in JSON format',
+                        uiText(
+                            'Failed to parse the return value, please check if the response is returned in JSON format',
+                        ),
                     );
                     break;
                 }
@@ -93,7 +97,7 @@ axios.interceptors.response.use(
                     if (err.response?.data) {
                         Log.warn(err.response.data);
                         const warns = err.response.data as Record<string, string[]>;
-                        const globalMessage = warns[''] || ['Please confirm your input.'];
+                        const globalMessage = warns[''] || [uiText('Please confirm your input.')];
                         error.message = globalMessage[0] as string;
                     }
 
@@ -184,7 +188,7 @@ export const unwrapApiResponse = <T>(response: ApiResponse<T>): T => {
     if (!isApiSuccess(response) || response.data == null) {
         const message = !isApiSuccess(response) ? (response.msg ?? response.error) : undefined;
 
-        throw new Error(message ?? 'Unexpected response from server');
+        throw new Error(message ?? uiText('Unexpected response from server'));
     }
 
     return response.data;
@@ -255,8 +259,14 @@ export const resolveApiErrorMessage = (
     fallback: string,
 ): string => {
     const code = getApiErrorCode(error);
+    const mappedByCaller = code ? messagesByCode[code] : undefined;
 
-    return (code && messagesByCode[code]) ?? getApiErrorMessage(error, fallback);
+    if (mappedByCaller) {
+        return mappedByCaller;
+    }
+
+    // 调用方没登记该错误码时，用共享的“后端原值 → 中文说明”表兜底，避免把英文后端错误直接显示给用户。
+    return localizeApiErrorText(getApiErrorMessage(error, fallback)) || fallback;
 };
 
 export default axios;

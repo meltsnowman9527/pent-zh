@@ -8,6 +8,7 @@ import { restResourceEntryToFragment, type RestResourceList } from '@/features/r
 import { useResourcesRealtime } from '@/features/resources/use-resources-realtime';
 import { ResourcesDocument } from '@/graphql/types';
 import { api, getApiErrorMessage, unwrapApiResponse } from '@/lib/axios';
+import { uiText } from '@/locales/zh-CN';
 import { useUser } from '@/providers/user-provider';
 
 interface ResourcesContextValue {
@@ -100,7 +101,7 @@ export function ResourcesProvider({ children }: ResourcesProviderProps) {
                     return;
                 }
 
-                const message = getApiErrorMessage(caught, 'Failed to load resources');
+                const message = getApiErrorMessage(caught, uiText('Failed to load resources'));
 
                 setRestError(new Error(message));
             } finally {

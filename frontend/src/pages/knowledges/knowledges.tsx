@@ -36,6 +36,7 @@ import { KnowledgeDocType } from '@/graphql/types';
 import { useTableState } from '@/hooks/use-table-state';
 import { routes } from '@/lib/routes';
 import { mergeHrefWithSearchParams, URL_PARAMS } from '@/lib/url-params';
+import { uiText } from '@/locales/zh-CN';
 import { type Knowledge, useKnowledges } from '@/providers/knowledges-provider';
 
 const docTypeBadgeVariant: Record<KnowledgeDocType, BadgeVariant> = {
@@ -149,7 +150,7 @@ function Knowledges() {
 
         try {
             await renameKnowledge(editingKnowledgeId, newQuestion);
-            toast.success('Knowledge renamed successfully');
+            toast.success(uiText('Knowledge renamed successfully'));
             setEditingKnowledgeId(null);
         } catch {
             // Error already handled in provider with toast
@@ -209,7 +210,7 @@ function Knowledges() {
             header: ({ column }) => (
                 <DataTableColumnHeader
                     column={column}
-                    title="Type"
+                    title={uiText('Type')}
                 />
             ),
             maxSize: 180,
@@ -234,7 +235,7 @@ function Knowledges() {
                                 inputRef={editingInputRef}
                                 onCancel={handleKnowledgeRenameCancel}
                                 onSave={handleKnowledgeRenameSave}
-                                placeholder="Knowledge question"
+                                placeholder={uiText('Knowledge question')}
                             />
                         </div>
                     );
@@ -252,7 +253,7 @@ function Knowledges() {
             header: ({ column }) => (
                 <DataTableColumnHeader
                     column={column}
-                    title="Question"
+                    title={uiText('Question')}
                 />
             ),
             meta: { columnMenuLabel: 'Question', searchable: true },
@@ -285,7 +286,7 @@ function Knowledges() {
             enableSorting: false,
             header: () => (
                 <span className="text-muted-foreground inline-flex w-full items-center justify-end text-sm font-medium">
-                    Flags
+                    {uiText('Flags')}
                 </span>
             ),
             id: 'flags',
@@ -303,7 +304,7 @@ function Knowledges() {
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button
-                                    aria-label="Open menu"
+                                    aria-label={uiText('Open menu')}
                                     className="size-8 p-0"
                                     onClick={(event) => event.stopPropagation()}
                                     variant="ghost"
@@ -318,11 +319,11 @@ function Knowledges() {
                             >
                                 <DropdownMenuItem onClick={() => handleOpen(k.id)}>
                                     <Pencil />
-                                    Edit
+                                    {uiText('Edit')}
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleKnowledgeRenameStart(k)}>
                                     <PencilLine />
-                                    Rename
+                                    {uiText('Rename')}
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
@@ -332,12 +333,12 @@ function Knowledges() {
                                     {deletingIds.has(k.id) ? (
                                         <>
                                             <Spinner variant="circle" />
-                                            Deleting...
+                                            {uiText('Deleting...')}
                                         </>
                                     ) : (
                                         <>
                                             <Trash />
-                                            Delete
+                                            {uiText('Delete')}
                                         </>
                                     )}
                                 </DropdownMenuItem>
@@ -360,11 +361,11 @@ function Knowledges() {
         <>
             <ContextMenuItem onClick={() => handleOpen(k.id)}>
                 <Pencil />
-                Edit
+                {uiText('Edit')}
             </ContextMenuItem>
             <ContextMenuItem onClick={() => handleKnowledgeRenameStart(k)}>
                 <PencilLine />
-                Rename
+                {uiText('Rename')}
             </ContextMenuItem>
             <ContextMenuSeparator />
             <ContextMenuItem
@@ -372,7 +373,7 @@ function Knowledges() {
                 onClick={() => handleDeleteDialogOpen(k)}
             >
                 <Trash />
-                {deletingIds.has(k.id) ? 'Deleting...' : 'Delete'}
+                {deletingIds.has(k.id) ? uiText('Deleting...') : uiText('Delete')}
             </ContextMenuItem>
         </>
     );
@@ -380,7 +381,9 @@ function Knowledges() {
     const pageHeader = (
         <AppHeader>
             <AppHeaderContent>
-                <AppHeaderTitle icon={<LibraryBig className="size-4 shrink-0" />}>Knowledges</AppHeaderTitle>
+                <AppHeaderTitle icon={<LibraryBig className="size-4 shrink-0" />}>
+                    {uiText('Knowledges')}
+                </AppHeaderTitle>
             </AppHeaderContent>
             <AppHeaderActions>
                 <InputSearch
@@ -389,12 +392,12 @@ function Knowledges() {
                     hotkey="k"
                     maxWidth={220}
                     onSearchChange={handleSemanticQueryChange}
-                    placeholder="Semantic search..."
+                    placeholder={uiText('Semantic search...')}
                     searchQuery={semanticQuery}
                 />
                 <AppHeaderAction
                     icon={<Plus />}
-                    label="New Knowledge"
+                    label={uiText('New Knowledge')}
                     onClick={() => navigate(routes.newKnowledge)}
                     variant="secondary"
                 />
@@ -408,8 +411,8 @@ function Knowledges() {
                 {pageHeader}
                 <div className="flex flex-1 flex-col gap-4 p-4">
                     <LoadingState
-                        description="Please wait while we fetch your knowledge documents"
-                        title="Loading knowledges..."
+                        description={uiText('Please wait while we fetch your knowledge documents')}
+                        title={uiText('Loading knowledges...')}
                     />
                 </div>
             </>
@@ -425,7 +428,7 @@ function Knowledges() {
                     <ErrorState
                         message={error.message}
                         onRetry={refetch}
-                        title="Error loading knowledge documents"
+                        title={uiText('Error loading knowledge documents')}
                     />
                 </div>
             </>
@@ -442,9 +445,9 @@ function Knowledges() {
                             <EmptyMedia variant="icon">
                                 <LibraryBig />
                             </EmptyMedia>
-                            <EmptyTitle>No knowledge documents yet</EmptyTitle>
+                            <EmptyTitle>{uiText('No knowledge documents yet')}</EmptyTitle>
                             <EmptyDescription>
-                                Create your first knowledge document to enrich the vector store
+                                {uiText('Create your first knowledge document to enrich the vector store')}
                             </EmptyDescription>
                         </EmptyHeader>
                         <EmptyContent>
@@ -453,7 +456,7 @@ function Knowledges() {
                                 variant="secondary"
                             >
                                 <Plus />
-                                New Knowledge
+                                {uiText('New Knowledge')}
                             </Button>
                         </EmptyContent>
                     </Empty>
@@ -470,7 +473,7 @@ function Knowledges() {
                     columns={columns}
                     data={knowledges}
                     empty={{ entityName: 'knowledge documents' }}
-                    filterPlaceholder="Filter knowledge documents..."
+                    filterPlaceholder={uiText('Filter knowledge documents...')}
                     filterValue={filter}
                     onFilterChange={setFilter}
                     onRowClick={(k) => {
@@ -482,13 +485,13 @@ function Knowledges() {
                 />
 
                 <ConfirmationDialog
-                    cancelText="Cancel"
-                    confirmText="Delete"
+                    cancelText={uiText('Cancel')}
+                    confirmText={uiText('Delete')}
                     handleConfirm={handleDelete}
                     handleOpenChange={setIsDeleteDialogOpen}
                     isOpen={isDeleteDialogOpen}
                     itemName={deletingKnowledge?.question}
-                    itemType="knowledge document"
+                    itemType={uiText('knowledge document')}
                 />
             </div>
         </>

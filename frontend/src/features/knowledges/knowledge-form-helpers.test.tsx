@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { KnowledgeDocumentFragmentFragment } from '@/graphql/types';
 
 import { KnowledgeAnswerType, KnowledgeDocType, KnowledgeGuideType } from '@/graphql/types';
+import { uiText } from '@/locales/zh-CN';
 
 import type { DirtyFlags, FormValues } from './knowledge-form';
 
@@ -145,14 +146,16 @@ describe('formSchema', () => {
         const result = formSchema.safeParse({ ...valid, content: '' });
 
         expect(result.success).toBe(false);
-        expect(result.error?.issues.find((i) => i.path[0] === 'content')?.message).toBe('Content is required');
+        expect(result.error?.issues.find((i) => i.path[0] === 'content')?.message).toBe(uiText('Content is required'));
     });
 
     it('requires question', () => {
         const result = formSchema.safeParse({ ...valid, question: '' });
 
         expect(result.success).toBe(false);
-        expect(result.error?.issues.find((i) => i.path[0] === 'question')?.message).toBe('Question is required');
+        expect(result.error?.issues.find((i) => i.path[0] === 'question')?.message).toBe(
+            uiText('Question is required'),
+        );
     });
 
     it('enforces the question max-length message', () => {
@@ -160,7 +163,7 @@ describe('formSchema', () => {
 
         expect(result.success).toBe(false);
         expect(result.error?.issues.find((i) => i.path[0] === 'question')?.message).toBe(
-            'Question must be 2048 characters or fewer',
+            uiText('Question must be {max} characters or fewer', { max: 2048 }),
         );
     });
 
@@ -169,14 +172,14 @@ describe('formSchema', () => {
 
         expect(result.success).toBe(false);
         expect(result.error?.issues.find((i) => i.path[0] === 'description')?.message).toBe(
-            'Description must be 1000 characters or fewer',
+            uiText('{label} must be {max} characters or fewer', { label: uiText('Description'), max: 1000 }),
         );
     });
 
     it.each<[KnowledgeDocType, keyof FormValues, string]>([
-        [KnowledgeDocType.Answer, 'answerType', 'Answer type is required'],
-        [KnowledgeDocType.Code, 'codeLang', 'Code language is required'],
-        [KnowledgeDocType.Guide, 'guideType', 'Guide type is required'],
+        [KnowledgeDocType.Answer, 'answerType', uiText('Answer type is required')],
+        [KnowledgeDocType.Code, 'codeLang', uiText('Code language is required')],
+        [KnowledgeDocType.Guide, 'guideType', uiText('Guide type is required')],
     ])('requires the %s subtype field', (docType, field, message) => {
         const result = formSchema.safeParse({
             ...valid,

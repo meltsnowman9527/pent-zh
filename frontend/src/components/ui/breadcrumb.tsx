@@ -3,6 +3,7 @@ import { ChevronRight, MoreHorizontal } from 'lucide-react';
 import * as React from 'react';
 
 import { cn } from '@/lib/utils';
+import { uiText } from '@/locales/zh-CN';
 
 function Breadcrumb({
     ...props
@@ -28,7 +29,7 @@ function BreadcrumbEllipsis({ className, ...props }: React.ComponentProps<'span'
             {...props}
         >
             <MoreHorizontal className="h-4 w-4" />
-            <span className="sr-only">More</span>
+            <span className="sr-only">{uiText('More')}</span>
         </span>
     );
 }

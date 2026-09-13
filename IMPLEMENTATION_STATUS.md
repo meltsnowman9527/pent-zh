@@ -1,0 +1,67 @@
+# 当前改造进度
+
+## 本批范围
+
+只完善任务查询阻塞修复与前端中文化，不新增五阶段业务模块。
+
+- 将任务控制器的生命周期操作锁与任务注册表锁分离。模型初始化、停止和清理等待期间，任务列表和查询可以继续响应。写操作仍按原顺序执行，本批不承诺缩短模型响应时间或完成全部异步任务调度。
+- 并发测试覆盖创建自动任务、创建交互助手、停止、结束、重命名期间的查询响应，另验证结束失败后可重试及并发结束不会重复关闭任务。
+- 中文化分批推进，设置区已整体完成：
+  - 第一批：主侧栏、登录、修改密码、新建任务页、任务输入表单、模板与资源选择器、密码可见性、侧栏图标提示，以及任务操作的默认通知。
+  - 第二批：设置区侧栏、账户页、模型服务列表页；表格组件（空状态、筛选框、列选择、分页、每页行数）与确认对话框（含文件覆盖确认），并同步更新全部对话框调用方传入中文操作名与对象名。
+  - 第三批：单个模型服务配置页、API 令牌页、提示词模板页与单个提示词页，包含表单校验提示、推理参数说明、价格与附加请求体字段、测试结果徽标、令牌与提示词的增删改提示。
+  - 第四批：仪表盘整体（页签与时间范围、指标卡、用量与工具调用表格、四张图表与执行明细），以及共用指标卡、图表卡与错误态的固定文案。图表本地化包含图例名称、日期轴与提示（改为中文日期格式）、“该时间段暂无数据”、任务流程/任务/子任务占位标题。
+  - 第五批：任务流程详情区与列表页。包含流程页签（智能体/任务/终端/文件/截图/搜索/向量库/仪表盘/交互助手/自动执行）、各面板的搜索框与空状态、智能体日志与消息提示语、任务与子任务视图、工具与向量库日志、截图面板、文件页（含上传/拉取/附加资源/收录到资源库弹窗）、任务流程列表页与详情页（重命名、收藏、结束、导出 MD/PDF、报告页）。
+  - 第六批：知识库、资源与模板三个区域。包含知识文档列表与详情头部（重命名、匿名化、视图切换、原始 Markdown 提示）、知识表单控件（文档/答案/指南类型、代码语言、内容与说明、校验提示、匿名化结果提示）、资源页（列设置、文件夹优先、相对时间、新建文件夹、上传、打开、重命名或移动、复制路径提示）、模板页与模板表单（预设模板入口、表单标题与内容校验、重命名、删除）。
+  - 第七批：Markdown 编辑器工具栏与表格操作（文字样式、加粗/斜体/删除线、行内代码与代码块、引用、分割线、清除格式、撤销/重做、列表与标题菜单、链接与图片编辑表单及其限制说明、插入表格与增删行列/表头行/列对齐/清空内容、行列操作菜单），账户的邮箱与姓名修改表单，文件管理器的复制/移动/新建文件夹弹窗（含相对路径说明与覆盖提示），以及公共小组件的对话框与抽屉关闭按钮、面包屑、内联编辑、页面加载、路由错误边界、自动补全空态、文件拖放区、搜索框、日历、侧栏提示。补齐了此前遗漏的零散文案：资源页与模板页的「新建知识/新建模板」按钮、提示词原始模板编辑提示、跨字段长度校验消息（`{label} must be {max} characters or fewer` 等三条）与模型服务名称长度校验消息。
+- 第八批（补漏，含 .ts 侧与模板字面量）：第一至七批的扫描口径只看 `.tsx` 的 JSX 文本与常见属性，漏掉了 `.ts` 文件与反引号模板字面量里的用户可见文案。本批补齐：浏览器标签页标题（`lib/route-titles/index.ts` 的路由标题注册表）、路由标题的 `Flow #{id} — {title}`、API 层错误回退文案与表单校验提示（`lib/axios.ts`、`upload-validation.ts`）、文件与资源操作的 toast（上传/删除/复制/移动/新建目录/拉取/收录到资源库的成功与失败提示及其 `{count}`/`{path}` 参数化描述）、查询框与排序/清除排序、选择行与清除输入的无障碍名、Markdown 编辑器的「文字样式：」「列表：」标题与任务项复选框名、表格对齐菜单（左对齐/居中/右对齐）、文件管理器根分组标签（上传目录）、提示词页的变量跳转与「提示词不存在」空态、提示词重置确认句、模型服务类型不可用的提示。JSON 与 GraphQL 查询、日志前缀、协议名（OAuth）、键盘修饰键（Cmd/Ctrl）、类型名与数据值仍保持英文原样。
+- 第九批（错误文案与后端错误码映射）：第一至八批的扫描漏掉了 `providers/`、`hooks/`、`lib/` 三个目录（扫描范围按 `pages|components|features` 过滤），导致大量 toast 失败文案与 OAuth 登录错误仍是英文。本批补上：`providers/flow-provider`（发送消息/停止任务流程/创建、调用、停止、删除交互助手失败）、`providers/user-provider`（退出登录失败、加载用户信息失败、弹窗被拦截、已取消身份认证、身份认证超时）、`providers/resources-provider`、`providers/favorites-provider`、`providers/flows-provider`，以及文件与资源操作 hook 的失败回退文案（加载容器文件/删除文件/收录到资源库/上传文件/附加资源/从容器拉取/复制、移动、删除资源/创建目录）与 `getApiErrorMessage` 的默认回退。同时新增**后端错误码 → 中文说明**的统一映射（`lib/errors.ts` 的 `localizeApiErrorText`），`lib/axios.ts` 的 `resolveApiErrorMessage` 在调用方未登记错误码时用同一张表兜底，`ErrorState` 展示中文说明并把映射过的原始文本放进「查看原始诊断」折叠区，符合计划里“错误按稳定错误码映射为中文、原始诊断放可展开详情”的要求。
+- 中文文案集中在 `frontend/src/locales/zh-CN.ts`，键为英文原文或英文句模板，支持 `{name}` 形式的参数占位（`uiText(key, params)`）；模型名称、接口字段、路由、用户输入与机器可读状态值（如提示词状态 `Custom`/`Default`/`N/A` 的存储值）保持原义，仅展示文案经文案表转换。
+- 账户页的注册时间改用 `date-fns` 中文区域并显示为“yyyy年M月”。
+
+## 验证记录（2026-09-13）
+
+- 第一批修改文件 ESLint、格式检查通过；TypeScript 和 Vite 生产构建通过。
+- 前端全套测试初跑：1348 通过，17 失败。其中 16 项来自两个 Linux 脚本测试文件，在 Windows 上无法直接执行 shell 脚本；另一项是密码显示按钮旧英文断言。
+- 第二、三批完成后重新运行：1349 通过，16 失败，失败项全部为 `e2e/ci-codegen-gate.unit.test.ts` 与 `e2e/tools/review-sandbox.unit.test.ts` 在 Windows 上的环境限制；ESLint（`--max-warnings 0`，src 与 e2e 全量）退出码 0；`tsc -b` 通过。
+- 中文化改动同步更新了断言：`data-table.test.tsx`、`settings-providers.test.tsx`、`settings-account.test.tsx`、`settings-sidebar.test.tsx`、`settings-provider.test.tsx` 改为经 `uiText(...)` 取期望文案，避免把中文写死在测试里。`settings-provider.test.tsx` 的展开辅助函数也必须用同一文案，否则会在第二次展开时误判为已折叠。
+- Docker 构建内的控制器包 `go test -race` 通过。修改前源码曾在创建、停止、结束、重命名四项查询响应测试中复现阻塞。
+- 独立复核（本机）：把 `backend/pkg/controller/flows.go` 还原为修改前版本后，`go test -race ./pkg/controller -run TestFlowRegistryResponsiveDuringSlowMutation` 在创建、创建助手、停止、结束、重命名五项全部失败；使用当前工作区版本运行整个 controller 包结果为 `ok pentagi/pkg/controller 1.082s`。
+- 第四批（仪表盘）同样通过 ESLint、`tsc -b` 与全量测试；仪表盘目录没有测试文件，故无需调整断言。
+- 第五批（任务流程详情区）通过 ESLint、`tsc -b` 与全量测试（1349 通过 / 16 项 Windows 环境限制）；`flow-scroll-to-latest.test.tsx`、`flow-report.test.tsx` 的期望文案改为经文案表取值，交互助手列表的删除按钮改为带参数的文案 `Delete {name}`。
+- 第六批（知识库、资源、模板）通过 ESLint、`tsc -b` 与全量测试（1349 通过 / 16 项 Windows 环境限制）；`knowledge-form.test.tsx`、`knowledge-form-helpers.test.tsx`、`knowledge.test.tsx` 的期望文案改为经文案表取值。注意 `knowledge-form.test.tsx` 用桩组件替换了 `KnowledgeHeader`，桩里的「Anonymize」按钮文案也要走同一文案表，否则断言与桩不一致。
+- 第七批（编辑器工具栏、账户表单、文件管理器弹窗与公共小组件）通过 ESLint（`--max-warnings 0`，src 与 e2e 全量）、`tsc -b` 与全量测试（1349 通过 / 16 项 Windows 环境限制）；断言同步改为经文案表取值：`route-error-boundary.test.tsx`（原文案为正则匹配，改为整句文案）、`detail-navigation-toolbar.test.tsx`（上一/下一按钮）、`settings-account.test.tsx`、`knowledge-form-helpers.test.tsx`（长度校验消息改为带参数的复合模板）、`knowledge.test.tsx`、`inline-edit-input.test.tsx`（仅按钮名，`{ key: 'Enter' }` 这类键盘事件值必须保持英文，不能被替换）。
+- 第七批执行中的两次返工记入教训：一是批量替换脚本在**属性位置**把 `="Upload files"` 这类值换成裸表达式 `uiText(...)`，丢掉引号后产生语法错误（`vite build` 才会暴露，`tsc -b` 与 ESLint 都放过）；二是把「数据位置」的字面量也一并替换，导致提示词状态的类型联合与 `=== 'Custom'` 比较被破坏，并出现 `uiText(uiText(...))` 双层包裹。已按位置回退为字面量，并把 `uiText(uiText(...))` 全部折叠。结论：文案替换必须区分展示位置与数据/比较位置，且每次替换后都要跑一次生产构建，不能只看 `tsc`。
+- 第八批（补漏）通过 ESLint（`--max-warnings 0`）、`tsc -b` 与全量测试（1349 通过 / 16 项 Windows 环境限制）。断言同步改为经文案表取值：`upload-validation.test.ts`（三条上传校验消息改为带参数模板）、`input-search.test.tsx`（清除按钮无障碍名）、`markdown-editor-extensions.test.ts`（任务项复选框名）、`markdown-editor-extensions.test.ts`/`upload-validation.test.ts` 的 `@/locales/zh-CN` 导入排序、`detail-navigation-sheet.test.tsx`（空态改为带参数文案）。工具栏下拉按钮的断言不再写死正则，而是用 `uiText('List: {label}', { label: '' })` 取出本地化前缀再拼正则，中文改动不会造成测试与实现脱节。
+- 第八批暴露的口径缺陷：只扫 `.tsx` 会漏掉三类用户可见文案——`.ts` 文件（路由标题注册表、API 层、上传校验、资源/文件操作 hook）、反引号模板字面量（toast 描述、无障碍名、确认句）、以及把选项名拼进 aria-label 的位置。统计剩余英文时必须同时扫 `.ts` 与 `.tsx`，并对模板字面量与字符串字面量分别匹配。
+- 第九批（错误文案与错误码映射）通过 ESLint（`--max-warnings 0`）、`tsc -b` 与全量测试（**1371 通过 / 16 项 Windows 环境限制**，比第八批多 22 项通过，来自新增的 `lib/errors.test.ts` 契约测试）。契约：`KNOWN_API_ERROR_MESSAGES` 里每个已登记错误码都必须翻成中文（`it.each(Object.keys(...))` 检查包含中日韩字符且不等于原键），未登记的错误文本必须原样返回且 `hasLocalizedApiErrorText` 为 false——忘了翻译新错误码或把中文文案又包一层，测试都会红。
+- 第九批踩到的坑记录：替换脚本扫到了文案表文件自身，把键 `'An error occurred while creating assistant'` 写成了表达式 `uiText('...')`，造成自引用 import（TS2440）与重复键（TS1117）；同时产生了 `uiText(uiText('X'))` 双重包裹。规则：批量替换必须排除 `locales/`，且每次替换后折叠一次双重包裹并跑 `tsc -b`。
+- 部署复核：`pentagi` 容器于 2026-09-13 16:37:37 重建（第九批），运行 `pentagi-local:latest`；容器内 `/opt/pentagi/fe/index.html` 与本地 `frontend/dist/index.html` 校验值一致（md5 `4850c27f6af2354f3c28f8f7a419f7eb`）；https://localhost:8443 返回 200；容器静态文件中可检索到「查看原始诊断」「需要登录后继续」「加载资源失败」「上传文件失败」「已取消身份认证」「服务内部错误」。
+- 部署复核：`pentagi` 容器于 2026-09-13 16:26:08 重建（第八批），运行 `pentagi-local:latest`；容器内 `/opt/pentagi/fe/index.html` 与本地 `frontend/dist/index.html` 校验值一致（md5 `ceaf97c0c6d117a5888fdb6d3ec4e02e`）；https://localhost:8443 返回 200；容器静态文件（`zh-CN-CZO_8hL0.js`）中可检索到「资源已复制」「已复制到剪贴板」「上传目录」「左对齐」「上传失败」「任务流程 #」「删除{count}」「文件数量过多」。
+- 部署复核：`pentagi` 容器于 2026-09-13 16:11:37 重建（第七批），运行 `pentagi-local:latest`；容器内 `/opt/pentagi/fe/index.html` 与本地 `frontend/dist/index.html` 校验值一致（md5 `40cc62c280e066ebf4817668016dd9f7`）；https://localhost:8443 返回 200；容器静态文件（`zh-CN-CZO_8hL0.js`）中可检索到「文字样式」「插入表格」「覆盖复制」「最多 50 个字符」「上一个」。此前 15:40:33 的重建（第六批），运行 `pentagi-local:latest`；容器静态文件中可检索到「语义搜索」「预设模板」。此前 15:29:26 的重建（第五批），运行 `pentagi-local:latest`；容器静态文件中可检索到「该任务流程已结束」「滚动到最新消息」。此前 15:17:55 的重建（第四批），运行 `pentagi-local:latest`；容器静态文件中可检索到「任务流程活动趋势」「该时间段暂无数据」。此前 15:10:33 的重建（第三批），运行 `pentagi-local:latest`；容器内 `/opt/pentagi/fe/index.html` 与本地 `frontend/dist/index.html` 校验值一致；容器静态文件中可检索到「推理配置」「模型服务测试结果」等新文案；https://localhost:8443 返回 200；`pentagidb` 中保留原有 provider 配置与历史任务。
+
+## 扫描口径说明
+
+统计“还剩多少英文文案”时必须扫描 `frontend/src` 下的**全部**非测试 `.ts` 与 `.tsx`（只扫 `.tsx` 会漏掉路由标题注册表、API 层、上传校验与资源/文件操作 hook 里的用户可见文案），并把已出现的 `uiText(...)` 调用遮蔽后再匹配，不能跳过已接入文案表的文件：早期版本跳过这些文件，导致 `flow-files.tsx`、`flow-assistant-messages.tsx`、`flows.tsx` 等已接入文案表的文件里剩余的英文没有被统计，进度被高估。匹配要覆盖五类：JSX 文本节点（单行与多行）、常见属性值（含自定义属性）、字符串字面量、**反引号模板字面量**（toast 描述、无障碍名、确认句大量藏在这里），以及把选项名拼进 `aria-label` 的位置。加入新文案时，词条去重要同时检查 `'Key':` 与裸标识符 `Key:` 两种写法，否则会写出重复键，`tsc` 会以 TS1117 报错。
+
+替换位置比词条数量更容易出错，每次批量替换后必须区分并按位置处理：
+
+- **展示位置**（JSX 文本、`aria-label`/`placeholder`/`title`/`label`/`description` 等属性值、`toast.*` 与表单校验消息）→ 换成 `uiText(...)`。
+- **数据位置**（类型联合、`===`/`!==`/`case`/`.includes()` 比较值、对象里的存储字段、GraphQL 错误码、路由、测试夹具、键盘事件 `{ key: 'Enter' }`）→ **保持英文原值**，只翻译渲染出来的那一份。
+- 属性值替换要保引号与花括号：`label="Upload files"` 应写成 `label={uiText('Upload files')}`，直接替换字面量会得到 `label=uiText('Upload files')`，这种语法错误 `tsc -b` 与 ESLint 不报，只有 `vite build` 会失败，所以每批都必须跑一次生产构建。
+- 批量替换脚本可能对同一文件跑两次，产生 `uiText(uiText('Key'))` 双层包裹，结果取不到词条而返回原键；替换后要全库折叠一次。
+
+## 已修复的工具问题
+
+`scripts/update.ps1` 以 UTF-8 无 BOM 保存，本机只有 Windows PowerShell 5.1，它会按 ANSI 代码页读取无 BOM 脚本，导致中文提示与 `{ }` 结构被解析器判错，脚本实际上无法直接运行。已在脚本头部写入 UTF-8 BOM，解析检查通过后按原流程完成构建与部署。该文件今后必须保持 UTF-8 BOM 保存。
+
+## 尚未完成
+
+- 全站中文化：源码层面的界面文案已清完。118 个非测试源文件接入文案表（`frontend/src/locales/zh-CN.ts`，约 960 条词条），23 个测试文件改为经 `uiText(...)` 取期望文案。按第九批修正后的口径（`frontend/src` 下全部非测试 `.ts` 与 `.tsx`，遮蔽 `uiText(...)` 后匹配 JSX 文本、多行文本、常见属性、字符串字面量与反引号模板字面量，范围含 `providers/`、`hooks/`、`lib/`）剩余英文逐条确认后，全部属于**不应翻译**的四类：品牌与产品名（PentAGI、GraphQL Playground、Swagger UI、Kimi/MiniMax/Qwen 等模型服务商名）、类型与数据值（`Promise`、`None`、GraphQL 错误码、GraphQL 查询文本、`Record<string, boolean>`）、日志与示例（`Redirection failed:`、`GraphQL WebSocket closed`、示例 URL、字体名、`Cmd`/`Ctrl` 等按键名）、模板页内置的 11 个预设模板名称与正文（生成提示词用内容）。技术参数名 `Top K`/`Top P` 与协议名 `OAuth` 同样保留英文。
+- P0A 验收项里**尚未实测**的部分（源码扫描与构建校验不能替代）：① 页面走查——中文变长造成的截断、换行、按钮宽度、图标按钮布局，目前只做了源码扫描与产物校验，没有在浏览器里逐页走查，也没有登录后台走查受权限保护的页面；② 前端生成报告/PDF 的固定标题与表头核对（`report-pdf.tsx` 已使用 `NotoSansSC` 中文字体，但固定表头未逐项核对）；③ 读屏工具实测无障碍名（`aria-label` 已全部中文化，未实测）。计划里的“错误码映射为中文说明、原始诊断放可展开详情”已由第九批实现（见 `lib/errors.ts` 与 `ErrorState`），但后端新增错误码时需要同步登记，否则会退回展示英文原文。
+- 任务创建与删除的完整后台作业机制（P0 第 3、5 条）：目前只缩小了锁范围，未给创建/停止/删除增加分段耗时与关联标识，未实现持久作业记录与失败重试，也未测量 p95 响应基线，未做慢模型/慢 Docker/故障注入验收。
+- 资产发现/漏洞扫描、漏洞收集、利用链推理、渗透测试、报告输出的业务改造与对应页面。原始运行日志和第三方错误内容不属于静态文案替换范围。
+
+## 部署方式
+
+只使用原 Compose 项目及其数据库等配套服务。`scripts/update.ps1` 从当前源码构建并替换同名 `pentagi` 应用；不新增第二套展示容器，不制作旧版备份。当前部署实况与复核命令见 `DEPLOYMENT.md`。

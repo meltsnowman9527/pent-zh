@@ -48,7 +48,7 @@ const { FlowForm } = await import('./flow-form');
 const attachResource = async () => {
     await waitFor(() => expect(uploadParams.current).not.toBeNull());
     uploadParams.current!.onSuccess({ items: [{ id: 7 }] });
-    await screen.findByRole('button', { name: 'Remove scope.txt' });
+    await screen.findByRole('button', { name: '移除 scope.txt' });
 };
 
 beforeEach(() => {
@@ -72,12 +72,12 @@ describe('FlowForm attachments', () => {
         await attachResource();
 
         await user.type(screen.getByRole('textbox'), 'scan it');
-        await user.click(screen.getByRole('button', { name: 'Submit' }));
+        await user.click(screen.getByRole('button', { name: '提交' }));
 
         await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce());
         expect(onSubmit.mock.calls[0]?.[0]).toMatchObject({ message: 'scan it', resourceIds: ['7'] });
 
-        await waitFor(() => expect(screen.queryByRole('button', { name: 'Remove scope.txt' })).not.toBeInTheDocument());
+        await waitFor(() => expect(screen.queryByRole('button', { name: '移除 scope.txt' })).not.toBeInTheDocument());
     });
 
     it('does not resend the previous attachments on the next submit', async () => {
@@ -95,11 +95,11 @@ describe('FlowForm attachments', () => {
         await attachResource();
 
         await user.type(screen.getByRole('textbox'), 'first');
-        await user.click(screen.getByRole('button', { name: 'Submit' }));
+        await user.click(screen.getByRole('button', { name: '提交' }));
         await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce());
 
         await user.type(screen.getByRole('textbox'), 'second');
-        await user.click(screen.getByRole('button', { name: 'Submit' }));
+        await user.click(screen.getByRole('button', { name: '提交' }));
 
         await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(2));
         expect(onSubmit.mock.calls[1]?.[0]).toMatchObject({ message: 'second', resourceIds: [] });
@@ -122,6 +122,6 @@ describe('FlowForm attachments', () => {
             />,
         );
 
-        expect(await screen.findByRole('button', { name: 'Remove scope.txt' })).toBeInTheDocument();
+        expect(await screen.findByRole('button', { name: '移除 scope.txt' })).toBeInTheDocument();
     });
 });

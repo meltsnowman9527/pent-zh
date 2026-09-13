@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { StatusType } from '@/graphql/types';
+import { uiText } from '@/locales/zh-CN';
 
 const flowState = vi.hoisted(() => ({ current: {} as Record<string, unknown> }));
 
@@ -62,17 +63,21 @@ const renderWithFlow = (state: Record<string, unknown>, ui: React.ReactElement) 
 
 describe('scroll-to-latest buttons carry an accessible name', () => {
     it.each([
-        ['Scroll to latest agent log', { flowData: { agentLogs: [item] } }, <FlowAgents key="agents" />],
-        ['Scroll to latest tool log', { flowData: { searchLogs: [item] } }, <FlowTools key="tools" />],
+        [uiText('Scroll to latest agent log'), { flowData: { agentLogs: [item] } }, <FlowAgents key="agents" />],
+        [uiText('Scroll to latest tool log'), { flowData: { searchLogs: [item] } }, <FlowTools key="tools" />],
         [
-            'Scroll to latest vector store log',
+            uiText('Scroll to latest vector store log'),
             { flowData: { vectorStoreLogs: [item] } },
             <FlowVectorStores key="vector-stores" />,
         ],
-        ['Scroll to latest task', { flowData: { tasks: [item] } }, <FlowTasks key="tasks" />],
-        ['Scroll to latest screenshot', { flowData: { screenshots: [item] } }, <FlowScreenshots key="screenshots" />],
+        [uiText('Scroll to latest task'), { flowData: { tasks: [item] } }, <FlowTasks key="tasks" />],
         [
-            'Scroll to latest message',
+            uiText('Scroll to latest screenshot'),
+            { flowData: { screenshots: [item] } },
+            <FlowScreenshots key="screenshots" />,
+        ],
+        [
+            uiText('Scroll to latest message'),
             {
                 flowData: { messageLogs: [item] },
                 flowStatus: StatusType.Running,
@@ -81,7 +86,7 @@ describe('scroll-to-latest buttons carry an accessible name', () => {
             },
             <FlowAutomationMessages key="automation" />,
         ],
-        ['Scroll to latest message', assistantFlowState, <FlowAssistantMessages key="assistant" />],
+        [uiText('Scroll to latest message'), assistantFlowState, <FlowAssistantMessages key="assistant" />],
     ])('names the %s button', (name, state, ui) => {
         renderWithFlow(state, ui);
 
@@ -94,8 +99,10 @@ describe('assistant list', () => {
         const user = userEvent.setup({ delay: null });
         renderWithFlow(assistantFlowState, <FlowAssistantMessages />);
 
-        await user.click(screen.getByRole('button', { name: 'Select assistant' }));
+        await user.click(screen.getByRole('button', { name: uiText('Select assistant') }));
 
-        expect(await screen.findByRole('button', { name: 'Delete Recon assistant' })).toBeInTheDocument();
+        expect(
+            await screen.findByRole('button', { name: uiText('Delete {name}', { name: 'Recon assistant' }) }),
+        ).toBeInTheDocument();
     });
 });

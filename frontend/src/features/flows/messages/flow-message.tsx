@@ -10,6 +10,7 @@ import { MessageLogType, ResultFormat } from '@/graphql/types';
 import { copyMessageToClipboard } from '@/lib/clipboard';
 import { cn } from '@/lib/utils';
 import { formatDate } from '@/lib/utils/format';
+import { uiText } from '@/locales/zh-CN';
 
 import FlowMessageTypeIcon from './flow-message-type-icon';
 
@@ -164,7 +165,7 @@ function FlowMessage({ log, searchValue = '' }: FlowMessageProps) {
                             className="cursor-pointer"
                             onClick={toggleThinking}
                         >
-                            {isThinkingVisible ? 'Hide thinking' : 'Show thinking'}
+                            {isThinkingVisible ? uiText('Hide thinking') : uiText('Show thinking')}
                         </div>
                     </div>
                 )}
@@ -186,7 +187,7 @@ function FlowMessage({ log, searchValue = '' }: FlowMessageProps) {
                             className="cursor-pointer"
                             onClick={toggleDetails}
                         >
-                            {isDetailsVisible ? 'Hide details' : 'Show details'}
+                            {isDetailsVisible ? uiText('Hide details') : uiText('Show details')}
                         </div>
                         {renderDetailsContent()}
                     </div>
@@ -205,7 +206,7 @@ function FlowMessage({ log, searchValue = '' }: FlowMessageProps) {
                             onClick={handleCopy}
                         />
                     </TooltipTrigger>
-                    <TooltipContent>Copy</TooltipContent>
+                    <TooltipContent>{uiText('Copy')}</TooltipContent>
                 </Tooltip>
                 <span className="text-muted-foreground/50">{formatDate(new Date(createdAt))}</span>
                 <span

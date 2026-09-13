@@ -5,6 +5,7 @@ import type { OverwriteOutcome } from '@/components/shared/overwrite';
 
 import { resourceIdsToWire } from '@/features/resources/resources-rest';
 import { api, getApiErrorMessage, getApiErrorStatusCode } from '@/lib/axios';
+import { uiText } from '@/locales/zh-CN';
 
 import type { FlowFilesResponse } from './flow-files-utils';
 
@@ -51,9 +52,9 @@ export function useFlowFilesAttachResources({
             } catch (error) {
                 // Non-numeric IDs indicate an upstream cache contract bug, not a user
                 // mistake. Surface a developer-friendly toast and bail out loudly.
-                const description = error instanceof Error ? error.message : 'Invalid resource IDs.';
+                const description = error instanceof Error ? error.message : uiText('Invalid resource IDs.');
 
-                toast.error('Attach failed', { description });
+                toast.error(uiText('Attach failed'), { description });
 
                 return { kind: 'error' };
             }
@@ -70,8 +71,11 @@ export function useFlowFilesAttachResources({
                     { timeout: 0 },
                 );
 
-                toast.success('Resources attached', {
-                    description: `Copied ${numericIds.length} ${numericIds.length === 1 ? 'item' : 'items'} to ${RESOURCES_TARGET_DIRECTORY}`,
+                toast.success(uiText('Resources attached'), {
+                    description: uiText('Copied {count} items to {dir}', {
+                        count: numericIds.length,
+                        dir: RESOURCES_TARGET_DIRECTORY,
+                    }),
                 });
                 onSuccess?.();
 
@@ -81,9 +85,9 @@ export function useFlowFilesAttachResources({
                     return { kind: 'conflict' };
                 }
 
-                const description = getApiErrorMessage(error, 'Failed to attach resources');
+                const description = getApiErrorMessage(error, uiText('Failed to attach resources'));
 
-                toast.error('Attach failed', { description });
+                toast.error(uiText('Attach failed'), { description });
 
                 return { kind: 'error' };
             } finally {

@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { KnowledgeDocumentFragmentFragment } from '@/graphql/types';
 
 import { KnowledgeAnswerType, KnowledgeDocType } from '@/graphql/types';
+import { uiText } from '@/locales/zh-CN';
 
 import type { FormValues, SubmitResult } from './knowledge-form';
 
@@ -78,7 +79,7 @@ vi.mock('./knowledge-header', () => ({
                 disabled={isAnonymizeDisabled}
                 type="button"
             >
-                Anonymize
+                {uiText('Anonymize')}
             </button>
         </div>
     ),
@@ -127,7 +128,7 @@ describe('KnowledgeForm — create', () => {
 
         await user.type(screen.getByLabelText('content'), 'hello world');
         await user.type(screen.getByLabelText('question'), 'why');
-        await user.click(screen.getByRole('button', { name: 'Create' }));
+        await user.click(screen.getByRole('button', { name: uiText('Create') }));
 
         await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce());
         const [values, dirty] = onSubmit.mock.lastCall!;
@@ -157,7 +158,7 @@ describe('KnowledgeForm — update', () => {
         const question = screen.getByLabelText('question');
         await user.clear(question);
         await user.type(question, 'updated question');
-        await user.click(screen.getByRole('button', { name: 'Save' }));
+        await user.click(screen.getByRole('button', { name: uiText('Save') }));
 
         await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce());
         const [values, dirty] = onSubmit.mock.lastCall!;
@@ -166,7 +167,7 @@ describe('KnowledgeForm — update', () => {
 
         // Save re-disables once the post-save reset clears isDirty — a deterministic
         // anchor for the negative navigate assertion below.
-        await waitFor(() => expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled());
+        await waitFor(() => expect(screen.getByRole('button', { name: uiText('Save') })).toBeDisabled());
         expect(navigate).not.toHaveBeenCalled();
     });
 
@@ -208,14 +209,14 @@ describe('KnowledgeForm — update', () => {
         const question = screen.getByLabelText('question');
         await user.clear(question);
         await user.type(question, 'updated question');
-        await user.click(screen.getByRole('button', { name: 'Save' }));
+        await user.click(screen.getByRole('button', { name: uiText('Save') }));
 
         await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce());
 
         // editValues.content is 'existing content'; reaching the server value proves the
         // form took `documentToFormValues(result.document)`, not the local `values` fallback.
         await waitFor(() => expect(screen.getByLabelText('content')).toHaveValue('server normalized content'));
-        expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+        expect(screen.getByRole('button', { name: uiText('Save') })).toBeDisabled();
     });
 
     it('keeps Save disabled until the form is dirty', async () => {
@@ -230,10 +231,10 @@ describe('KnowledgeForm — update', () => {
             />,
         );
 
-        expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+        expect(screen.getByRole('button', { name: uiText('Save') })).toBeDisabled();
 
         await user.type(screen.getByLabelText('question'), '!');
-        await waitFor(() => expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled());
+        await waitFor(() => expect(screen.getByRole('button', { name: uiText('Save') })).toBeEnabled());
     });
 });
 
@@ -249,9 +250,9 @@ describe('KnowledgeForm — anonymize wiring', () => {
             />,
         );
 
-        expect(screen.getByRole('button', { name: 'Anonymize' })).toBeDisabled();
+        expect(screen.getByRole('button', { name: uiText('Anonymize') })).toBeDisabled();
 
         await user.type(screen.getByLabelText('content'), 'secret data');
-        await waitFor(() => expect(screen.getByRole('button', { name: 'Anonymize' })).toBeEnabled());
+        await waitFor(() => expect(screen.getByRole('button', { name: uiText('Anonymize') })).toBeEnabled());
     });
 });

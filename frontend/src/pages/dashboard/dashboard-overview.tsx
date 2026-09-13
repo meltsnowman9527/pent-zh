@@ -19,6 +19,7 @@ import {
     UsageStatsTotalDocument,
 } from '@/graphql/types';
 import { formatCost, formatDuration, formatNumber, formatTokenCount } from '@/lib/utils/format';
+import { uiText } from '@/locales/zh-CN';
 
 export function DashboardOverview() {
     const {
@@ -85,43 +86,49 @@ export function DashboardOverview() {
         <div className="flex flex-col gap-6">
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <MetricCard
-                    description={`Tasks: ${flowsTotal?.totalTasksCount ?? 0} · Subtasks: ${flowsTotal?.totalSubtasksCount ?? 0} · Assistants: ${flowsTotal?.totalAssistantsCount ?? 0}`}
+                    description={uiText('Tasks: {tasks} · Subtasks: {subtasks} · Assistants: {assistants}', {
+                        assistants: flowsTotal?.totalAssistantsCount ?? 0,
+                        subtasks: flowsTotal?.totalSubtasksCount ?? 0,
+                        tasks: flowsTotal?.totalTasksCount ?? 0,
+                    })}
                     error={!!flowsTotalError}
                     icon={<GitFork className="text-muted-foreground size-4" />}
                     loading={flowsTotalLoading}
-                    title="Total Flows"
+                    title={uiText('Total Flows')}
                     value={flowsTotal ? formatNumber(flowsTotal.totalFlowsCount) : '0'}
                 />
                 <MetricCard
-                    description={`Total duration: ${toolcallsTotal ? formatDuration(toolcallsTotal.totalDurationSeconds) : '—'}`}
+                    description={uiText('Total duration: {duration}', {
+                        duration: toolcallsTotal ? formatDuration(toolcallsTotal.totalDurationSeconds) : '—',
+                    })}
                     error={!!toolcallsTotalError}
                     icon={<Activity className="text-muted-foreground size-4" />}
                     loading={toolcallsTotalLoading}
-                    title="Tool Calls"
+                    title={uiText('Tool Calls')}
                     value={toolcallsTotal ? formatNumber(toolcallsTotal.totalCount) : '0'}
                 />
                 <MetricCard
-                    description="Input + Output tokens processed"
+                    description={uiText('Input + Output tokens processed')}
                     error={!!usageTotalError}
                     icon={<Cpu className="text-muted-foreground size-4" />}
                     loading={usageTotalLoading}
-                    title="Total Tokens"
+                    title={uiText('Total Tokens')}
                     value={formatTokenCount(totalTokens)}
                 />
                 <MetricCard
-                    description="Total LLM spending across all providers"
+                    description={uiText('Total LLM spending across all providers')}
                     error={!!usageTotalError}
                     icon={<CircleDollarSign className="text-muted-foreground size-4" />}
                     loading={usageTotalLoading}
-                    title="Total Cost"
+                    title={uiText('Total Cost')}
                     value={formatCost(totalCost)}
                 />
             </div>
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Usage by Provider</CardTitle>
-                    <CardDescription>LLM token usage and costs grouped by provider</CardDescription>
+                    <CardTitle>{uiText('Usage by Provider')}</CardTitle>
+                    <CardDescription>{uiText('LLM token usage and costs grouped by provider')}</CardDescription>
                 </CardHeader>
                 <CardContent>
                     {usageByProviderLoading ? (
@@ -136,8 +143,8 @@ export function DashboardOverview() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Usage by Model</CardTitle>
-                    <CardDescription>LLM token usage and costs grouped by model</CardDescription>
+                    <CardTitle>{uiText('Usage by Model')}</CardTitle>
+                    <CardDescription>{uiText('LLM token usage and costs grouped by model')}</CardDescription>
                 </CardHeader>
                 <CardContent>
                     {usageByModelLoading ? (
@@ -152,8 +159,8 @@ export function DashboardOverview() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Usage by Agent Type</CardTitle>
-                    <CardDescription>LLM token usage and costs grouped by agent type</CardDescription>
+                    <CardTitle>{uiText('Usage by Agent Type')}</CardTitle>
+                    <CardDescription>{uiText('LLM token usage and costs grouped by agent type')}</CardDescription>
                 </CardHeader>
                 <CardContent>
                     {usageByAgentTypeLoading ? (
@@ -168,8 +175,8 @@ export function DashboardOverview() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Tool Calls by Function</CardTitle>
-                    <CardDescription>Execution statistics for each tool function</CardDescription>
+                    <CardTitle>{uiText('Tool Calls by Function')}</CardTitle>
+                    <CardDescription>{uiText('Execution statistics for each tool function')}</CardDescription>
                 </CardHeader>
                 <CardContent>
                     {toolcallsByFunctionLoading ? (
@@ -180,11 +187,15 @@ export function DashboardOverview() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead className="whitespace-nowrap">Function</TableHead>
-                                    <TableHead className="whitespace-nowrap">Type</TableHead>
-                                    <TableHead className="text-right whitespace-nowrap">Count</TableHead>
-                                    <TableHead className="text-right whitespace-nowrap">Total Duration</TableHead>
-                                    <TableHead className="text-right whitespace-nowrap">Avg Duration</TableHead>
+                                    <TableHead className="whitespace-nowrap">{uiText('Function')}</TableHead>
+                                    <TableHead className="whitespace-nowrap">{uiText('Type')}</TableHead>
+                                    <TableHead className="text-right whitespace-nowrap">{uiText('Count')}</TableHead>
+                                    <TableHead className="text-right whitespace-nowrap">
+                                        {uiText('Total Duration')}
+                                    </TableHead>
+                                    <TableHead className="text-right whitespace-nowrap">
+                                        {uiText('Avg Duration')}
+                                    </TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -193,7 +204,7 @@ export function DashboardOverview() {
                                         <TableCell className="font-medium">{item.functionName}</TableCell>
                                         <TableCell>
                                             <Badge variant={item.isAgent ? 'secondary' : 'outline'}>
-                                                {item.isAgent ? 'Agent' : 'Tool'}
+                                                {item.isAgent ? uiText('Agent') : uiText('Tool')}
                                             </Badge>
                                         </TableCell>
                                         <TableCell className="text-right">{formatNumber(item.totalCount)}</TableCell>
@@ -251,14 +262,14 @@ function UsageStatsTable({ rows }: { rows: Array<{ label: string; stats: UsageSt
         <Table>
             <TableHeader>
                 <TableRow>
-                    <TableHead className="whitespace-nowrap">Name</TableHead>
-                    <TableHead className="text-right whitespace-nowrap">Tokens In</TableHead>
-                    <TableHead className="text-right whitespace-nowrap">Tokens Out</TableHead>
-                    <TableHead className="text-right whitespace-nowrap">Cache In</TableHead>
-                    <TableHead className="text-right whitespace-nowrap">Cache Out</TableHead>
-                    <TableHead className="text-right whitespace-nowrap">Cost In</TableHead>
-                    <TableHead className="text-right whitespace-nowrap">Cost Out</TableHead>
-                    <TableHead className="text-right whitespace-nowrap">Total Cost</TableHead>
+                    <TableHead className="whitespace-nowrap">{uiText('Name')}</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">{uiText('Tokens In')}</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">{uiText('Tokens Out')}</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">{uiText('Cache In')}</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">{uiText('Cache Out')}</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">{uiText('Cost In')}</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">{uiText('Cost Out')}</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">{uiText('Total Cost')}</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>

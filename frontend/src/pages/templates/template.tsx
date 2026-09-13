@@ -43,16 +43,23 @@ import { useBreakpoint } from '@/hooks/use-breakpoint';
 import { isNotFoundError } from '@/lib/errors';
 import { routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
+import { uiText } from '@/locales/zh-CN';
 import { type Template, useTemplates } from '@/providers/templates-provider';
 
 const formSchema = z.object({
-    text: z.string().trim().min(1, { message: 'Text is required' }),
-    title: z.string().trim().min(1, { message: 'Title is required' }),
+    text: z
+        .string()
+        .trim()
+        .min(1, { message: uiText('Text is required') }),
+    title: z
+        .string()
+        .trim()
+        .min(1, { message: uiText('Title is required') }),
 });
 
 type FormValues = z.infer<typeof formSchema>;
 
-const PRESETS_TITLE = 'Preset templates';
+const PRESETS_TITLE = uiText('Preset templates');
 
 const PRESET_TEMPLATES: { text: string; title: string }[] = [
     {
@@ -333,7 +340,7 @@ function TemplateForm({ templateId }: { templateId?: string }) {
             // Send the server's current `text`, not the form's, so renaming the title never persists the
             // user's unsaved body edits — those stay dirty in the form (kept by `keepDirtyValues`) until they save.
             await updateTemplate(templateId, { text: template.text, title: newTitle });
-            toast.success('Template renamed successfully');
+            toast.success(uiText('Template renamed successfully'));
             handleTemplateRenameCancel();
         } catch {
             // Error already handled in provider with toast
@@ -456,7 +463,7 @@ function TemplateForm({ templateId }: { templateId?: string }) {
                                         inputRef={editingInputRef}
                                         onCancel={handleTemplateRenameCancel}
                                         onSave={handleTemplateRenameSave}
-                                        placeholder="Template title"
+                                        placeholder={uiText('Template title')}
                                     />
                                 ) : hasTemplate ? (
                                     <Tooltip>
@@ -468,11 +475,11 @@ function TemplateForm({ templateId }: { templateId?: string }) {
                                                 {templateName ?? 'Template'}
                                             </BreadcrumbPage>
                                         </TooltipTrigger>
-                                        <TooltipContent>Double-click to rename</TooltipContent>
+                                        <TooltipContent>{uiText('Double-click to rename')}</TooltipContent>
                                     </Tooltip>
                                 ) : (
                                     <BreadcrumbPage className="min-w-0 truncate">
-                                        {isNew ? 'New template' : (templateName ?? 'Template')}
+                                        {isNew ? uiText('New template') : (templateName ?? uiText('Template'))}
                                     </BreadcrumbPage>
                                 )}
                             </BreadcrumbItem>
@@ -493,14 +500,14 @@ function TemplateForm({ templateId }: { templateId?: string }) {
                             disabled={isTemplatePending || (!isNew && !hasUnsavedChanges)}
                             form="template-form"
                             icon={<Save />}
-                            label={isNew ? 'Create' : 'Save'}
+                            label={isNew ? uiText('Create') : uiText('Save')}
                             loading={isSaving}
                             type="submit"
                         />
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button
-                                    aria-label="Template actions"
+                                    aria-label={uiText('Template actions')}
                                     className="size-8 p-0"
                                     variant="ghost"
                                 >
@@ -521,7 +528,7 @@ function TemplateForm({ templateId }: { templateId?: string }) {
                                                     onSelect={(event) => event.preventDefault()}
                                                 >
                                                     <FileText />
-                                                    Templates
+                                                    {uiText('Templates')}
                                                     <div className="-my-1.5 -mr-2 ml-auto flex items-center">
                                                         <DetailNavigationButtons<Template>
                                                             controller={templateNav}
@@ -538,7 +545,7 @@ function TemplateForm({ templateId }: { templateId?: string }) {
                                             onClick={handleTemplateRenameStart}
                                         >
                                             <Pencil />
-                                            Rename
+                                            {uiText('Rename')}
                                         </DropdownMenuItem>
                                         <DropdownMenuSeparator />
                                     </>
@@ -547,12 +554,12 @@ function TemplateForm({ templateId }: { templateId?: string }) {
                                     className="cursor-default gap-4 hover:bg-transparent focus:bg-transparent"
                                     onSelect={(event) => event.preventDefault()}
                                 >
-                                    View
+                                    {uiText('View')}
                                     <EditorViewModeToggle
                                         className="-my-1.5 -mr-2 ml-auto"
                                         mode={viewMode}
                                         onModeChange={setViewMode}
-                                        rawTooltip="Edit the raw template"
+                                        rawTooltip={uiText('Edit the raw template')}
                                     />
                                 </DropdownMenuItem>
                                 {!isNew && (
@@ -565,12 +572,12 @@ function TemplateForm({ templateId }: { templateId?: string }) {
                                             {isDeleting ? (
                                                 <>
                                                     <Spinner variant="circle" />
-                                                    Deleting...
+                                                    {uiText('Deleting...')}
                                                 </>
                                             ) : (
                                                 <>
                                                     <Trash />
-                                                    Delete
+                                                    {uiText('Delete')}
                                                 </>
                                             )}
                                         </DropdownMenuItem>
@@ -661,7 +668,7 @@ function TemplateForm({ templateId }: { templateId?: string }) {
                     </Badge>
                 </h4>
                 <p className="text-muted-foreground mt-1 text-xs">
-                    Click a preset to fill the form, or expand it to preview the content.
+                    {uiText('Click a preset to fill the form, or expand it to preview the content.')}
                 </p>
             </div>
             {presetsList()}
@@ -698,8 +705,10 @@ function TemplateForm({ templateId }: { templateId?: string }) {
 
     const introBlock = (
         <div className="flex flex-col gap-2 text-center">
-            <h2 className="text-2xl font-semibold">{isNew ? 'Create a new template' : 'Edit template'}</h2>
-            <p className="text-muted-foreground">Add a title and content, or start from a preset.</p>
+            <h2 className="text-2xl font-semibold">
+                {isNew ? uiText('Create a new template') : uiText('Edit template')}
+            </h2>
+            <p className="text-muted-foreground">{uiText('Add a title and content, or start from a preset.')}</p>
         </div>
     );
 
@@ -709,12 +718,12 @@ function TemplateForm({ templateId }: { templateId?: string }) {
             name="title"
             render={({ field }) => (
                 <FormItem>
-                    <FormLabel>Title</FormLabel>
+                    <FormLabel>{uiText('Title')}</FormLabel>
                     <FormControl>
                         <Input
                             autoFocus={isNew}
                             disabled={isSaving}
-                            placeholder="A short name for this template"
+                            placeholder={uiText('A short name for this template')}
                             {...field}
                         />
                     </FormControl>
@@ -732,12 +741,12 @@ function TemplateForm({ templateId }: { templateId?: string }) {
                 <FormItem className="flex min-h-0 flex-1 flex-col">
                     <FormControl>
                         <MarkdownEditorField
-                            aria-label="Template content"
+                            aria-label={uiText('Template content')}
                             disabled={isSaving}
                             mode={viewMode}
                             onBlur={field.onBlur}
                             onChange={field.onChange}
-                            placeholder="Describe the task, or start from a preset"
+                            placeholder={uiText('Describe the task, or start from a preset')}
                             ref={field.ref}
                             value={field.value}
                         />
@@ -769,7 +778,7 @@ function TemplateForm({ templateId }: { templateId?: string }) {
                     <ErrorState
                         message={templateLoadError.message}
                         onRetry={() => refetchTemplate()}
-                        title="Error loading template"
+                        title={uiText('Error loading template')}
                     />
                 </div>
             </div>
@@ -783,9 +792,11 @@ function TemplateForm({ templateId }: { templateId?: string }) {
                 <div className="flex flex-1 items-center justify-center p-4">
                     <Card className="w-full max-w-2xl">
                         <CardContent className="flex flex-col items-center gap-4 pt-6 text-center">
-                            <h2 className="text-xl font-semibold">Template not found</h2>
-                            <p className="text-muted-foreground">The template you are looking for does not exist.</p>
-                            <Button onClick={() => navigate(routes.templates)}>Back to Templates</Button>
+                            <h2 className="text-xl font-semibold">{uiText('Template not found')}</h2>
+                            <p className="text-muted-foreground">
+                                {uiText('The template you are looking for does not exist.')}
+                            </p>
+                            <Button onClick={() => navigate(routes.templates)}>{uiText('Back to Templates')}</Button>
                         </CardContent>
                     </Card>
                 </div>
@@ -826,9 +837,9 @@ function TemplateForm({ templateId }: { templateId?: string }) {
             </Form>
             <ConfirmationDialog
                 confirmIcon={<FileSymlink />}
-                confirmText="Replace"
+                confirmText={uiText('Replace')}
                 confirmVariant="default"
-                description="Current form has content. Replace with the selected preset?"
+                description={uiText('Current form has content. Replace with the selected preset?')}
                 handleConfirm={handleConfirmReplacePreset}
                 handleOpenChange={(open) => {
                     if (!open) {
@@ -838,16 +849,16 @@ function TemplateForm({ templateId }: { templateId?: string }) {
                     setIsReplaceConfirmOpen(open);
                 }}
                 isOpen={isReplaceConfirmOpen}
-                title="Replace content?"
+                title={uiText('Replace content?')}
             />
             <ConfirmationDialog
-                cancelText="Cancel"
-                confirmText="Delete"
+                cancelText={uiText('Cancel')}
+                confirmText={uiText('Delete')}
                 handleConfirm={handleTemplateDelete}
                 handleOpenChange={setIsDeleteDialogOpen}
                 isOpen={isDeleteDialogOpen}
                 itemName={templateName ?? undefined}
-                itemType="template"
+                itemType={uiText('template')}
             />
             <UnsavedChangesDialog
                 canSave={isValid}

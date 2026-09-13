@@ -1,5 +1,7 @@
 import { ClipboardCopy, Copy, Download, FileSymlink, FolderOutput, Trash2 } from 'lucide-react';
 
+import { uiText } from '@/locales/zh-CN';
+
 import type { FileManagerAction, FileManagerBulkAction, FileNode } from './file-manager-types';
 
 /**
@@ -21,7 +23,7 @@ export const downloadAction = (
         getHrefDownloadAttr: (file) => (file.isDir ? `${file.name}.${archiveExtension}` : file.name),
         icon: Download,
         id: '__builtin_download',
-        label: 'Download',
+        label: uiText('Download'),
         onSelect: () => {},
     };
 };
@@ -30,7 +32,7 @@ export const copyPathAction = (onCopyPath: (file: FileNode) => void): FileManage
     appliesToDirs: true,
     icon: ClipboardCopy,
     id: '__builtin_copy_path',
-    label: 'Copy path',
+    label: uiText('Copy path'),
     onSelect: onCopyPath,
 });
 
@@ -42,7 +44,7 @@ export const deleteAction = (onDelete: (file: FileNode) => void): FileManagerAct
     appliesToDirs: true,
     icon: Trash2,
     id: '__builtin_delete',
-    label: 'Delete',
+    label: uiText('Delete'),
     onSelect: onDelete,
     separatorBefore: true,
     variant: 'destructive',
@@ -55,7 +57,7 @@ interface BulkDeleteOptions {
     confirmText?: string;
     /** Confirm-dialog title formatter. Default: "Delete N items". */
     confirmTitle?: (countLabel: string) => string;
-    /** Trigger label in the bar. Default: "Delete". */
+    /** Trigger label in the bar. Default: uiText('Delete'). */
     label?: string;
 }
 
@@ -68,15 +70,16 @@ export const bulkDeleteAction = (
     onDelete: (files: FileNode[]) => Promise<void> | void,
     options: BulkDeleteOptions = {},
 ): FileManagerBulkAction => {
-    const label = options.label ?? 'Delete';
+    const label = options.label ?? uiText('Delete');
 
     return {
         confirm: {
             confirmText: options.confirmText ?? label,
             description:
                 options.confirmDescription ??
-                ((countLabel) => `This will delete ${countLabel}. This action cannot be undone.`),
-            title: options.confirmTitle ?? ((countLabel) => `Delete ${countLabel}`),
+                ((countLabel) =>
+                    uiText('This will delete {count}. This action cannot be undone.', { count: countLabel })),
+            title: options.confirmTitle ?? ((countLabel) => uiText('Delete {count}', { count: countLabel })),
         },
         icon: Trash2,
         id: '__builtin_bulk_delete',
@@ -97,7 +100,7 @@ export const bulkCopyPathsAction = (
 ): FileManagerBulkAction => ({
     icon: ClipboardCopy,
     id: '__builtin_bulk_copy_paths',
-    label: options.label ?? 'Copy paths',
+    label: options.label ?? uiText('Copy paths'),
     onSelect: (files) => onCopy(files.map((file) => file.path)),
     overflow: options.overflow ?? true,
 });
@@ -142,7 +145,7 @@ export const bulkPromoteAction = (
 ): FileManagerBulkAction => ({
     icon: FolderOutput,
     id: '__builtin_bulk_promote',
-    label: options.label ?? 'Save as resources',
+    label: options.label ?? uiText('Save as resources'),
     onSelect: onPromote,
     overflow: options.overflow,
 });
@@ -186,7 +189,7 @@ export const bulkDownloadAction = (
 ): FileManagerBulkAction => ({
     icon: Download,
     id: '__builtin_bulk_download',
-    label: options.label ?? 'Download',
+    label: options.label ?? uiText('Download'),
     onSelect: (files) => {
         if (files.length === 0) {
             return;

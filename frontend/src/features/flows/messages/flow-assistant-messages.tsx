@@ -22,6 +22,7 @@ import { useAutoScroll } from '@/hooks/use-auto-scroll';
 import { Log } from '@/lib/log';
 import { cn } from '@/lib/utils';
 import { formatName } from '@/lib/utils/format';
+import { uiText } from '@/locales/zh-CN';
 import { isProviderValid } from '@/models/provider';
 import { useFlow } from '@/providers/flow-provider';
 import { useProviders } from '@/providers/providers-provider';
@@ -159,7 +160,7 @@ function AssistantsDropdown({
 
                 {!isDisabled && (
                     <Button
-                        aria-label={`Delete ${assistant.title}`}
+                        aria-label={uiText('Delete {name}', { name: assistant.title })}
                         className="text-muted-foreground hover:text-destructive absolute top-1/2 right-0.5 shrink-0 -translate-y-1/2 opacity-0 transition-opacity group-hover:opacity-100"
                         onClick={(event) => {
                             event.stopPropagation();
@@ -183,7 +184,7 @@ function AssistantsDropdown({
             >
                 <PopoverTrigger asChild>
                     <Button
-                        aria-label="Select assistant"
+                        aria-label={uiText('Select assistant')}
                         className="px-2"
                         disabled={isAssistantCreating}
                         variant="outline"
@@ -201,7 +202,7 @@ function AssistantsDropdown({
                             </>
                         ) : (
                             <span className="bg-muted text-muted-foreground flex h-5 shrink-0 items-center justify-center rounded px-1 text-xs font-medium">
-                                New
+                                {uiText('New')}
                             </span>
                         )}
                         <ChevronDown className="opacity-50" />
@@ -212,9 +213,9 @@ function AssistantsDropdown({
                     className="w-[400px] p-0"
                 >
                     <Command>
-                        <CommandInput placeholder="Search assistants..." />
+                        <CommandInput placeholder={uiText('Search assistants...')} />
                         <CommandList>
-                            <CommandEmpty>No assistants found.</CommandEmpty>
+                            <CommandEmpty>{uiText('No assistants found.')}</CommandEmpty>
 
                             {!isDisabled && (
                                 <CommandGroup>
@@ -227,13 +228,15 @@ function AssistantsDropdown({
                                         value="create-new-assistant"
                                     >
                                         <Plus />
-                                        Create new assistant
+                                        {uiText('Create new assistant')}
                                     </CommandItem>
                                 </CommandGroup>
                             )}
 
                             {assistantsGroup.active.length > 0 && (
-                                <CommandGroup heading={`Active (${assistantsGroup.active.length})`}>
+                                <CommandGroup
+                                    heading={uiText('Active ({count})', { count: assistantsGroup.active.length })}
+                                >
                                     {assistantsGroup.active.map(({ assistant, index }) =>
                                         renderAssistantItem(assistant, index),
                                     )}
@@ -241,7 +244,9 @@ function AssistantsDropdown({
                             )}
 
                             {assistantsGroup.finished.length > 0 && (
-                                <CommandGroup heading={`Finished (${assistantsGroup.finished.length})`}>
+                                <CommandGroup
+                                    heading={uiText('Finished ({count})', { count: assistantsGroup.finished.length })}
+                                >
                                     {assistantsGroup.finished.map(({ assistant, index }) =>
                                         renderAssistantItem(assistant, index),
                                     )}
@@ -249,7 +254,9 @@ function AssistantsDropdown({
                             )}
 
                             {assistantsGroup.failed.length > 0 && (
-                                <CommandGroup heading={`Failed (${assistantsGroup.failed.length})`}>
+                                <CommandGroup
+                                    heading={uiText('Failed ({count})', { count: assistantsGroup.failed.length })}
+                                >
                                     {assistantsGroup.failed.map(({ assistant, index }) =>
                                         renderAssistantItem(assistant, index),
                                     )}
@@ -261,14 +268,14 @@ function AssistantsDropdown({
             </Popover>
 
             <ConfirmationDialog
-                cancelText="Cancel"
-                confirmText="Delete"
+                cancelText={uiText('Cancel')}
+                confirmText={uiText('Delete')}
                 handleConfirm={handleConfirmDelete}
                 handleOpenChange={setDeleteDialogOpen}
                 isOpen={deleteDialogOpen}
                 itemName={currentAssistant?.title}
-                itemType="assistant"
-                title="Delete Assistant"
+                itemType={uiText('assistant')}
+                title={uiText('Delete Assistant')}
             />
         </>
     );
@@ -455,29 +462,29 @@ function FlowAssistantMessages({ className }: FlowAssistantMessagesProps) {
         }
 
         if (!selectedAssistant?.status) {
-            return 'Type a message to create a new assistant...';
+            return uiText('Type a message to create a new assistant...');
         }
 
         switch (selectedAssistant.status) {
             case StatusType.Created: {
-                return 'Assistant is starting...';
+                return uiText('Assistant is starting...');
             }
 
             case StatusType.Failed:
             case StatusType.Finished: {
-                return 'This assistant session has ended. Create a new one to continue.';
+                return uiText('This assistant session has ended. Create a new one to continue.');
             }
 
             case StatusType.Running: {
-                return 'Assistant is running... Click Stop to interrupt';
+                return uiText('Assistant is running... Click Stop to interrupt');
             }
 
             case StatusType.Waiting: {
-                return 'Continue the conversation...';
+                return uiText('Continue the conversation...');
             }
 
             default: {
-                return 'Type your message...';
+                return uiText('Type your message...');
             }
         }
     }, [flowId, isAssistantCreating, selectedAssistant?.status]);
@@ -521,13 +528,13 @@ function FlowAssistantMessages({ className }: FlowAssistantMessagesProps) {
                                                 {...field}
                                                 autoComplete="off"
                                                 disabled={isAssistantCreating}
-                                                placeholder="Search messages..."
+                                                placeholder={uiText('Search messages...')}
                                                 type="text"
                                             />
                                             {field.value && (
                                                 <InputGroupAddon align="inline-end">
                                                     <InputGroupButton
-                                                        aria-label="Clear message search"
+                                                        aria-label={uiText('Clear message search')}
                                                         disabled={isAssistantCreating}
                                                         onClick={() => {
                                                             form.reset({ search: '' });
@@ -555,8 +562,8 @@ function FlowAssistantMessages({ className }: FlowAssistantMessagesProps) {
                         <EmptyMedia variant="icon">
                             <Spinner variant="circle" />
                         </EmptyMedia>
-                        <EmptyTitle>Creating assistant...</EmptyTitle>
-                        <EmptyDescription>Please wait while we set up your new assistant</EmptyDescription>
+                        <EmptyTitle>{uiText('Creating assistant...')}</EmptyTitle>
+                        <EmptyDescription>{uiText('Please wait while we set up your new assistant')}</EmptyDescription>
                     </EmptyHeader>
                 </Empty>
             ) : selectedAssistantId ? (
@@ -578,7 +585,7 @@ function FlowAssistantMessages({ className }: FlowAssistantMessagesProps) {
 
                         {!isScrolledToBottom && (
                             <Button
-                                aria-label="Scroll to latest message"
+                                aria-label={uiText('Scroll to latest message')}
                                 className="absolute right-4 bottom-4 z-10 shadow-md hover:shadow-lg"
                                 onClick={() => scrollToEnd()}
                                 size="icon-sm"
@@ -598,8 +605,10 @@ function FlowAssistantMessages({ className }: FlowAssistantMessagesProps) {
                             <EmptyMedia variant="icon">
                                 <ListFilter />
                             </EmptyMedia>
-                            <EmptyTitle>No messages found</EmptyTitle>
-                            <EmptyDescription>Try adjusting your search or filter parameters</EmptyDescription>
+                            <EmptyTitle>{uiText('No messages found')}</EmptyTitle>
+                            <EmptyDescription>
+                                {uiText('Try adjusting your search or filter parameters')}
+                            </EmptyDescription>
                         </EmptyHeader>
                         <EmptyContent>
                             <Button
@@ -607,7 +616,7 @@ function FlowAssistantMessages({ className }: FlowAssistantMessagesProps) {
                                 variant="outline"
                             >
                                 <X />
-                                Reset filters
+                                {uiText('Reset filters')}
                             </Button>
                         </EmptyContent>
                     </Empty>
@@ -617,8 +626,8 @@ function FlowAssistantMessages({ className }: FlowAssistantMessagesProps) {
                             <EmptyMedia variant="icon">
                                 <Plus />
                             </EmptyMedia>
-                            <EmptyTitle>No messages</EmptyTitle>
-                            <EmptyDescription>No messages found for this assistant</EmptyDescription>
+                            <EmptyTitle>{uiText('No messages')}</EmptyTitle>
+                            <EmptyDescription>{uiText('No messages found for this assistant')}</EmptyDescription>
                         </EmptyHeader>
                     </Empty>
                 )
@@ -628,8 +637,10 @@ function FlowAssistantMessages({ className }: FlowAssistantMessagesProps) {
                         <EmptyMedia variant="icon">
                             <Plus />
                         </EmptyMedia>
-                        <EmptyTitle>New assistant</EmptyTitle>
-                        <EmptyDescription>Type a message below to create a new assistant...</EmptyDescription>
+                        <EmptyTitle>{uiText('New assistant')}</EmptyTitle>
+                        <EmptyDescription>
+                            {uiText('Type a message below to create a new assistant...')}
+                        </EmptyDescription>
                     </EmptyHeader>
                 </Empty>
             )}

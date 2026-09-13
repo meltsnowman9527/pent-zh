@@ -6,6 +6,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { uiText } from '@/locales/zh-CN';
 
 import { DetailNavigationToolbar } from './detail-navigation-toolbar';
 import { useDetailNavigation } from './use-detail-navigation';
@@ -82,8 +83,8 @@ const renderToolbar = (props: HarnessProps = {}) => {
 describe('DetailNavigationToolbar', () => {
     it('renders a disabled cluster when raw items is empty', () => {
         renderToolbar({ items: [] });
-        expect(screen.getByRole('button', { name: /Previous/i })).toBeDisabled();
-        expect(screen.getByRole('button', { name: /Next/i })).toBeDisabled();
+        expect(screen.getByRole('button', { name: uiText('Previous') })).toBeDisabled();
+        expect(screen.getByRole('button', { name: uiText('Next') })).toBeDisabled();
         expect(screen.getByRole('button', { name: /–\/0/ })).toBeDisabled();
     });
 
@@ -106,8 +107,8 @@ describe('DetailNavigationToolbar', () => {
         renderToolbar({ currentId: 'c' });
 
         // Buttons present (smoke).
-        expect(screen.getByRole('button', { name: /Previous/i })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /Next/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: uiText('Previous') })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: uiText('Next') })).toBeInTheDocument();
 
         // Position trigger opens the sheet.
         await user.click(screen.getByRole('button', { name: /3\/4/ }));
@@ -122,19 +123,19 @@ describe('DetailNavigationToolbar', () => {
 
     it('disables Prev for the first item', () => {
         renderToolbar({ currentId: 'a' });
-        expect(screen.getByRole('button', { name: /Previous/i })).toBeDisabled();
+        expect(screen.getByRole('button', { name: uiText('Previous') })).toBeDisabled();
     });
 
     it('disables Next for the last item', () => {
         renderToolbar({ currentId: 'd' });
-        expect(screen.getByRole('button', { name: /Next/i })).toBeDisabled();
+        expect(screen.getByRole('button', { name: uiText('Next') })).toBeDisabled();
     });
 
     it('Next navigates to the next sibling preserving `?q=`', async () => {
         const user = userEvent.setup();
         renderToolbar({ currentId: 'a', filter: 'a' });
 
-        await user.click(screen.getByRole('button', { name: /Next/i }));
+        await user.click(screen.getByRole('button', { name: uiText('Next') }));
 
         await waitFor(() => {
             expect(screen.getByTestId('location').textContent).toContain('/items/b');

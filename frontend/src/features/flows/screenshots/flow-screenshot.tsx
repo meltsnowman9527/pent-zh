@@ -8,6 +8,7 @@ import { buttonVariants } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { formatDate } from '@/lib/utils/format';
+import { uiText } from '@/locales/zh-CN';
 import { baseUrl } from '@/models/api';
 
 interface FlowScreenshotProps {
@@ -62,7 +63,7 @@ function FlowScreenshot({ screenshot }: FlowScreenshotProps) {
                                     <span className="truncate font-semibold">{screenshot.url}</span>
                                 </Link>
                             </TooltipTrigger>
-                            <TooltipContent>Source URL</TooltipContent>
+                            <TooltipContent>{uiText('Source URL')}</TooltipContent>
                         </Tooltip>
                     </div>
 

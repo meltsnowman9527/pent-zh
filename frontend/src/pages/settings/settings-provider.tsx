@@ -76,6 +76,7 @@ import { useAppForm } from '@/hooks/use-app-form';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
 import { routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
+import { uiText } from '@/locales/zh-CN';
 
 interface ProviderTest {
     error?: null | string;
@@ -464,7 +465,7 @@ function FormModelComboboxItem<T extends FieldValues = FieldValues>({
                         <InputGroupAddon align="inline-end">
                             <PopoverTrigger asChild>
                                 <InputGroupButton
-                                    aria-label={`Open ${label.toLowerCase()} list`}
+                                    aria-label={uiText('Open {label} list', { label: label.toLowerCase() })}
                                     disabled={disabled}
                                     size="icon-sm"
                                 >
@@ -655,7 +656,7 @@ const agentConfigSchema = z
 
 const formSchema = z.object({
     agents: z.record(z.string(), agentConfigSchema).optional(),
-    name: requiredString('Provider name is required').pipe(z.string().max(50, 'Maximum 50 characters allowed')),
+    name: requiredString('Provider name is required').pipe(z.string().max(50, uiText('Maximum 50 characters allowed'))),
     type: requiredString('Provider type is required'),
 });
 
@@ -720,11 +721,11 @@ const getReasoningMode = (mode: null | string | undefined): null | ReasoningMode
 };
 
 const reasoningEffortLabel: Record<ReasoningEffort, string> = {
-    [ReasoningEffort.High]: 'High',
-    [ReasoningEffort.Low]: 'Low',
-    [ReasoningEffort.Max]: 'Max',
-    [ReasoningEffort.Medium]: 'Medium',
-    [ReasoningEffort.Xhigh]: 'Extra High',
+    [ReasoningEffort.High]: uiText('High'),
+    [ReasoningEffort.Low]: uiText('Low'),
+    [ReasoningEffort.Max]: uiText('Max'),
+    [ReasoningEffort.Medium]: uiText('Medium'),
+    [ReasoningEffort.Xhigh]: uiText('Extra High'),
 };
 
 const defaultReasoningEfforts: ReasoningEffort[] = [ReasoningEffort.Low, ReasoningEffort.Medium, ReasoningEffort.High];
@@ -770,7 +771,7 @@ function ReasoningFields({
     return (
         <div className="col-span-full p-px">
             <div className="mt-6 flex flex-col gap-4">
-                <h4 className="text-sm font-medium">Reasoning Configuration</h4>
+                <h4 className="text-sm font-medium">{uiText('Reasoning Configuration')}</h4>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     {(supportsAdaptive || canDisable) && (
                         <FormField
@@ -778,7 +779,7 @@ function ReasoningFields({
                             name={`agents.${agentKey}.reasoning.mode`}
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Reasoning Mode</FormLabel>
+                                    <FormLabel>{uiText('Reasoning Mode')}</FormLabel>
                                     <Select
                                         disabled={isLoading || (isAdaptiveOnly && !canDisable)}
                                         onValueChange={(value) => field.onChange(value !== 'none' ? value : null)}
@@ -786,28 +787,40 @@ function ReasoningFields({
                                     >
                                         <FormControl>
                                             <SelectTrigger>
-                                                <SelectValue placeholder="Select reasoning mode" />
+                                                <SelectValue placeholder={uiText('Select reasoning mode')} />
                                             </SelectTrigger>
                                         </FormControl>
                                         <SelectContent>
-                                            {!isAdaptiveOnly && <SelectItem value="none">Not selected</SelectItem>}
+                                            {!isAdaptiveOnly && (
+                                                <SelectItem value="none">{uiText('Not selected')}</SelectItem>
+                                            )}
                                             {supportsAdaptive && (
-                                                <SelectItem value={ReasoningMode.Adaptive}>Adaptive</SelectItem>
+                                                <SelectItem value={ReasoningMode.Adaptive}>
+                                                    {uiText('Adaptive')}
+                                                </SelectItem>
                                             )}
                                             {!isAdaptiveOnly && (
-                                                <SelectItem value={ReasoningMode.Budget}>Budget</SelectItem>
+                                                <SelectItem value={ReasoningMode.Budget}>{uiText('Budget')}</SelectItem>
                                             )}
                                             {canDisable && (
-                                                <SelectItem value={ReasoningMode.Off}>Off (no thinking)</SelectItem>
+                                                <SelectItem value={ReasoningMode.Off}>
+                                                    {uiText('Off (no thinking)')}
+                                                </SelectItem>
                                             )}
                                         </SelectContent>
                                     </Select>
                                     <FormDescription>
                                         {isAdaptiveOnly
                                             ? canDisable
-                                                ? 'This model thinks adaptively; choose Off to disable thinking.'
-                                                : 'This model supports only adaptive thinking and cannot be disabled.'
-                                            : 'Adaptive lets the model decide how much to think; budget uses a fixed token budget; off disables thinking.'}
+                                                ? uiText(
+                                                      'This model thinks adaptively; choose Off to disable thinking.',
+                                                  )
+                                                : uiText(
+                                                      'This model supports only adaptive thinking and cannot be disabled.',
+                                                  )
+                                            : uiText(
+                                                  'Adaptive lets the model decide how much to think; budget uses a fixed token budget; off disables thinking.',
+                                              )}
                                     </FormDescription>
                                     <FormMessage />
                                 </FormItem>
@@ -820,7 +833,7 @@ function ReasoningFields({
                         name={`agents.${agentKey}.reasoning.effort`}
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel>Reasoning Effort</FormLabel>
+                                <FormLabel>{uiText('Reasoning Effort')}</FormLabel>
                                 <Select
                                     disabled={isLoading || isOff}
                                     onValueChange={(value) => {
@@ -843,11 +856,11 @@ function ReasoningFields({
                                 >
                                     <FormControl>
                                         <SelectTrigger>
-                                            <SelectValue placeholder="Select effort level (optional)" />
+                                            <SelectValue placeholder={uiText('Select effort level (optional)')} />
                                         </SelectTrigger>
                                     </FormControl>
                                     <SelectContent>
-                                        <SelectItem value="none">Not selected</SelectItem>
+                                        <SelectItem value="none">{uiText('Not selected')}</SelectItem>
                                         {allowedEfforts.map((effort) => (
                                             <SelectItem
                                                 key={effort}
@@ -866,7 +879,7 @@ function ReasoningFields({
                     <FormInputNumberItem
                         control={control}
                         disabled={isLoading || isOff}
-                        label="Reasoning Max Tokens"
+                        label={uiText('Reasoning Max Tokens')}
                         min="1"
                         name={`agents.${agentKey}.reasoning.maxTokens`}
                         placeholder="1000"
@@ -1001,7 +1014,7 @@ function TestResultsDialog({ handleOpenChange, isOpen, results }: TestResultsDia
                     className="shrink-0"
                     variant="green"
                 >
-                    Success
+                    {uiText('Success')}
                 </Badge>
             );
         }
@@ -1012,7 +1025,7 @@ function TestResultsDialog({ handleOpenChange, isOpen, results }: TestResultsDia
                     className="shrink-0"
                     variant="destructive"
                 >
-                    Failed
+                    {uiText('Failed')}
                 </Badge>
             );
         }
@@ -1022,7 +1035,7 @@ function TestResultsDialog({ handleOpenChange, isOpen, results }: TestResultsDia
                 className="shrink-0"
                 variant="secondary"
             >
-                Unknown
+                {uiText('Unknown')}
             </Badge>
         );
     };
@@ -1034,7 +1047,7 @@ function TestResultsDialog({ handleOpenChange, isOpen, results }: TestResultsDia
         >
             <DialogContent className="flex max-h-[80vh] flex-col sm:max-w-3xl">
                 <DialogHeader className="shrink-0">
-                    <DialogTitle>Provider Test Results</DialogTitle>
+                    <DialogTitle>{uiText('Provider Test Results')}</DialogTitle>
                 </DialogHeader>
                 <div className="flex flex-1 flex-col overflow-y-auto">
                     <Accordion
@@ -1096,12 +1109,14 @@ function TestResultsDialog({ handleOpenChange, isOpen, results }: TestResultsDia
                                                         <div className="mt-2 flex flex-wrap gap-1.5">
                                                             {test.reasoning !== undefined && (
                                                                 <Badge variant="outline">
-                                                                    Reasoning: {test.reasoning ? 'Yes' : 'No'}
+                                                                    {uiText('Reasoning:')}{' '}
+                                                                    {test.reasoning ? uiText('Yes') : uiText('No')}
                                                                 </Badge>
                                                             )}
                                                             {test.streaming !== undefined && (
                                                                 <Badge variant="outline">
-                                                                    Streaming: {test.streaming ? 'Yes' : 'No'}
+                                                                    {uiText('Streaming:')}{' '}
+                                                                    {test.streaming ? uiText('Yes') : uiText('No')}
                                                                 </Badge>
                                                             )}
                                                             {Boolean(test.latency) && (
@@ -1120,7 +1135,7 @@ function TestResultsDialog({ handleOpenChange, isOpen, results }: TestResultsDia
                                             ))}
                                             {tests.length === 0 && (
                                                 <div className="text-muted-foreground py-4 text-center text-sm">
-                                                    No tests available for this agent
+                                                    {uiText('No tests available for this agent')}
                                                 </div>
                                             )}
                                         </div>
@@ -1177,13 +1192,13 @@ function DeleteProviderDialog({ control, handleConfirm, handleOpenChange, isOpen
 
     return (
         <ConfirmationDialog
-            cancelText="Cancel"
-            confirmText="Delete"
+            cancelText={uiText('Cancel')}
+            confirmText={uiText('Delete')}
             handleConfirm={handleConfirm}
             handleOpenChange={handleOpenChange}
             isOpen={isOpen}
             itemName={providerName}
-            itemType="provider"
+            itemType={uiText('provider')}
         />
     );
 }
@@ -1378,7 +1393,7 @@ function SettingsProvider() {
             // unknown or disabled type would otherwise create a dead provider or dump a raw
             // zod error on submit. Bounce it to the list. (Clone-by-id is gated separately below.)
             if (!queryId && queryType && !providers.enabled[queryType as keyof typeof providers.enabled]) {
-                toast.error(`Provider type "${queryType}" is not available`);
+                toast.error(uiText('Provider type "{type}" is not available', { type: queryType }));
                 navigate(routes.settings.providers, { replace: true });
 
                 return;
@@ -1393,7 +1408,7 @@ function SettingsProvider() {
                     // Cloning a provider whose type is now disabled would only make
                     // another dead one — gate it the same as the ?type= path.
                     if (sourceType && !providers.enabled[sourceType as keyof typeof providers.enabled]) {
-                        toast.error(`Provider type "${sourceType}" is not available`);
+                        toast.error(uiText('Provider type "{type}" is not available', { type: sourceType }));
                         navigate(routes.settings.providers, { replace: true });
 
                         return;
@@ -1476,7 +1491,7 @@ function SettingsProvider() {
             return true;
         } catch (error) {
             console.error('Submit error:', error);
-            setSubmitError(error instanceof Error ? error.message : 'An error occurred while saving');
+            setSubmitError(error instanceof Error ? error.message : uiText('An error occurred while saving'));
 
             return false;
         }
@@ -1488,7 +1503,7 @@ function SettingsProvider() {
 
         if (!valid) {
             setSubmitError(
-                `Please fix the following validation errors:\n\n${formatFormErrors(formState.errors as Record<string, unknown>)}`,
+                `${uiText('Please fix the following validation errors:')}\n\n${formatFormErrors(formState.errors as Record<string, unknown>)}`,
             );
 
             return false;
@@ -1538,7 +1553,7 @@ function SettingsProvider() {
 
     const handleInvalidSubmit = (errors: FieldErrors<FormInput>) => {
         setSubmitError(
-            `Please fix the following validation errors:\n\n${formatFormErrors(errors as Record<string, unknown>)}`,
+            `${uiText('Please fix the following validation errors:')}\n\n${formatFormErrors(errors as Record<string, unknown>)}`,
         );
     };
 
@@ -1572,7 +1587,7 @@ function SettingsProvider() {
             navigate(routes.settings.providers);
         } catch (error) {
             console.error('Delete error:', error);
-            setSubmitError(error instanceof Error ? error.message : 'An error occurred while deleting');
+            setSubmitError(error instanceof Error ? error.message : uiText('An error occurred while deleting'));
         }
     };
 
@@ -1582,7 +1597,7 @@ function SettingsProvider() {
 
         if (!isValid) {
             setSubmitError(
-                `Please fix the following validation errors:\n\n${formatFormErrors(formState.errors as Record<string, unknown>)}`,
+                `${uiText('Please fix the following validation errors:')}\n\n${formatFormErrors(formState.errors as Record<string, unknown>)}`,
             );
 
             return;
@@ -1604,7 +1619,7 @@ function SettingsProvider() {
             setIsTestDialogOpen(true);
         } catch (error) {
             console.error('Test error:', error);
-            setSubmitError(error instanceof Error ? error.message : 'An error occurred while testing');
+            setSubmitError(error instanceof Error ? error.message : uiText('An error occurred while testing'));
         }
     };
 
@@ -1614,7 +1629,7 @@ function SettingsProvider() {
 
         if (!isValid) {
             setSubmitError(
-                `Please fix the following validation errors:\n\n${formatFormErrors(formState.errors as Record<string, unknown>)}`,
+                `${uiText('Please fix the following validation errors:')}\n\n${formatFormErrors(formState.errors as Record<string, unknown>)}`,
             );
 
             return;
@@ -1639,7 +1654,7 @@ function SettingsProvider() {
             return;
         } catch (error) {
             console.error('Test error:', error);
-            setSubmitError(error instanceof Error ? error.message : 'An error occurred while testing');
+            setSubmitError(error instanceof Error ? error.message : uiText('An error occurred while testing'));
             setCurrentAgentKey(null);
         }
     };
@@ -1650,14 +1665,14 @@ function SettingsProvider() {
                 <AppHeader>
                     <AppHeaderContent>
                         <AppHeaderTitle icon={<Plug className="size-4 shrink-0" />}>
-                            {isNew ? 'Create Provider' : 'Edit Provider'}
+                            {isNew ? uiText('Create Provider') : uiText('Edit Provider')}
                         </AppHeaderTitle>
                     </AppHeaderContent>
                 </AppHeader>
                 <div className="flex flex-1 items-center justify-center p-4">
                     <LoadingState
-                        description="Please wait while we fetch provider configuration"
-                        title="Loading provider data..."
+                        description={uiText('Please wait while we fetch provider configuration')}
+                        title={uiText('Loading provider data...')}
                     />
                 </div>
             </>
@@ -1670,7 +1685,7 @@ function SettingsProvider() {
                 <AppHeader>
                     <AppHeaderContent>
                         <AppHeaderTitle icon={<Plug className="size-4 shrink-0" />}>
-                            {isNew ? 'Create Provider' : 'Edit Provider'}
+                            {isNew ? uiText('Create Provider') : uiText('Edit Provider')}
                         </AppHeaderTitle>
                     </AppHeaderContent>
                 </AppHeader>
@@ -1678,7 +1693,7 @@ function SettingsProvider() {
                     <ErrorState
                         message={error.message}
                         onRetry={refetch}
-                        title="Error loading provider data"
+                        title={uiText('Error loading provider data')}
                     />
                 </div>
             </>
@@ -1692,30 +1707,34 @@ function SettingsProvider() {
     const metaFields = (
         <div className="flex flex-col gap-6">
             <div className="flex flex-col gap-2 text-center">
-                <h2 className="text-2xl font-semibold">{isNew ? 'Create a new provider' : 'Edit provider'}</h2>
+                <h2 className="text-2xl font-semibold">
+                    {isNew ? uiText('Create a new provider') : uiText('Edit provider')}
+                </h2>
                 <p className="text-muted-foreground">
-                    {isNew ? 'Configure a new language model provider' : 'Update provider settings and configuration'}
+                    {isNew
+                        ? uiText('Configure a new language model provider')
+                        : uiText('Update provider settings and configuration')}
                 </p>
             </div>
 
             <FormComboboxItem
                 allowCustom={false}
                 control={control}
-                description="The type of language model provider"
+                description={uiText('The type of language model provider')}
                 disabled={isLoading || !!selectedType}
-                label="Type"
+                label={uiText('Type')}
                 name="type"
                 options={providers}
-                placeholder="Select provider"
+                placeholder={uiText('Select provider')}
             />
 
             <FormInputStringItem
                 control={control}
-                description="A unique name for your provider configuration"
+                description={uiText('A unique name for your provider configuration')}
                 disabled={isLoading}
-                label="Name"
+                label={uiText('Name')}
                 name="name"
-                placeholder="Enter provider name"
+                placeholder={uiText('Enter provider name')}
             />
         </div>
     );
@@ -1774,7 +1793,9 @@ function SettingsProvider() {
                                         <Play />
                                     )}
                                     <span className="no-underline! hover:no-underline!">
-                                        {isAgentTestLoading && currentAgentKey === agentKey ? 'Testing...' : 'Test'}
+                                        {isAgentTestLoading && currentAgentKey === agentKey
+                                            ? uiText('Testing...')
+                                            : uiText('Test')}
                                     </span>
                                 </span>
                             </Button>
@@ -1785,7 +1806,7 @@ function SettingsProvider() {
                             <FormModelComboboxItem
                                 control={control}
                                 disabled={isLoading}
-                                label="Model"
+                                label={uiText('Model')}
                                 name={`agents.${agentKey}.model`}
                                 onOptionSelect={(option) => {
                                     const price = option?.price;
@@ -1807,13 +1828,13 @@ function SettingsProvider() {
                                     setValue(`agents.${agentKey}.reasoning.maxTokens` as const, null);
                                 }}
                                 options={availableModels}
-                                placeholder="Select or enter model name"
+                                placeholder={uiText('Select or enter model name')}
                             />
 
                             <FormInputNumberItem
                                 control={control}
                                 disabled={isLoading}
-                                label="Temperature"
+                                label={uiText('Temperature')}
                                 max="2"
                                 min="0"
                                 name={`agents.${agentKey}.temperature`}
@@ -1824,7 +1845,7 @@ function SettingsProvider() {
                             <FormInputNumberItem
                                 control={control}
                                 disabled={isLoading}
-                                label="Max Tokens"
+                                label={uiText('Max Tokens')}
                                 min="1"
                                 name={`agents.${agentKey}.maxTokens`}
                                 placeholder="1000"
@@ -1855,7 +1876,7 @@ function SettingsProvider() {
                             <FormInputNumberItem
                                 control={control}
                                 disabled={isLoading}
-                                label="Min Length"
+                                label={uiText('Min Length')}
                                 min="0"
                                 name={`agents.${agentKey}.minLength`}
                                 placeholder="0"
@@ -1865,7 +1886,7 @@ function SettingsProvider() {
                             <FormInputNumberItem
                                 control={control}
                                 disabled={isLoading}
-                                label="Max Length"
+                                label={uiText('Max Length')}
                                 min="1"
                                 name={`agents.${agentKey}.maxLength`}
                                 placeholder="2000"
@@ -1875,7 +1896,7 @@ function SettingsProvider() {
                             <FormInputNumberItem
                                 control={control}
                                 disabled={isLoading}
-                                label="Repetition Penalty"
+                                label={uiText('Repetition Penalty')}
                                 max="2"
                                 min="0"
                                 name={`agents.${agentKey}.repetitionPenalty`}
@@ -1886,7 +1907,7 @@ function SettingsProvider() {
                             <FormInputNumberItem
                                 control={control}
                                 disabled={isLoading}
-                                label="Frequency Penalty"
+                                label={uiText('Frequency Penalty')}
                                 max="2"
                                 min="0"
                                 name={`agents.${agentKey}.frequencyPenalty`}
@@ -1897,7 +1918,7 @@ function SettingsProvider() {
                             <FormInputNumberItem
                                 control={control}
                                 disabled={isLoading}
-                                label="Presence Penalty"
+                                label={uiText('Presence Penalty')}
                                 max="2"
                                 min="0"
                                 name={`agents.${agentKey}.presencePenalty`}
@@ -1916,13 +1937,13 @@ function SettingsProvider() {
 
                         <div className="col-span-full p-px">
                             <div className="mt-6 flex flex-col gap-4">
-                                <h4 className="text-sm font-medium">Price Configuration</h4>
+                                <h4 className="text-sm font-medium">{uiText('Price Configuration')}</h4>
                                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                     <FormInputNumberItem
                                         control={control}
-                                        description="Price per 1M input tokens"
+                                        description={uiText('Price per 1M input tokens')}
                                         disabled={isLoading}
-                                        label="Input Price"
+                                        label={uiText('Input Price')}
                                         min="0"
                                         name={`agents.${agentKey}.price.input`}
                                         placeholder="0.001"
@@ -1931,9 +1952,9 @@ function SettingsProvider() {
 
                                     <FormInputNumberItem
                                         control={control}
-                                        description="Price per 1M output tokens"
+                                        description={uiText('Price per 1M output tokens')}
                                         disabled={isLoading}
-                                        label="Output Price"
+                                        label={uiText('Output Price')}
                                         min="0"
                                         name={`agents.${agentKey}.price.output`}
                                         placeholder="0.002"
@@ -1942,9 +1963,9 @@ function SettingsProvider() {
 
                                     <FormInputNumberItem
                                         control={control}
-                                        description="Price per 1M cached read tokens"
+                                        description={uiText('Price per 1M cached read tokens')}
                                         disabled={isLoading}
-                                        label="Cache Read Price"
+                                        label={uiText('Cache Read Price')}
                                         min="0"
                                         name={`agents.${agentKey}.price.cacheRead`}
                                         placeholder="0.0001"
@@ -1953,9 +1974,9 @@ function SettingsProvider() {
 
                                     <FormInputNumberItem
                                         control={control}
-                                        description="Price per 1M cache write tokens"
+                                        description={uiText('Price per 1M cache write tokens')}
                                         disabled={isLoading}
-                                        label="Cache Write Price"
+                                        label={uiText('Cache Write Price')}
                                         min="0"
                                         name={`agents.${agentKey}.price.cacheWrite`}
                                         placeholder="0.00015"
@@ -1967,12 +1988,12 @@ function SettingsProvider() {
 
                         <div className="col-span-full p-px">
                             <div className="mt-6 flex flex-col gap-4">
-                                <h4 className="text-sm font-medium">Extra Body</h4>
+                                <h4 className="text-sm font-medium">{uiText('Extra Body')}</h4>
                                 <FormTextareaItem
                                     control={control}
                                     description="Provider-specific request body fields as a JSON object, merged into every call (e.g. vLLM chat_template_kwargs)."
                                     disabled={isLoading}
-                                    label="Extra Body (JSON)"
+                                    label={uiText('Extra Body (JSON)')}
                                     name={`agents.${agentKey}.extraBody`}
                                     placeholder={'{\n    "chat_template_kwargs": { "enable_thinking": false }\n}'}
                                 />
@@ -1989,14 +2010,14 @@ function SettingsProvider() {
             <AppHeader>
                 <AppHeaderContent>
                     <AppHeaderTitle icon={<Plug className="size-4 shrink-0" />}>
-                        {isNew ? 'Create Provider' : 'Edit Provider'}
+                        {isNew ? uiText('Create Provider') : uiText('Edit Provider')}
                     </AppHeaderTitle>
                 </AppHeaderContent>
                 <AppHeaderActions>
                     <AppHeaderAction
                         disabled={isLoading || isTestLoading || isAgentTestLoading}
                         icon={isTestLoading ? <Spinner variant="circle" /> : <Play />}
-                        label={isTestLoading ? 'Testing...' : 'Test'}
+                        label={isTestLoading ? uiText('Testing...') : uiText('Test')}
                         onClick={() => handleTest()}
                         type="button"
                         variant="outline"
@@ -2004,7 +2025,7 @@ function SettingsProvider() {
                     <AppHeaderAction
                         form="provider-form"
                         icon={<Save />}
-                        label={isNew ? 'Create' : 'Save'}
+                        label={isNew ? uiText('Create') : uiText('Save')}
                         loading={isLoading}
                         type="submit"
                     />
@@ -2012,7 +2033,7 @@ function SettingsProvider() {
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button
-                                    aria-label="Provider actions"
+                                    aria-label={uiText('Provider actions')}
                                     className="size-8 p-0"
                                     type="button"
                                     variant="ghost"
@@ -2029,7 +2050,7 @@ function SettingsProvider() {
                                     onClick={handleDelete}
                                 >
                                     {isDeleteLoading ? <Spinner variant="circle" /> : <Trash2 />}
-                                    {isDeleteLoading ? 'Deleting...' : 'Delete'}
+                                    {isDeleteLoading ? uiText('Deleting...') : uiText('Delete')}
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>

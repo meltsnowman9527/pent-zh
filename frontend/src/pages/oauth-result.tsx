@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react';
 
 import Logo from '@/components/icons/logo';
 import { routes } from '@/lib/routes';
+import { uiText } from '@/locales/zh-CN';
 
 function OAuthResult() {
-    const [statusMessage, setStatusMessage] = useState('Authentication in progress...');
+    const [statusMessage, setStatusMessage] = useState(uiText('Authentication in progress...'));
 
     const successDelay = 2000;
     const errorDelay = 5000;
@@ -62,15 +63,15 @@ function OAuthResult() {
                     window.location.origin,
                 );
 
-                updateMessage('Authentication complete, closing window...');
+                updateMessage(uiText('Authentication complete, closing window...'));
                 handleClose(successDelay);
             } catch (e) {
                 console.error('Failed to send message to opener:', e);
-                updateMessage('Error communicating with parent window. Closing in a few seconds...');
+                updateMessage(uiText('Error communicating with parent window. Closing in a few seconds...'));
                 handleClose(errorDelay);
             }
         } else {
-            updateMessage('Authentication window opened directly. Redirecting to login page...');
+            updateMessage(uiText('Authentication window opened directly. Redirecting to login page...'));
             handleRedirect(routes.login(), errorDelay / 2);
             handleClose(errorDelay);
         }

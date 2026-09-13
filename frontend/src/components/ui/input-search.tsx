@@ -8,6 +8,7 @@ import { Kbd, KbdGroup } from '@/components/ui/kbd';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { isMac } from '@/lib/utils/platform';
+import { uiText } from '@/locales/zh-CN';
 
 // Matches `DataTableFilter`'s debounce so both search inputs on a page settle
 // at the same pace.
@@ -33,12 +34,12 @@ interface InputSearchProps {
  * through `handleClear`. A second `Escape` on an empty field collapses + blurs.
  */
 export function InputSearch({
-    ariaLabel = 'Search',
+    ariaLabel = uiText('Search'),
     className,
     hotkey = 'f',
     maxWidth = 140,
     onSearchChange,
-    placeholder = 'Search...',
+    placeholder = uiText('Search...'),
     searchQuery,
 }: InputSearchProps) {
     const [isExpanded, setIsExpanded] = useState(() => searchQuery.trim().length > 0);
@@ -247,7 +248,7 @@ export function InputSearch({
             {isExpanded && localValue ? (
                 <InputGroupAddon align="inline-end">
                     <InputGroupButton
-                        aria-label={`Clear ${ariaLabel.toLowerCase()}`}
+                        aria-label={uiText('Clear {label}', { label: ariaLabel.toLowerCase() })}
                         onClick={handleClear}
                         type="button"
                     >

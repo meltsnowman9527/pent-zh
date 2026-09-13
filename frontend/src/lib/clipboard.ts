@@ -2,6 +2,7 @@ import { Terminal as XTerminal } from '@xterm/xterm';
 import { toast } from 'sonner';
 
 import { ResultFormat } from '@/graphql/types';
+import { uiText } from '@/locales/zh-CN';
 
 export interface CopyableMessage {
     message?: null | string;
@@ -162,8 +163,8 @@ export const copyMessageToClipboard = async (messageData: CopyableMessage): Prom
     try {
         const content = await formatMessageForClipboard(messageData);
         await navigator.clipboard.writeText(content);
-        toast.success('Copied to clipboard');
+        toast.success(uiText('Copied to clipboard'));
     } catch {
-        toast.error('Failed to copy to clipboard');
+        toast.error(uiText('Failed to copy to clipboard'));
     }
 };

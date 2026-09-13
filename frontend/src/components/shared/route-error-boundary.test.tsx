@@ -3,6 +3,8 @@ import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { uiText } from '@/locales/zh-CN';
+
 import RouteErrorBoundary from './route-error-boundary';
 
 const renderWithRouteError = (error: unknown) => {
@@ -64,7 +66,11 @@ describe('RouteErrorBoundary', () => {
     it('shows the redeploy message and auto-reloads once for a chunk-load error', async () => {
         renderWithRouteError(chunkError());
 
-        expect(await screen.findByText(/a new version was likely just deployed/i)).toBeInTheDocument();
+        expect(
+            await screen.findByText(
+                uiText('A new version was likely just deployed. Reloading will load the latest one.'),
+            ),
+        ).toBeInTheDocument();
         expect(screen.getByRole('alert')).toBeInTheDocument();
         await waitFor(() => expect(reloadSpy).toHaveBeenCalledTimes(1));
     });
@@ -72,21 +78,25 @@ describe('RouteErrorBoundary', () => {
     it('shows the glitch message and auto-reloads once for a DOM-desync (removeChild) error', async () => {
         renderWithRouteError(domDesyncError());
 
-        expect(await screen.findByText(/display glitch/i)).toBeInTheDocument();
+        expect(
+            await screen.findByText(uiText('The page hit a display glitch. Reloading usually clears it.')),
+        ).toBeInTheDocument();
         await waitFor(() => expect(reloadSpy).toHaveBeenCalledTimes(1));
     });
 
     it('shows the generic message and does not auto-reload for a non-chunk error', async () => {
         renderWithRouteError(renderError());
 
-        expect(await screen.findByText(/ran into an unexpected error/i)).toBeInTheDocument();
+        expect(
+            await screen.findByText(uiText('The page ran into an unexpected error. Reloading usually clears it.')),
+        ).toBeInTheDocument();
         expect(reloadSpy).not.toHaveBeenCalled();
     });
 
     it('reloads when the user clicks Reload', async () => {
         renderWithRouteError(renderError());
 
-        await userEvent.click(await screen.findByRole('button', { name: /reload/i }));
+        await userEvent.click(await screen.findByRole('button', { name: uiText('Reload') }));
 
         expect(reloadSpy).toHaveBeenCalledTimes(1);
     });

@@ -10,6 +10,7 @@ import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTi
 import { Form, FormControl, FormField } from '@/components/ui/form';
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group';
 import { useAutoScroll } from '@/hooks/use-auto-scroll';
+import { uiText } from '@/locales/zh-CN';
 import { useFlow } from '@/providers/flow-provider';
 
 import FlowTasksDropdown from '../flow-tasks-dropdown';
@@ -152,13 +153,13 @@ function FlowTools() {
                                         <InputGroupInput
                                             {...field}
                                             autoComplete="off"
-                                            placeholder="Search tool logs..."
+                                            placeholder={uiText('Search tool logs...')}
                                             type="text"
                                         />
                                         {field.value && (
                                             <InputGroupAddon align="inline-end">
                                                 <InputGroupButton
-                                                    aria-label="Clear tool search"
+                                                    aria-label={uiText('Clear tool search')}
                                                     onClick={() => {
                                                         form.reset({ search: '' });
                                                         setDebouncedSearchValue('');
@@ -208,7 +209,7 @@ function FlowTools() {
 
                     {!isScrolledToBottom && (
                         <Button
-                            aria-label="Scroll to latest tool log"
+                            aria-label={uiText('Scroll to latest tool log')}
                             className="absolute right-4 bottom-4 z-10 shadow-md hover:shadow-lg"
                             onClick={() => scrollToEnd()}
                             size="icon-sm"
@@ -228,8 +229,8 @@ function FlowTools() {
                         <EmptyMedia variant="icon">
                             <ListFilter />
                         </EmptyMedia>
-                        <EmptyTitle>No search logs found</EmptyTitle>
-                        <EmptyDescription>Try adjusting your search or filter parameters</EmptyDescription>
+                        <EmptyTitle>{uiText('No search logs found')}</EmptyTitle>
+                        <EmptyDescription>{uiText('Try adjusting your search or filter parameters')}</EmptyDescription>
                     </EmptyHeader>
                     <EmptyContent>
                         <Button
@@ -237,7 +238,7 @@ function FlowTools() {
                             variant="outline"
                         >
                             <X />
-                            Reset filters
+                            {uiText('Reset filters')}
                         </Button>
                     </EmptyContent>
                 </Empty>
@@ -247,9 +248,9 @@ function FlowTools() {
                         <EmptyMedia variant="icon">
                             <Wrench />
                         </EmptyMedia>
-                        <EmptyTitle>No search logs available</EmptyTitle>
+                        <EmptyTitle>{uiText('No search logs available')}</EmptyTitle>
                         <EmptyDescription>
-                            Search logs will appear here when the agent performs searches
+                            {uiText('Search logs will appear here when the agent performs searches')}
                         </EmptyDescription>
                     </EmptyHeader>
                 </Empty>

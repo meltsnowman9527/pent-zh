@@ -19,6 +19,7 @@ import { KnowledgeLayout } from '@/features/knowledges/knowledge-layout';
 import { KnowledgeDocumentDocument } from '@/graphql/types';
 import { isNotFoundError } from '@/lib/errors';
 import { routes } from '@/lib/routes';
+import { uiText } from '@/locales/zh-CN';
 import { useKnowledges } from '@/providers/knowledges-provider';
 
 function Knowledge() {
@@ -52,7 +53,7 @@ function Knowledge() {
         }
 
         if (!knowledge) {
-            toast.error('Knowledge document not found');
+            toast.error(uiText('Knowledge document not found'));
             navigate(routes.knowledges, { replace: true });
         }
     }, [isNew, isLoadingKnowledge, knowledge, loadError, navigate]);
@@ -99,7 +100,7 @@ function Knowledge() {
                     <ErrorState
                         message={loadError.message}
                         onRetry={() => refetch()}
-                        title="Error loading knowledge document"
+                        title={uiText('Error loading knowledge document')}
                     />
                 </div>
             </KnowledgeLayout>

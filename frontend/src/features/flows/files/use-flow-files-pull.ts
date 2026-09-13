@@ -4,9 +4,10 @@ import { toast } from 'sonner';
 import type { OverwriteOutcome } from '@/components/shared/overwrite';
 
 import { api, getApiErrorMessage, getApiErrorStatusCode } from '@/lib/axios';
+import { uiText } from '@/locales/zh-CN';
 
 import { CONTAINER_TARGET_DIRECTORY, FLOW_FILES_PULL_API_PATH } from './flow-files-constants';
-import { type FlowFilesResponse, pluralizeItems } from './flow-files-utils';
+import { type FlowFilesResponse } from './flow-files-utils';
 
 interface UseFlowFilesPullParams {
     flowId: null | string;
@@ -55,10 +56,13 @@ export function useFlowFilesPull({ flowId, onSuccess }: UseFlowFilesPullParams):
 
                 const description =
                     paths.length === 1
-                        ? `Saved to local cache under ${CONTAINER_TARGET_DIRECTORY}`
-                        : `Saved ${paths.length} ${pluralizeItems(paths.length)} to local cache under ${CONTAINER_TARGET_DIRECTORY}`;
+                        ? uiText('Saved to local cache under {dir}', { dir: CONTAINER_TARGET_DIRECTORY })
+                        : uiText('Saved {count} items to local cache under {dir}', {
+                              count: paths.length,
+                              dir: CONTAINER_TARGET_DIRECTORY,
+                          });
 
-                toast.success('Pulled from container', { description });
+                toast.success(uiText('Pulled from container'), { description });
                 onSuccess();
 
                 return { kind: 'ok' };
@@ -69,9 +73,9 @@ export function useFlowFilesPull({ flowId, onSuccess }: UseFlowFilesPullParams):
                     return { kind: 'conflict' };
                 }
 
-                const description = getApiErrorMessage(error, 'Failed to pull from container');
+                const description = getApiErrorMessage(error, uiText('Failed to pull from container'));
 
-                toast.error('Pull failed', { description });
+                toast.error(uiText('Pull failed'), { description });
 
                 return { kind: 'error' };
             } finally {

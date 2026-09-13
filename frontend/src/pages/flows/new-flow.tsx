@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FlowForm, type FlowFormValues } from '@/features/flows/flow-form';
 import { routes } from '@/lib/routes';
+import { uiText } from '@/locales/zh-CN';
 import { useFlows } from '@/providers/flows-provider';
 import { useProviders } from '@/providers/providers-provider';
 import { useSystemSettings } from '@/providers/system-settings-provider';
@@ -46,15 +47,17 @@ function NewFlow() {
         <>
             <AppHeader>
                 <AppHeaderContent>
-                    <AppHeaderTitle>New flow</AppHeaderTitle>
+                    <AppHeaderTitle>{uiText('New flow')}</AppHeaderTitle>
                 </AppHeaderContent>
             </AppHeader>
             <div className="flex min-h-[calc(100dvh-3rem)] items-center justify-center p-4">
                 <Card className="w-full max-w-2xl">
                     <CardContent className="flex flex-col gap-4 pt-6">
                         <div className="flex flex-col gap-2 text-center">
-                            <h2 className="text-2xl font-semibold">Create a new flow</h2>
-                            <p className="text-muted-foreground">Describe what you would like PentAGI to test</p>
+                            <h2 className="text-2xl font-semibold">{uiText('Create a new flow')}</h2>
+                            <p className="text-muted-foreground">
+                                {uiText('Describe what you would like PentAGI to test')}
+                            </p>
                         </div>
                         <Tabs
                             onValueChange={(value) => setFlowType(value as 'assistant' | 'automation')}
@@ -65,16 +68,24 @@ function NewFlow() {
                                     disabled={isLoading}
                                     value="automation"
                                 >
-                                    Automation
+                                    {uiText('Automation')}
                                 </TabsTrigger>
                                 <TabsTrigger
                                     disabled={isLoading}
                                     value="assistant"
                                 >
-                                    Assistant
+                                    {uiText('Assistant')}
                                 </TabsTrigger>
                             </TabsList>
                         </Tabs>
+                        {isLoading && (
+                            <p
+                                className="text-muted-foreground text-center text-sm"
+                                role="status"
+                            >
+                                {uiText('Preparing task')}
+                            </p>
+                        )}
                         <FlowForm
                             defaultValues={{
                                 providerName: selectedProvider?.name ?? '',
@@ -85,9 +96,9 @@ function NewFlow() {
                             placeholder={
                                 !isLoading
                                     ? flowType === 'automation'
-                                        ? 'Describe what you would like PentAGI to test...'
-                                        : 'What would you like me to help you with?'
-                                    : 'Creating a new flow...'
+                                        ? uiText('Describe what you would like PentAGI to test...')
+                                        : uiText('What would you like me to help you with?')
+                                    : uiText('Creating a new flow...')
                             }
                             type={flowType}
                         />

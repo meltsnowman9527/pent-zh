@@ -4,6 +4,7 @@ import { type KeyboardEvent, type Ref } from 'react';
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group';
 import { Spinner } from '@/components/ui/spinner';
 import { cn } from '@/lib/utils';
+import { uiText } from '@/locales/zh-CN';
 
 interface InlineEditInputProps {
     /**
@@ -102,14 +103,14 @@ export function InlineEditInput({
                 className="gap-0 pr-2"
             >
                 <InputGroupButton
-                    aria-label="Save"
+                    aria-label={uiText('Save')}
                     disabled={busy}
                     onClick={onSave}
                 >
                     {busy ? <Spinner variant="circle" /> : <Check />}
                 </InputGroupButton>
                 <InputGroupButton
-                    aria-label="Cancel"
+                    aria-label={uiText('Cancel')}
                     disabled={busy}
                     onClick={onCancel}
                 >

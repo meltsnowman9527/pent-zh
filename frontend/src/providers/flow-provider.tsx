@@ -36,6 +36,7 @@ import {
 } from '@/graphql/types';
 import { isNotFoundError } from '@/lib/errors';
 import { Log } from '@/lib/log';
+import { uiText } from '@/locales/zh-CN';
 
 /**
  * Under `errorPolicy:'all'` a partial not-found error surfaces alongside a flow that loaded fine, so
@@ -207,7 +208,7 @@ export function FlowProvider({ children }: FlowProviderProps) {
         }
 
         if (isNotFoundError(flowError)) {
-            toast.error('Flow not found', { id: 'flow-load-error' });
+            toast.error(uiText('Flow not found'), { id: 'flow-load-error' });
         }
 
         Log.error('Error loading flow:', flowError);
@@ -232,8 +233,8 @@ export function FlowProvider({ children }: FlowProviderProps) {
                 });
             } catch (error) {
                 const description =
-                    error instanceof Error ? error.message : 'An error occurred while submitting message';
-                toast.error('Failed to submit message', {
+                    error instanceof Error ? error.message : uiText('An error occurred while submitting message');
+                toast.error(uiText('Failed to submit message'), {
                     description,
                 });
                 Log.error('Error submitting message:', error);
@@ -254,8 +255,9 @@ export function FlowProvider({ children }: FlowProviderProps) {
                 },
             });
         } catch (error) {
-            const description = error instanceof Error ? error.message : 'An error occurred while stopping flow';
-            toast.error('Failed to stop flow', {
+            const description =
+                error instanceof Error ? error.message : uiText('An error occurred while stopping flow');
+            toast.error(uiText('Failed to stop flow'), {
                 description,
             });
             Log.error('Error stopping flow:', error);
@@ -293,7 +295,7 @@ export function FlowProvider({ children }: FlowProviderProps) {
                 }
             } catch (error) {
                 const description =
-                    error instanceof Error ? error.message : 'An error occurred while creating assistant';
+                    error instanceof Error ? error.message : uiText('An error occurred while creating assistant');
                 toast.error('Failed to create assistant', {
                     description,
                 });
@@ -325,8 +327,8 @@ export function FlowProvider({ children }: FlowProviderProps) {
                 });
             } catch (error) {
                 const description =
-                    error instanceof Error ? error.message : 'An error occurred while calling assistant';
-                toast.error('Failed to call assistant', {
+                    error instanceof Error ? error.message : uiText('An error occurred while calling assistant');
+                toast.error(uiText('Failed to call assistant'), {
                     description,
                 });
                 Log.error('Error calling assistant:', error);
@@ -350,8 +352,8 @@ export function FlowProvider({ children }: FlowProviderProps) {
                 });
             } catch (error) {
                 const description =
-                    error instanceof Error ? error.message : 'An error occurred while stopping assistant';
-                toast.error('Failed to stop assistant', {
+                    error instanceof Error ? error.message : uiText('An error occurred while stopping assistant');
+                toast.error(uiText('Failed to stop assistant'), {
                     description,
                 });
                 Log.error('Error stopping assistant:', error);
@@ -384,8 +386,8 @@ export function FlowProvider({ children }: FlowProviderProps) {
                 }
             } catch (error) {
                 const description =
-                    error instanceof Error ? error.message : 'An error occurred while deleting assistant';
-                toast.error('Failed to delete assistant', {
+                    error instanceof Error ? error.message : uiText('An error occurred while deleting assistant');
+                toast.error(uiText('Failed to delete assistant'), {
                     description,
                 });
                 Log.error('Error deleting assistant:', error);

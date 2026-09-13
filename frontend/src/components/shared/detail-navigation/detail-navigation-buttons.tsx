@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { uiText } from '@/locales/zh-CN';
 
 import type { DetailNavigationController } from './use-detail-navigation';
 
@@ -43,7 +44,7 @@ export function DetailNavigationButtons<T extends { id: string }>({
             <Tooltip>
                 <TooltipTrigger asChild>
                     <Button
-                        aria-label="Previous"
+                        aria-label={uiText('Previous')}
                         className={cn(sideButtonSize, 'rounded-r-none border-r-0 p-0')}
                         disabled={!controller.prevId}
                         onClick={controller.goToPrev}
@@ -54,12 +55,15 @@ export function DetailNavigationButtons<T extends { id: string }>({
                         <ChevronLeft />
                     </Button>
                 </TooltipTrigger>
-                <TooltipContent>Previous</TooltipContent>
+                <TooltipContent>{uiText('Previous')}</TooltipContent>
             </Tooltip>
             <Tooltip>
                 <TooltipTrigger asChild>
                     <Button
-                        aria-label={`Open ${lowerTitle} list (${controller.positionLabel})`}
+                        aria-label={uiText('Open {title} list ({position})', {
+                            position: controller.positionLabel,
+                            title: lowerTitle,
+                        })}
                         className={cn(
                             middleHeight,
                             'min-w-12 rounded-none border-x px-2 font-mono text-xs tabular-nums',
@@ -77,7 +81,7 @@ export function DetailNavigationButtons<T extends { id: string }>({
             <Tooltip>
                 <TooltipTrigger asChild>
                     <Button
-                        aria-label="Next"
+                        aria-label={uiText('Next')}
                         className={cn(sideButtonSize, 'rounded-l-none border-l-0 p-0')}
                         disabled={!controller.nextId}
                         onClick={controller.goToNext}
@@ -88,7 +92,7 @@ export function DetailNavigationButtons<T extends { id: string }>({
                         <ChevronRight />
                     </Button>
                 </TooltipTrigger>
-                <TooltipContent>Next</TooltipContent>
+                <TooltipContent>{uiText('Next')}</TooltipContent>
             </Tooltip>
         </div>
     );

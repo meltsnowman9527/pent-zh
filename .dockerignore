@@ -14,3 +14,12 @@ frontend/ssl
 !**/.env.example
 **/.DS_Store
 **/Thumbs.db
+
+# Local baseline archives, Git history, credentials and research intermediates
+# must never enter the build context.
+.bak
+.git
+.env
+.env.report-review
+.pnpm-store
+build

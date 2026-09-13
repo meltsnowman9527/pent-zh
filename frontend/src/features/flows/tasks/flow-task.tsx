@@ -6,6 +6,7 @@ import Markdown from '@/components/shared/markdown';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { StatusType } from '@/graphql/types';
+import { uiText } from '@/locales/zh-CN';
 
 import FlowSubtask from './flow-subtask';
 import FlowTaskStatusIcon from './flow-task-status-icon';
@@ -82,7 +83,7 @@ function FlowTask({ searchValue = '', task }: FlowTaskProps) {
                 <FlowTaskStatusIcon
                     className="bg-background ring-border ring-background relative z-1 -mt-px size-5 rounded-full ring-3"
                     status={status}
-                    tooltip={`Task ID: ${id}`}
+                    tooltip={uiText('Task ID: {id}', { id })}
                 />
                 <div className="flex flex-1 flex-col gap-2">
                     <div className="font-semibold">
@@ -112,7 +113,7 @@ function FlowTask({ searchValue = '', task }: FlowTaskProps) {
                                 className="cursor-pointer"
                                 onClick={() => setIsDetailsVisible(!isDetailsVisible)}
                             >
-                                {isDetailsVisible ? 'Hide details' : 'Show details'}
+                                {isDetailsVisible ? uiText('Hide details') : uiText('Show details')}
                             </div>
                             {isDetailsVisible && (
                                 <Card className="mt-4">
@@ -143,7 +144,9 @@ function FlowTask({ searchValue = '', task }: FlowTaskProps) {
                     ))}
                 </div>
             ) : (
-                <div className="text-muted-foreground mt-2 ml-6 text-xs">Waiting for subtasks to be created...</div>
+                <div className="text-muted-foreground mt-2 ml-6 text-xs">
+                    {uiText('Waiting for subtasks to be created...')}
+                </div>
             )}
         </div>
     );

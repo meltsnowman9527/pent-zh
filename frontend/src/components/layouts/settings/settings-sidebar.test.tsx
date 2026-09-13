@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 
 import { SidebarProvider } from '@/components/ui/sidebar';
+import { uiText } from '@/locales/zh-CN';
 
 import { SettingsSidebar } from './settings-sidebar';
 
@@ -27,7 +28,7 @@ function renderSidebar(entry: { pathname: string; state?: unknown }) {
     );
 }
 
-const backToApp = () => screen.getByRole('link', { name: /Back to App/ });
+const backToApp = () => screen.getByRole('link', { name: uiText('Back to App') });
 
 describe('SettingsSidebar "Back to App"', () => {
     it('returns to the page the user came from', () => {
@@ -46,7 +47,7 @@ describe('SettingsSidebar "Back to App"', () => {
         const user = userEvent.setup();
         renderSidebar({ pathname: '/settings/account', state: { from: '/dashboard' } });
 
-        await user.click(screen.getByRole('link', { name: 'Providers' }));
+        await user.click(screen.getByRole('link', { name: uiText('Providers') }));
 
         expect(backToApp()).toHaveAttribute('href', '/dashboard');
     });

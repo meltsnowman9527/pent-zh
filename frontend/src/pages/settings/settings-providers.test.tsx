@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ProviderType } from '@/graphql/types';
+import { uiText } from '@/locales/zh-CN';
 
 const ALL_TYPES = [
     'anthropic',
@@ -74,7 +75,7 @@ describe('SettingsProvidersHeader create menu', () => {
         const user = userEvent.setup();
         render(<SettingsProvidersHeader />);
 
-        await user.click(screen.getByRole('button', { name: /create provider/i }));
+        await user.click(screen.getByRole('button', { name: uiText('Create provider — choose type') }));
 
         expect(screen.queryByRole('menuitem', { name: /MiniMax/ })).not.toBeInTheDocument();
         expect(screen.queryByRole('menuitem', { name: /Custom/ })).not.toBeInTheDocument();
@@ -97,9 +98,9 @@ describe('SettingsProvidersHeader create menu', () => {
         const user = userEvent.setup();
         render(<SettingsProvidersHeader />);
 
-        await user.click(screen.getByRole('button', { name: /create provider/i }));
+        await user.click(screen.getByRole('button', { name: uiText('Create provider — choose type') }));
 
-        expect(screen.getByRole('menuitem', { name: /no available provider types/i })).toBeInTheDocument();
+        expect(screen.getByRole('menuitem', { name: uiText('No available provider types') })).toBeInTheDocument();
         expect(screen.queryByRole('menuitem', { name: /OpenAI/ })).not.toBeInTheDocument();
     });
 });
@@ -128,6 +129,6 @@ describe('SettingsProviders list load states', () => {
         );
 
         expect(screen.getByText('Seeded Provider')).toBeInTheDocument();
-        expect(screen.queryByText('Loading providers...')).not.toBeInTheDocument();
+        expect(screen.queryByText(uiText('Loading providers...'))).not.toBeInTheDocument();
     });
 });

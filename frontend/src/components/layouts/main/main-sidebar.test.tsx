@@ -57,7 +57,7 @@ describe('MainSidebar settings entry points', () => {
         const user = userEvent.setup();
         renderSidebar();
 
-        await user.click(screen.getByRole('link', { name: 'Settings' }));
+        await user.click(screen.getByRole('link', { name: '设置' }));
 
         expect(screen.getByTestId('from')).toHaveTextContent('/dashboard');
     });
@@ -67,7 +67,7 @@ describe('MainSidebar settings entry points', () => {
         renderSidebar();
 
         await user.click(screen.getByRole('button', { name: /Test User/ }));
-        await user.click(screen.getByRole('menuitem', { name: 'Profile' }));
+        await user.click(screen.getByRole('menuitem', { name: '账户信息' }));
 
         expect(screen.getByTestId('from')).toHaveTextContent('/dashboard');
     });

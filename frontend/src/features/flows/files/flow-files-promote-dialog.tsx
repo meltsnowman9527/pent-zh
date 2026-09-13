@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useAppForm } from '@/hooks/use-app-form';
+import { uiText } from '@/locales/zh-CN';
 import { useResources } from '@/providers/resources-provider';
 
 import { stripFlowRootPrefix } from './flow-files-utils';
@@ -182,8 +183,12 @@ function FlowFilesPromoteDialogForm({ files, flowId, onClose }: FlowFilesPromote
     // Convention: stay enabled until the first submit, then reflect validity (so an invalid submit surfaces
     // errors instead of a silently-dead button). Mirrors FormSubmitButton's requireValid gate.
     const isSubmitDisabled = form.formState.isSubmitted && !form.formState.isValid;
-    const titleText = isMulti ? `Save ${files.length} items as resources` : 'Save as resource';
-    const overwriteCtaLabel = isMulti ? `Save ${files.length} with overwrite` : 'Save with overwrite';
+    const titleText = isMulti
+        ? uiText('Save {count} items as resources', { count: files.length })
+        : uiText('Save as resource');
+    const overwriteCtaLabel = isMulti
+        ? uiText('Save {count} with overwrite', { count: files.length })
+        : uiText('Save with overwrite');
 
     return (
         <>
@@ -194,17 +199,14 @@ function FlowFilesPromoteDialogForm({ files, flowId, onClose }: FlowFilesPromote
                         {titleText}
                     </DialogTitle>
                     <DialogDescription>
-                        {isMulti ? (
-                            <>
-                                Promote every selected entry from this flow into your global resource library so you can
-                                reuse them in other flows.
-                            </>
-                        ) : (
-                            <>
-                                Promote <code>{files[0].path}</code> from this flow into your global resource library so
-                                you can reuse it in other flows.
-                            </>
-                        )}
+                        {isMulti
+                            ? uiText(
+                                  'Promote every selected entry from this flow into your global resource library so you can reuse them in other flows.',
+                              )
+                            : uiText(
+                                  'Promote {path} from this flow into your global resource library so you can reuse it in other flows.',
+                                  { path: files[0].path },
+                              )}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -219,7 +221,9 @@ function FlowFilesPromoteDialogForm({ files, flowId, onClose }: FlowFilesPromote
                             name="destination"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>{isMulti ? 'Destination directory' : 'Destination path'}</FormLabel>
+                                    <FormLabel>
+                                        {isMulti ? uiText('Destination directory') : uiText('Destination path')}
+                                    </FormLabel>
                                     <FormControl>
                                         <Input
                                             {...field}
@@ -228,23 +232,19 @@ function FlowFilesPromoteDialogForm({ files, flowId, onClose }: FlowFilesPromote
                                             disabled={isPromoting}
                                             placeholder={
                                                 isMulti
-                                                    ? 'Leave empty to save into the library root'
+                                                    ? uiText('Leave empty to save into the library root')
                                                     : 'results/scan.txt'
                                             }
                                         />
                                     </FormControl>
                                     <FormDescription>
-                                        {isMulti ? (
-                                            <>
-                                                Relative directory inside your resource library. Leave empty for the
-                                                root. Each item keeps its current filename.
-                                            </>
-                                        ) : (
-                                            <>
-                                                Relative path inside your resource library. Use <code>/</code> to nest
-                                                into subdirectories.
-                                            </>
-                                        )}
+                                        {isMulti
+                                            ? uiText(
+                                                  'Relative directory inside your resource library. Leave empty for the root. Each item keeps its current filename.',
+                                              )
+                                            : uiText(
+                                                  'Relative path inside your resource library. Use / to nest into subdirectories.',
+                                              )}
                                     </FormDescription>
                                     <FormMessage />
                                 </FormItem>
@@ -258,7 +258,7 @@ function FlowFilesPromoteDialogForm({ files, flowId, onClose }: FlowFilesPromote
                                 type="button"
                                 variant="outline"
                             >
-                                Cancel
+                                {uiText('Cancel')}
                             </Button>
                             <OverwriteButtons
                                 isDisabled={isSubmitDisabled}

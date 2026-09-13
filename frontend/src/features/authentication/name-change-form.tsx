@@ -8,19 +8,20 @@ import { FormSubmitButton } from '@/components/ui/form-submit-button';
 import { Input } from '@/components/ui/input';
 import { useAppForm } from '@/hooks/use-app-form';
 import { api, resolveApiErrorMessage } from '@/lib/axios';
+import { uiText } from '@/locales/zh-CN';
 import { useUser } from '@/providers/user-provider';
 
 const nameChangeSchema = z.object({
     name: z
         .string()
         .trim()
-        .min(1, { message: 'Name is required' })
-        .max(70, { message: 'Name must not exceed 70 characters' }),
+        .min(1, { message: uiText('Name is required') })
+        .max(70, { message: uiText('Name must not exceed 70 characters') }),
 });
 
 const ERROR_BY_CODE: Record<string, string> = {
-    'Users.ChangeNameCurrentUser.InvalidName': 'New name does not meet requirements',
-    'Users.NotFound': 'User not found',
+    'Users.ChangeNameCurrentUser.InvalidName': uiText('New name does not meet requirements'),
+    'Users.NotFound': uiText('User not found'),
 };
 
 interface NameChangeFormProps {
@@ -47,14 +48,14 @@ export function NameChangeForm({ onCancel, onSuccess }: NameChangeFormProps) {
         try {
             await api.put('/user/name', { name: values.name });
 
-            toast.success('Name successfully updated');
+            toast.success(uiText('Name successfully updated'));
 
             patchUser({ name: values.name });
             await refreshAuthInfo();
 
             onSuccess?.();
         } catch (err: unknown) {
-            setError(resolveApiErrorMessage(err, ERROR_BY_CODE, 'Failed to update name'));
+            setError(resolveApiErrorMessage(err, ERROR_BY_CODE, uiText('Failed to update name')));
         }
     };
 
@@ -70,11 +71,11 @@ export function NameChangeForm({ onCancel, onSuccess }: NameChangeFormProps) {
                     name="name"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Display name</FormLabel>
+                            <FormLabel>{uiText('Display name')}</FormLabel>
                             <FormControl>
                                 <Input
                                     {...field}
-                                    placeholder="Enter your display name"
+                                    placeholder={uiText('Enter your display name')}
                                 />
                             </FormControl>
                             <FormMessage />
@@ -92,11 +93,11 @@ export function NameChangeForm({ onCancel, onSuccess }: NameChangeFormProps) {
                             type="button"
                             variant="outline"
                         >
-                            Cancel
+                            {uiText('Cancel')}
                         </Button>
                     )}
                     <FormSubmitButton size="sm">
-                        <span>Update Name</span>
+                        <span>{uiText('Update Name')}</span>
                     </FormSubmitButton>
                 </div>
             </form>

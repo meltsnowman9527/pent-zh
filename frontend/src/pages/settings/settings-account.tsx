@@ -1,5 +1,5 @@
 import { format } from 'date-fns';
-import { enUS } from 'date-fns/locale';
+import { zhCN } from 'date-fns/locale';
 import { Lock, Mail, User } from 'lucide-react';
 import { useState } from 'react';
 
@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { EmailChangeForm } from '@/features/authentication/email-change-form';
 import { NameChangeForm } from '@/features/authentication/name-change-form';
 import { PasswordChangeForm } from '@/features/authentication/password-change-form';
+import { uiText } from '@/locales/zh-CN';
 import { useUser } from '@/providers/user-provider';
 
 type EditingSection = 'email' | 'name' | 'password';
@@ -42,18 +43,18 @@ function SettingsAccount() {
     const initial = ([...(displayName || '?')][0] ?? '?').toUpperCase();
     const createdAt = user.created_at ? new Date(user.created_at) : null;
     const memberSince =
-        createdAt && !Number.isNaN(createdAt.getTime()) ? format(createdAt, 'MMMM yyyy', { locale: enUS }) : null;
+        createdAt && !Number.isNaN(createdAt.getTime()) ? format(createdAt, 'yyyy年M月', { locale: zhCN }) : null;
     const accountLabel = isLocal
-        ? 'Local account'
+        ? uiText('Local account')
         : user.provider
           ? (PROVIDER_LABELS[user.provider] ?? user.provider)
-          : 'OAuth account';
+          : uiText('OAuth account');
 
     return (
         <>
             <AppHeader>
                 <AppHeaderContent>
-                    <AppHeaderTitle icon={<User className="size-4 shrink-0" />}>Account</AppHeaderTitle>
+                    <AppHeaderTitle icon={<User className="size-4 shrink-0" />}>{uiText('Account')}</AppHeaderTitle>
                 </AppHeaderContent>
             </AppHeader>
             <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4">
@@ -65,7 +66,9 @@ function SettingsAccount() {
                         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                             <CardTitle className="truncate">{displayName}</CardTitle>
                             {memberSince && (
-                                <CardDescription className="truncate">Member since {memberSince}</CardDescription>
+                                <CardDescription className="truncate">
+                                    {uiText('Member since {date}', { date: memberSince })}
+                                </CardDescription>
                             )}
                         </div>
                         <Badge
@@ -80,8 +83,8 @@ function SettingsAccount() {
                 <Card>
                     <CardHeader className="flex-row items-start justify-between gap-4">
                         <div className="grid gap-1.5">
-                            <CardTitle>Display name</CardTitle>
-                            <CardDescription>The name shown across the app.</CardDescription>
+                            <CardTitle>{uiText('Display name')}</CardTitle>
+                            <CardDescription>{uiText('The name shown across the app.')}</CardDescription>
                         </div>
                         {!editingSections.has('name') && (
                             <Button
@@ -89,7 +92,7 @@ function SettingsAccount() {
                                 size="sm"
                                 variant="outline"
                             >
-                                Change
+                                {uiText('Change')}
                             </Button>
                         )}
                     </CardHeader>
@@ -111,9 +114,11 @@ function SettingsAccount() {
                 <Card>
                     <CardHeader className="flex-row items-start justify-between gap-4">
                         <div className="grid gap-1.5">
-                            <CardTitle>Email address</CardTitle>
+                            <CardTitle>{uiText('Email address')}</CardTitle>
                             <CardDescription>
-                                {isLocal ? 'The email you use to sign in.' : `Linked from your ${accountLabel}.`}
+                                {isLocal
+                                    ? uiText('The email you use to sign in.')
+                                    : uiText('Linked from your {provider}.', { provider: accountLabel })}
                             </CardDescription>
                         </div>
                         {isLocal && !editingSections.has('email') && (
@@ -122,7 +127,7 @@ function SettingsAccount() {
                                 size="sm"
                                 variant="outline"
                             >
-                                Change
+                                {uiText('Change')}
                             </Button>
                         )}
                     </CardHeader>
@@ -145,8 +150,8 @@ function SettingsAccount() {
                     <Card>
                         <CardHeader className="flex-row items-start justify-between gap-4">
                             <div className="grid gap-1.5">
-                                <CardTitle>Password</CardTitle>
-                                <CardDescription>Change your account password.</CardDescription>
+                                <CardTitle>{uiText('Password')}</CardTitle>
+                                <CardDescription>{uiText('Change your account password.')}</CardDescription>
                             </div>
                             {!editingSections.has('password') && (
                                 <Button
@@ -154,7 +159,7 @@ function SettingsAccount() {
                                     size="sm"
                                     variant="outline"
                                 >
-                                    Change
+                                    {uiText('Change')}
                                 </Button>
                             )}
                         </CardHeader>

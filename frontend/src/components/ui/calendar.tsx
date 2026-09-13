@@ -3,6 +3,7 @@ import { DayPicker, type DayPickerProps } from 'react-day-picker';
 
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { uiText } from '@/locales/zh-CN';
 
 export type CalendarProps = DayPickerProps;
 
@@ -54,6 +55,6 @@ function Calendar({ className, classNames, showOutsideDays = true, ...props }: C
     );
 }
 
-Calendar.displayName = 'Calendar';
+Calendar.displayName = uiText('Calendar');
 
 export { Calendar };

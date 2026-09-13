@@ -1,6 +1,8 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
+import { uiText } from '@/locales/zh-CN';
+
 const queryResult = vi.hoisted(() => ({
     current: { data: undefined, error: undefined, loading: false } as Record<string, unknown>,
 }));
@@ -38,7 +40,7 @@ describe('FlowReport load states', () => {
         render(<FlowReport />);
 
         expect(screen.getByTestId('markdown')).toHaveTextContent('Recon: 0 tasks');
-        expect(screen.queryByText('Failed to load flow data')).not.toBeInTheDocument();
+        expect(screen.queryByText(uiText('Failed to load flow data'))).not.toBeInTheDocument();
     });
 
     it('reports a failure when the flow itself is missing', () => {
@@ -46,6 +48,6 @@ describe('FlowReport load states', () => {
 
         render(<FlowReport />);
 
-        expect(screen.getByText('Failed to load flow data')).toBeInTheDocument();
+        expect(screen.getByText(uiText('Failed to load flow data'))).toBeInTheDocument();
     });
 });

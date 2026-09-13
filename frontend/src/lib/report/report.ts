@@ -4,6 +4,7 @@ import type { FlowFragmentFragment, TaskFragmentFragment } from '@/graphql/types
 
 import { StatusType } from '@/graphql/types';
 import { Log } from '@/lib/log';
+import { uiText } from '@/locales/zh-CN';
 
 const getStatusEmoji = (status: StatusType): string => {
     switch (status) {
@@ -92,10 +93,10 @@ export const generateReport = (tasks: TaskFragmentFragment[], flow?: FlowFragmen
         if (flow) {
             const flowEmoji = getStatusEmoji(flow.status);
 
-            return `# ${flowEmoji} ${flow.id}. ${flow.title}\n\nNo tasks available for this flow.`;
+            return `# ${flowEmoji} ${flow.id}. ${flow.title}\n\n${uiText('No tasks available for this flow.')}`;
         }
 
-        return 'No tasks available for this flow.';
+        return uiText('No tasks available for this flow.');
     }
 
     const sortedTasks = [...tasks].sort((a, b) => +a.id - +b.id);

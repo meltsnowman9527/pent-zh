@@ -13,6 +13,7 @@ import FlowTerminal from '@/features/flows/terminal/flow-terminal';
 import FlowTools from '@/features/flows/tools/flow-tools';
 import FlowVectorStores from '@/features/flows/vector-stores/flow-vector-stores';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
+import { uiText } from '@/locales/zh-CN';
 
 interface FlowTabsProps {
     activeTab: string;
@@ -41,16 +42,16 @@ function FlowTabs({ activeTab, onTabChange }: FlowTabsProps) {
             <div className="max-w-full pr-4">
                 <ScrollArea className="w-full pb-3">
                     <TabsList className="flex w-fit">
-                        {!isDesktop && <TabsTrigger value="automation">Automation</TabsTrigger>}
-                        {!isDesktop && <TabsTrigger value="assistant">Assistant</TabsTrigger>}
-                        {!isDesktop && <TabsTrigger value="dashboard">Dashboard</TabsTrigger>}
-                        <TabsTrigger value="terminal">Terminal</TabsTrigger>
-                        <TabsTrigger value="tasks">Tasks</TabsTrigger>
-                        <TabsTrigger value="agents">Agents</TabsTrigger>
-                        <TabsTrigger value="tools">Searches</TabsTrigger>
-                        <TabsTrigger value="vectorStores">Vector Store</TabsTrigger>
-                        <TabsTrigger value="files">Files</TabsTrigger>
-                        <TabsTrigger value="screenshots">Screenshots</TabsTrigger>
+                        {!isDesktop && <TabsTrigger value="automation">{uiText('Automation')}</TabsTrigger>}
+                        {!isDesktop && <TabsTrigger value="assistant">{uiText('Assistant')}</TabsTrigger>}
+                        {!isDesktop && <TabsTrigger value="dashboard">{uiText('Dashboard')}</TabsTrigger>}
+                        <TabsTrigger value="terminal">{uiText('Terminal')}</TabsTrigger>
+                        <TabsTrigger value="tasks">{uiText('Tasks')}</TabsTrigger>
+                        <TabsTrigger value="agents">{uiText('Agents')}</TabsTrigger>
+                        <TabsTrigger value="tools">{uiText('Searches')}</TabsTrigger>
+                        <TabsTrigger value="vectorStores">{uiText('Vector Store')}</TabsTrigger>
+                        <TabsTrigger value="files">{uiText('Files')}</TabsTrigger>
+                        <TabsTrigger value="screenshots">{uiText('Screenshots')}</TabsTrigger>
                     </TabsList>
                     <ScrollBar orientation="horizontal" />
                 </ScrollArea>

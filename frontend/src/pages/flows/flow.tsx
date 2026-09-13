@@ -54,6 +54,7 @@ import { copyToClipboard, downloadTextFile, generateFileName, generateReport } f
 import { routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
 import { formatName } from '@/lib/utils/format';
+import { uiText } from '@/locales/zh-CN';
 import { useFavorites } from '@/providers/favorites-provider';
 import { useFlow } from '@/providers/flow-provider';
 import { type Flow as FlowItem, useFlows } from '@/providers/flows-provider';
@@ -65,7 +66,7 @@ const renderFlowItem = (item: FlowItem, isCurrent: boolean): ReactNode => (
             status={item.status}
         />
         <span className={cn('min-w-0 flex-1 truncate', isCurrent && 'font-medium')}>
-            {item.title || `Flow #${item.id}`}
+            {item.title || uiText('Flow #{id}', { id: item.id })}
         </span>
         <Badge
             className="ml-auto shrink-0 font-mono text-[10px]"
@@ -129,11 +130,11 @@ function Flow() {
                 });
 
                 if (data?.renameFlow === ResultType.Success) {
-                    toast.success('Flow renamed successfully');
+                    toast.success(uiText('Flow renamed successfully'));
                     handleFlowRenameCancel();
                 }
             } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : 'Failed to rename flow';
+                const errorMessage = error instanceof Error ? error.message : uiText('Failed to rename flow');
                 toast.error(errorMessage);
             }
         });
@@ -186,7 +187,7 @@ function Flow() {
                         <Breadcrumb className="min-w-0 flex-1">
                             <BreadcrumbList className="min-w-0 flex-nowrap">
                                 <BreadcrumbItem className="min-w-0">
-                                    <BreadcrumbPage>Flow</BreadcrumbPage>
+                                    <BreadcrumbPage>{uiText('Flow')}</BreadcrumbPage>
                                 </BreadcrumbItem>
                             </BreadcrumbList>
                         </Breadcrumb>
@@ -196,7 +197,7 @@ function Flow() {
                     <ErrorState
                         message={flowLoadError.message}
                         onRetry={refetchFlow}
-                        title="Error loading flow"
+                        title={uiText('Error loading flow')}
                     />
                 </div>
             </>
@@ -242,7 +243,7 @@ function Flow() {
                                         inputRef={editingInputRef}
                                         onCancel={handleFlowRenameCancel}
                                         onSave={handleFlowRenameSave}
-                                        placeholder="Flow title"
+                                        placeholder={uiText('Flow title')}
                                     />
                                 ) : flow ? (
                                     <Tooltip>
@@ -251,14 +252,14 @@ function Flow() {
                                                 className="max-w-64 min-w-0 cursor-text truncate select-none"
                                                 onDoubleClick={handleFlowRenameStart}
                                             >
-                                                {flowTitle || 'Select a flow'}
+                                                {flowTitle || uiText('Select a flow')}
                                             </BreadcrumbPage>
                                         </TooltipTrigger>
-                                        <TooltipContent>Double-click to rename</TooltipContent>
+                                        <TooltipContent>{uiText('Double-click to rename')}</TooltipContent>
                                     </Tooltip>
                                 ) : (
                                     <BreadcrumbPage className="min-w-0 truncate">
-                                        {flowTitle || 'Select a flow'}
+                                        {flowTitle || uiText('Select a flow')}
                                     </BreadcrumbPage>
                                 )}
                             </BreadcrumbItem>
@@ -277,7 +278,7 @@ function Flow() {
                     )}
                     {flowId && !isMobile && (
                         <Button
-                            aria-label="Toggle favorite"
+                            aria-label={uiText('Toggle favorite')}
                             aria-pressed={isFavoriteFlow(flowId)}
                             className="shrink-0"
                             disabled={isFlowLoading}
@@ -291,7 +292,7 @@ function Flow() {
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button
-                                aria-label="Flow actions"
+                                aria-label={uiText('Flow actions')}
                                 className="size-8 p-0"
                                 variant="ghost"
                             >
@@ -312,7 +313,7 @@ function Flow() {
                                         onSelect={(event) => event.preventDefault()}
                                     >
                                         <GitFork />
-                                        Flows
+                                        {uiText('Flows')}
                                         <div className="-my-1.5 -mr-2 ml-auto flex items-center">
                                             <DetailNavigationButtons<FlowItem>
                                                 controller={flowNav}
@@ -333,7 +334,9 @@ function Flow() {
                                                         : 'size-4'
                                                 }
                                             />
-                                            {isFavoriteFlow(flowId) ? 'Remove from favorites' : 'Add to favorites'}
+                                            {isFavoriteFlow(flowId)
+                                                ? uiText('Remove from favorites')
+                                                : uiText('Add to favorites')}
                                         </DropdownMenuItem>
                                     )}
                                     <DropdownMenuSeparator />
@@ -344,7 +347,7 @@ function Flow() {
                                 onClick={handleFlowRenameStart}
                             >
                                 <PencilLine className="size-3" />
-                                Rename
+                                {uiText('Rename')}
                             </DropdownMenuItem>
                             {isFlowRunning && (
                                 <DropdownMenuItem
@@ -354,12 +357,12 @@ function Flow() {
                                     {isFinishing ? (
                                         <>
                                             <Spinner variant="circle" />
-                                            Finishing...
+                                            {uiText('Finishing...')}
                                         </>
                                     ) : (
                                         <>
                                             <Pause />
-                                            Finish
+                                            {uiText('Finish')}
                                         </>
                                     )}
                                 </DropdownMenuItem>
@@ -372,12 +375,12 @@ function Flow() {
                                 {isDeleting ? (
                                     <>
                                         <Spinner variant="circle" />
-                                        Deleting...
+                                        {uiText('Deleting...')}
                                     </>
                                 ) : (
                                     <>
                                         <Trash />
-                                        Delete
+                                        {uiText('Delete')}
                                     </>
                                 )}
                             </DropdownMenuItem>
@@ -432,13 +435,13 @@ function Flow() {
                 )}
             </div>
             <ConfirmationDialog
-                cancelText="Cancel"
-                confirmText="Delete"
+                cancelText={uiText('Cancel')}
+                confirmText={uiText('Delete')}
                 handleConfirm={handleFlowDelete}
                 handleOpenChange={setIsDeleteDialogOpen}
                 isOpen={isDeleteDialogOpen}
                 itemName={flow?.title}
-                itemType="flow"
+                itemType={uiText('flow')}
             />
         </>
     );
@@ -460,10 +463,10 @@ function FlowReportDropdown() {
         const success = await copyToClipboard(reportContent);
 
         if (success) {
-            toast.success('Report copied to clipboard');
+            toast.success(uiText('Report copied to clipboard'));
         } else {
             Log.error('Failed to copy report to clipboard');
-            toast.error('Failed to copy report to clipboard');
+            toast.error(uiText('Failed to copy report to clipboard'));
         }
     };
 
@@ -510,7 +513,7 @@ function FlowReportDropdown() {
                     disabled={isReportDisabled}
                     endIcon={<ChevronDown className="opacity-50" />}
                     icon={<NotepadText />}
-                    label="Report"
+                    label={uiText('Report')}
                     variant="ghost"
                 />
             </DropdownMenuTrigger>
@@ -521,7 +524,7 @@ function FlowReportDropdown() {
                     onClick={handleOpenWebView}
                 >
                     <ExternalLink />
-                    Open web view
+                    {uiText('Open web view')}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                     className="flex items-center gap-2"
@@ -529,7 +532,7 @@ function FlowReportDropdown() {
                     onClick={handleCopyToClipboard}
                 >
                     <Copy />
-                    Copy to clipboard
+                    {uiText('Copy to clipboard')}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                     className="flex items-center gap-2"
@@ -537,7 +540,7 @@ function FlowReportDropdown() {
                     onClick={handleDownloadMD}
                 >
                     <Download />
-                    Download MD
+                    {uiText('Download MD')}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                     className="flex items-center gap-2"
@@ -545,7 +548,7 @@ function FlowReportDropdown() {
                     onClick={handleDownloadPDF}
                 >
                     <Download />
-                    Download PDF
+                    {uiText('Download PDF')}
                 </DropdownMenuItem>
             </DropdownMenuContent>
         </DropdownMenu>

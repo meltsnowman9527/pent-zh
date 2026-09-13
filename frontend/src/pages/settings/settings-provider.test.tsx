@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ProviderType } from '@/graphql/types';
 import { routes } from '@/lib/routes';
+import { uiText } from '@/locales/zh-CN';
 
 const { mutate, navigate } = vi.hoisted(() => ({ mutate: vi.fn(), navigate: vi.fn() }));
 
@@ -165,7 +166,7 @@ describe('SettingsProvider create-form type guards', () => {
         queryResult.error = new Error('e2e induced refetch failure');
         render(<SettingsProvider />);
 
-        expect(screen.queryByText('Error loading provider data')).not.toBeInTheDocument();
+        expect(screen.queryByText(uiText('Error loading provider data'))).not.toBeInTheDocument();
         expect(navigate).not.toHaveBeenCalled();
     });
 
@@ -176,17 +177,17 @@ describe('SettingsProvider create-form type guards', () => {
         queryResult.loading = true;
         render(<SettingsProvider />);
 
-        expect(screen.queryByText('Loading provider data...')).not.toBeInTheDocument();
+        expect(screen.queryByText(uiText('Loading provider data...'))).not.toBeInTheDocument();
         expect(navigate).not.toHaveBeenCalled();
     });
 
     const expandAgent = () => {
-        if (!screen.queryByLabelText('Temperature')) {
+        if (!screen.queryByLabelText(uiText('Temperature'))) {
             fireEvent.click(screen.getByRole('button', { name: /Simple/ }));
         }
     };
 
-    const temperatureInput = () => screen.getByLabelText('Temperature') as HTMLInputElement;
+    const temperatureInput = () => screen.getByLabelText(uiText('Temperature')) as HTMLInputElement;
 
     it('preserves an in-flight agent edit on the create form across a background refetch', () => {
         setSearch('type=openai');
@@ -225,7 +226,7 @@ describe('SettingsProvider create-form type guards', () => {
         state.providerId = 'edit-1';
         const { rerender } = render(<SettingsProvider />);
 
-        const nameInput = screen.getByPlaceholderText('Enter provider name') as HTMLInputElement;
+        const nameInput = screen.getByPlaceholderText(uiText('Enter provider name')) as HTMLInputElement;
 
         expect(nameInput.value).toBe('Persisted Name');
 
@@ -234,24 +235,28 @@ describe('SettingsProvider create-form type guards', () => {
         queryResult.data = { settingsProviders };
         rerender(<SettingsProvider />);
 
-        expect((screen.getByPlaceholderText('Enter provider name') as HTMLInputElement).value).toBe('My Unsaved Edit');
+        expect((screen.getByPlaceholderText(uiText('Enter provider name')) as HTMLInputElement).value).toBe(
+            'My Unsaved Edit',
+        );
     });
 });
 
 describe('SettingsProvider save feedback', () => {
     const toggleAgent = () => fireEvent.click(screen.getByRole('button', { name: /Simple/ }));
 
-    const saveButton = () => screen.getByRole('button', { name: 'Create' });
+    const saveButton = () => screen.getByRole('button', { name: uiText('Create') });
 
     const renderCreateForm = () => {
         setSearch('type=openai');
         render(<SettingsProvider />);
-        fireEvent.change(screen.getByPlaceholderText('Enter provider name'), { target: { value: 'My Provider' } });
+        fireEvent.change(screen.getByPlaceholderText(uiText('Enter provider name')), {
+            target: { value: 'My Provider' },
+        });
     };
 
     const typeInvalidExtraBody = () => {
         toggleAgent();
-        fireEvent.change(screen.getByLabelText('Extra Body (JSON)'), { target: { value: '{ nope' } });
+        fireEvent.change(screen.getByLabelText(uiText('Extra Body (JSON)')), { target: { value: '{ nope' } });
         toggleAgent();
     };
 

@@ -1,6 +1,7 @@
 import { SquareMenu, Type } from 'lucide-react';
 
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { uiText } from '@/locales/zh-CN';
 
 // 'rich' reflows whitespace on save (tiptap); 'raw' is a byte-exact textarea over the source.
 export type EditorViewMode = 'raw' | 'rich';
@@ -21,14 +22,14 @@ export function EditorViewModeToggle({ className, mode, onModeChange, rawTooltip
         >
             <TabsList className="dark:bg-background h-7 p-0.5">
                 <TabsTrigger
-                    aria-label="Rich editor"
+                    aria-label={uiText('Rich editor')}
                     className="dark:data-[state=active]:bg-card h-6 px-2"
                     value="rich"
                 >
                     <SquareMenu className="size-4" />
                 </TabsTrigger>
                 <TabsTrigger
-                    aria-label="Raw source"
+                    aria-label={uiText('Raw source')}
                     className="dark:data-[state=active]:bg-card h-6 px-2"
                     title={rawTooltip}
                     value="raw"

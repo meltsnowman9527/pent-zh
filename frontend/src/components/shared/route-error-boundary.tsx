@@ -5,6 +5,7 @@ import { useRouteError } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
 import { isChunkLoadError, isDomDesyncError, reloadOnce } from '@/lib/chunk-reload';
+import { uiText } from '@/locales/zh-CN';
 
 /**
  * Root `errorElement` for the data router — replaces React Router's built-in
@@ -34,13 +35,13 @@ function RouteErrorBoundary() {
                     <EmptyMedia variant="icon">
                         <TriangleAlert />
                     </EmptyMedia>
-                    <EmptyTitle>Something went wrong</EmptyTitle>
+                    <EmptyTitle>{uiText('Something went wrong')}</EmptyTitle>
                     <EmptyDescription>
                         {isChunk
-                            ? 'A new version was likely just deployed. Reloading will load the latest one.'
+                            ? uiText('A new version was likely just deployed. Reloading will load the latest one.')
                             : isDesync
-                              ? 'The page hit a display glitch. Reloading usually clears it.'
-                              : 'The page ran into an unexpected error. Reloading usually clears it.'}
+                              ? uiText('The page hit a display glitch. Reloading usually clears it.')
+                              : uiText('The page ran into an unexpected error. Reloading usually clears it.')}
                     </EmptyDescription>
                 </EmptyHeader>
                 <EmptyContent>
@@ -48,7 +49,7 @@ function RouteErrorBoundary() {
                         onClick={() => window.location.reload()}
                         variant="secondary"
                     >
-                        Reload
+                        {uiText('Reload')}
                     </Button>
                 </EmptyContent>
             </Empty>

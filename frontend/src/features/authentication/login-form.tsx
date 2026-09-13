@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { InputPassword } from '@/components/ui/input-password';
 import { useAppForm } from '@/hooks/use-app-form';
 import { routes } from '@/lib/routes';
+import { uiText } from '@/locales/zh-CN';
 import { useUser } from '@/providers/user-provider';
 
 import { PasswordChangeForm } from './password-change-form';
@@ -21,21 +22,21 @@ const formSchema = z.object({
     mail: z
         .string()
         .min(1, {
-            message: 'Login is required',
+            message: uiText('Login is required'),
         })
         .refine(
             (value) => z.string().email().safeParse(value).success || ['admin', 'demo'].includes(value.toLowerCase()),
             {
-                message: 'Invalid login',
+                message: uiText('Invalid login'),
             },
         ),
     password: z.string().min(1, {
-        message: 'Password is required',
+        message: uiText('Password is required'),
     }),
 });
 
-const errorMessage = 'Invalid login or password';
-const errorProviderMessage = 'Authentication failed';
+const errorMessage = uiText('Invalid login or password');
+const errorProviderMessage = uiText('Authentication failed');
 
 interface AuthProviderAction {
     icon: React.ReactNode;
@@ -47,12 +48,12 @@ const providerActions: AuthProviderAction[] = [
     {
         icon: <Google className="size-5" />,
         id: 'google',
-        name: 'Continue with Google',
+        name: uiText('Continue with Google'),
     },
     {
         icon: <Github className="size-5" />,
         id: 'github',
-        name: 'Continue with GitHub',
+        name: uiText('Continue with GitHub'),
     },
 ];
 
@@ -154,9 +155,9 @@ function LoginForm({ providers, returnUrl = routes.newFlow }: LoginFormProps) {
     if (shouldShowPasswordChange) {
         return (
             <div className="mx-auto flex w-[350px] flex-col gap-6">
-                <h1 className="text-center text-3xl font-bold">Update Password</h1>
+                <h1 className="text-center text-3xl font-bold">{uiText('Update Password')}</h1>
                 <p className="text-muted-foreground text-center text-sm">
-                    You need to change your password before continuing.
+                    {uiText('You need to change your password before continuing.')}
                 </p>
                 <PasswordChangeForm
                     layout="vertical"
@@ -200,7 +201,7 @@ function LoginForm({ providers, returnUrl = routes.newFlow }: LoginFormProps) {
                                 <div className="w-full border-t border-gray-300" />
                             </div>
                             <div className="relative flex justify-center text-sm">
-                                <span className="bg-background px-2">or</span>
+                                <span className="bg-background px-2">{uiText('or')}</span>
                             </div>
                         </div>
                     </>
@@ -212,12 +213,12 @@ function LoginForm({ providers, returnUrl = routes.newFlow }: LoginFormProps) {
                         name="mail"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel>Login</FormLabel>
+                                <FormLabel>{uiText('Login')}</FormLabel>
                                 <FormControl>
                                     <Input
                                         {...field}
                                         autoFocus
-                                        placeholder="Enter your email"
+                                        placeholder={uiText('Enter your email')}
                                     />
                                 </FormControl>
                                 <FormMessage />
@@ -230,11 +231,11 @@ function LoginForm({ providers, returnUrl = routes.newFlow }: LoginFormProps) {
                         name="password"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel>Password</FormLabel>
+                                <FormLabel>{uiText('Password')}</FormLabel>
                                 <FormControl>
                                     <InputPassword
                                         {...field}
-                                        placeholder="Enter your password"
+                                        placeholder={uiText('Enter your password')}
                                     />
                                 </FormControl>
                                 <FormMessage />
@@ -243,7 +244,7 @@ function LoginForm({ providers, returnUrl = routes.newFlow }: LoginFormProps) {
                     />
 
                     <FormSubmitButton className="w-full">
-                        <span>Sign in</span>
+                        <span>{uiText('Sign in')}</span>
                     </FormSubmitButton>
 
                     {error && <FormMessage>{error}</FormMessage>}

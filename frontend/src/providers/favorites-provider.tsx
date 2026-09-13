@@ -18,6 +18,7 @@ import {
     SettingsUserUpdatedDocument,
 } from '@/graphql/types';
 import { Log } from '@/lib/log';
+import { uiText } from '@/locales/zh-CN';
 import { useUser } from '@/providers/user-provider';
 
 interface FavoritesContextValue {
@@ -148,8 +149,8 @@ export function FavoritesProvider({ children }: FavoritesProviderProps) {
                         variables: { flowId: id },
                     });
                 } catch (error) {
-                    const errorMessage = error instanceof Error ? error.message : 'Failed to add favorite';
-                    toast.error('Failed to add to favorites', {
+                    const errorMessage = error instanceof Error ? error.message : uiText('Failed to add favorite');
+                    toast.error(uiText('Failed to add to favorites'), {
                         description: errorMessage,
                     });
                     Log.error('Error adding favorite flow:', error);
@@ -172,8 +173,8 @@ export function FavoritesProvider({ children }: FavoritesProviderProps) {
                         variables: { flowId: id },
                     });
                 } catch (error) {
-                    const errorMessage = error instanceof Error ? error.message : 'Failed to remove favorite';
-                    toast.error('Failed to remove from favorites', {
+                    const errorMessage = error instanceof Error ? error.message : uiText('Failed to remove favorite');
+                    toast.error(uiText('Failed to remove from favorites'), {
                         description: errorMessage,
                     });
                     Log.error('Error removing favorite flow:', error);

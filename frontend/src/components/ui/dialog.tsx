@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import * as React from 'react';
 
 import { cn } from '@/lib/utils';
+import { uiText } from '@/locales/zh-CN';
 
 function Dialog({ ...props }: React.ComponentProps<typeof DialogPrimitive.Root>) {
     return (
@@ -44,8 +45,8 @@ function DialogContent({ children, className, ...props }: React.ComponentProps<t
                     data-slot="dialog-close"
                 >
                     <X className="h-4 w-4" />
-                    {/* not "Close": pages render visible Close buttons, and duplicate accessible names break role-based locators */}
-                    <span className="sr-only">Dismiss dialog</span>
+                    {/* not uiText('Close'): pages render visible Close buttons, and duplicate accessible names break role-based locators */}
+                    <span className="sr-only">{uiText('Dismiss dialog')}</span>
                 </DialogPrimitive.Close>
             </DialogPrimitive.Content>
         </DialogPortal>

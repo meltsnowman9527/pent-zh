@@ -10,6 +10,7 @@ import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTi
 import { Form, FormControl, FormField } from '@/components/ui/form';
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group';
 import { useAutoScroll } from '@/hooks/use-auto-scroll';
+import { uiText } from '@/locales/zh-CN';
 import { useFlow } from '@/providers/flow-provider';
 
 import FlowTasksDropdown from '../flow-tasks-dropdown';
@@ -153,13 +154,13 @@ function FlowVectorStores() {
                                         <InputGroupInput
                                             {...field}
                                             autoComplete="off"
-                                            placeholder="Search vector store logs..."
+                                            placeholder={uiText('Search vector store logs...')}
                                             type="text"
                                         />
                                         {field.value && (
                                             <InputGroupAddon align="inline-end">
                                                 <InputGroupButton
-                                                    aria-label="Clear vector store search"
+                                                    aria-label={uiText('Clear vector store search')}
                                                     onClick={() => {
                                                         form.reset({ search: '' });
                                                         setDebouncedSearchValue('');
@@ -208,7 +209,7 @@ function FlowVectorStores() {
 
                     {!isScrolledToBottom && (
                         <Button
-                            aria-label="Scroll to latest vector store log"
+                            aria-label={uiText('Scroll to latest vector store log')}
                             className="absolute right-4 bottom-4 z-10 shadow-md hover:shadow-lg"
                             onClick={() => scrollToEnd()}
                             size="icon-sm"
@@ -228,8 +229,8 @@ function FlowVectorStores() {
                         <EmptyMedia variant="icon">
                             <ListFilter />
                         </EmptyMedia>
-                        <EmptyTitle>No vector store logs found</EmptyTitle>
-                        <EmptyDescription>Try adjusting your search or filter parameters</EmptyDescription>
+                        <EmptyTitle>{uiText('No vector store logs found')}</EmptyTitle>
+                        <EmptyDescription>{uiText('Try adjusting your search or filter parameters')}</EmptyDescription>
                     </EmptyHeader>
                     <EmptyContent>
                         <Button
@@ -237,7 +238,7 @@ function FlowVectorStores() {
                             variant="outline"
                         >
                             <X />
-                            Reset filters
+                            {uiText('Reset filters')}
                         </Button>
                     </EmptyContent>
                 </Empty>
@@ -247,9 +248,9 @@ function FlowVectorStores() {
                         <EmptyMedia variant="icon">
                             <Database />
                         </EmptyMedia>
-                        <EmptyTitle>No vector store logs available</EmptyTitle>
+                        <EmptyTitle>{uiText('No vector store logs available')}</EmptyTitle>
                         <EmptyDescription>
-                            Vector store logs will appear here when the agent uses knowledge database
+                            {uiText('Vector store logs will appear here when the agent uses knowledge database')}
                         </EmptyDescription>
                     </EmptyHeader>
                 </Empty>

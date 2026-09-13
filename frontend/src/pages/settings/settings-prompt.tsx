@@ -85,15 +85,16 @@ import { useAppForm } from '@/hooks/use-app-form';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
 import { composeRefs } from '@/lib/compose-refs';
 import { formatPromptId } from '@/lib/route-titles/format-prompt-id';
+import { uiText } from '@/locales/zh-CN';
 
-const VARIABLES_TITLE = 'Available variables';
+const VARIABLES_TITLE = uiText('Available variables');
 
 const systemFormSchema = z.object({
-    template: z.string().min(1, 'System template is required'),
+    template: z.string().min(1, uiText('System template is required')),
 });
 
 const humanFormSchema = z.object({
-    template: z.string().min(1, 'Human template is required'),
+    template: z.string().min(1, uiText('Human template is required')),
 });
 
 interface FormMarkdownItemProps<T extends FieldValues> {
@@ -358,7 +359,7 @@ function SettingsPromptEditor({ promptId }: { promptId?: string }) {
             setResetDialogOpen(false);
         } catch (error) {
             console.error('Reset error:', error);
-            setSubmitError(error instanceof Error ? error.message : 'An error occurred while resetting');
+            setSubmitError(error instanceof Error ? error.message : uiText('An error occurred while resetting'));
             setResetDialogOpen(false);
         }
     };
@@ -402,7 +403,7 @@ function SettingsPromptEditor({ promptId }: { promptId?: string }) {
             setValidationDialogOpen(true);
         } catch (error) {
             console.error('Validation error:', error);
-            setSubmitError(error instanceof Error ? error.message : 'An error occurred while validating');
+            setSubmitError(error instanceof Error ? error.message : uiText('An error occurred while validating'));
         }
     };
 
@@ -570,7 +571,7 @@ function SettingsPromptEditor({ promptId }: { promptId?: string }) {
             return true;
         } catch (error) {
             console.error('Submit error:', error);
-            setSubmitError(error instanceof Error ? error.message : 'An error occurred while saving');
+            setSubmitError(error instanceof Error ? error.message : uiText('An error occurred while saving'));
 
             return false;
         }
@@ -595,7 +596,7 @@ function SettingsPromptEditor({ promptId }: { promptId?: string }) {
             const humanPromptType = agentData.human?.type;
 
             if (!humanPromptType) {
-                setSubmitError('Human prompt type not found');
+                setSubmitError(uiText('Human prompt type not found'));
 
                 return false;
             }
@@ -621,7 +622,7 @@ function SettingsPromptEditor({ promptId }: { promptId?: string }) {
             return true;
         } catch (error) {
             console.error('Submit error:', error);
-            setSubmitError(error instanceof Error ? error.message : 'An error occurred while saving');
+            setSubmitError(error instanceof Error ? error.message : uiText('An error occurred while saving'));
 
             return false;
         }
@@ -671,14 +672,14 @@ function SettingsPromptEditor({ promptId }: { promptId?: string }) {
     const pageHeader = (
         <AppHeader>
             <AppHeaderContent>
-                <AppHeaderTitle icon={<FileText className="size-4 shrink-0" />}>Edit Prompt</AppHeaderTitle>
+                <AppHeaderTitle icon={<FileText className="size-4 shrink-0" />}>{uiText('Edit Prompt')}</AppHeaderTitle>
             </AppHeaderContent>
             {promptInfo && (
                 <AppHeaderActions>
                     <AppHeaderAction
                         disabled={isLoading}
                         icon={isValidateLoading ? <Spinner variant="circle" /> : <CheckCircle />}
-                        label={isValidateLoading ? 'Validating...' : 'Validate'}
+                        label={isValidateLoading ? uiText('Validating...') : uiText('Validate')}
                         onClick={handleValidate}
                         type="button"
                         variant="outline"
@@ -686,14 +687,14 @@ function SettingsPromptEditor({ promptId }: { promptId?: string }) {
                     <AppHeaderAction
                         form={activeFormId}
                         icon={<Save />}
-                        label="Save"
+                        label={uiText('Save')}
                         loading={isLoading}
                         type="submit"
                     />
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button
-                                aria-label="Prompt actions"
+                                aria-label={uiText('Prompt actions')}
                                 className="size-8 p-0"
                                 type="button"
                                 variant="ghost"
@@ -709,14 +710,14 @@ function SettingsPromptEditor({ promptId }: { promptId?: string }) {
                                 <>
                                     <DropdownMenuItem onClick={() => setIsDiffDialogOpen(true)}>
                                         <FileDiff />
-                                        Diff
+                                        {uiText('Diff')}
                                     </DropdownMenuItem>
                                     <DropdownMenuItem
                                         disabled={isLoading}
                                         onClick={handleReset}
                                     >
                                         {isDeleteLoading ? <Spinner variant="circle" /> : <RotateCcw />}
-                                        {isDeleteLoading ? 'Resetting...' : 'Reset'}
+                                        {isDeleteLoading ? uiText('Resetting...') : uiText('Reset')}
                                     </DropdownMenuItem>
                                     <DropdownMenuSeparator />
                                 </>
@@ -725,12 +726,12 @@ function SettingsPromptEditor({ promptId }: { promptId?: string }) {
                                 className="cursor-default gap-4 hover:bg-transparent focus:bg-transparent"
                                 onSelect={(event) => event.preventDefault()}
                             >
-                                View
+                                {uiText('View')}
                                 <EditorViewModeToggle
                                     className="-my-1.5 -mr-2 ml-auto"
                                     mode={viewMode}
                                     onModeChange={setViewMode}
-                                    rawTooltip="Edit the raw prompt template"
+                                    rawTooltip={uiText('Edit the raw prompt template')}
                                 />
                             </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -746,8 +747,8 @@ function SettingsPromptEditor({ promptId }: { promptId?: string }) {
                 {pageHeader}
                 <div className="flex flex-1 items-center justify-center p-4">
                     <LoadingState
-                        description="Please wait while we fetch prompt information"
-                        title="Loading prompt data..."
+                        description={uiText('Please wait while we fetch prompt information')}
+                        title={uiText('Loading prompt data...')}
                     />
                 </div>
             </>
@@ -762,7 +763,7 @@ function SettingsPromptEditor({ promptId }: { promptId?: string }) {
                     <ErrorState
                         message={error.message}
                         onRetry={refetch}
-                        title="Error loading prompt data"
+                        title={uiText('Error loading prompt data')}
                     />
                 </div>
             </>
@@ -779,8 +780,12 @@ function SettingsPromptEditor({ promptId }: { promptId?: string }) {
                             <EmptyMedia>
                                 <AlertCircle className="text-destructive size-12" />
                             </EmptyMedia>
-                            <EmptyTitle>Prompt not found</EmptyTitle>
-                            <EmptyDescription>{`The prompt "${promptId}" could not be found or is not supported for editing.`}</EmptyDescription>
+                            <EmptyTitle>{uiText('Prompt not found')}</EmptyTitle>
+                            <EmptyDescription>
+                                {uiText('The prompt "{id}" could not be found or is not supported for editing.', {
+                                    id: promptId ?? '',
+                                })}
+                            </EmptyDescription>
                         </EmptyHeader>
                     </Empty>
                 </div>
@@ -794,11 +799,11 @@ function SettingsPromptEditor({ promptId }: { promptId?: string }) {
     const promptPanel = (
         <>
             <div className="flex flex-col gap-2 text-center">
-                <h2 className="text-2xl font-semibold">Edit prompt</h2>
+                <h2 className="text-2xl font-semibold">{uiText('Edit prompt')}</h2>
                 <p className="text-muted-foreground">
                     {promptInfo.type === 'agent'
-                        ? 'Customize the templates this agent uses'
-                        : 'Customize the template this tool uses'}
+                        ? uiText('Customize the templates this agent uses')
+                        : uiText('Customize the template this tool uses')}
                 </p>
             </div>
 
@@ -813,8 +818,8 @@ function SettingsPromptEditor({ promptId }: { promptId?: string }) {
                 </h3>
                 <p className="text-muted-foreground text-sm">
                     {promptInfo.type === 'agent'
-                        ? 'Configure prompts for this AI agent'
-                        : 'Configure the prompt for this tool'}
+                        ? uiText('Configure prompts for this AI agent')
+                        : uiText('Configure the prompt for this tool')}
                 </p>
             </div>
 
@@ -824,7 +829,7 @@ function SettingsPromptEditor({ promptId }: { promptId?: string }) {
                     value="system"
                 >
                     <Code className="size-4" />
-                    System Prompt
+                    {uiText('System Prompt')}
                 </TabsTrigger>
                 <TabsTrigger
                     className="xl:dark:data-[state=active]:bg-card flex-1"
@@ -832,7 +837,7 @@ function SettingsPromptEditor({ promptId }: { promptId?: string }) {
                     value="human"
                 >
                     <User className="size-4" />
-                    Human Prompt
+                    {uiText('Human Prompt')}
                 </TabsTrigger>
             </TabsList>
 
@@ -847,7 +852,9 @@ function SettingsPromptEditor({ promptId }: { promptId?: string }) {
     );
 
     const systemPlaceholder =
-        promptInfo.type === 'tool' ? 'Enter the tool template...' : 'Enter the system prompt template...';
+        promptInfo.type === 'tool'
+            ? uiText('Enter the tool template...')
+            : uiText('Enter the system prompt template...');
 
     const promptEditor = (
         <>
@@ -863,7 +870,7 @@ function SettingsPromptEditor({ promptId }: { promptId?: string }) {
                         onSubmit={systemForm.handleSubmit(handleSystemSubmit)}
                     >
                         <FormMarkdownItem
-                            aria-label="System prompt template"
+                            aria-label={uiText('System prompt template')}
                             control={systemForm.control}
                             disabled={isLoading}
                             editorRef={editorRef}
@@ -888,13 +895,13 @@ function SettingsPromptEditor({ promptId }: { promptId?: string }) {
                             onSubmit={humanForm.handleSubmit(handleHumanSubmit)}
                         >
                             <FormMarkdownItem
-                                aria-label="Human prompt template"
+                                aria-label={uiText('Human prompt template')}
                                 control={humanForm.control}
                                 disabled={isLoading}
                                 editorRef={editorRef}
                                 mode={viewMode}
                                 name="template"
-                                placeholder="Enter the human prompt template..."
+                                placeholder={uiText('Enter the human prompt template...')}
                             />
                         </form>
                     </Form>
@@ -925,18 +932,20 @@ function SettingsPromptEditor({ promptId }: { promptId?: string }) {
             </Tabs>
 
             <ConfirmationDialog
-                cancelText="Cancel"
+                cancelText={uiText('Cancel')}
                 cancelVariant="outline"
                 confirmIcon={<RotateCcw />}
-                confirmText="Reset"
+                confirmText={uiText('Reset')}
                 confirmVariant="destructive"
-                description="Are you sure you want to reset this prompt to its default value? This action cannot be undone."
+                description={uiText(
+                    'Are you sure you want to reset this prompt to its default value? This action cannot be undone.',
+                )}
                 handleConfirm={handleConfirmReset}
                 handleOpenChange={setResetDialogOpen}
                 isOpen={resetDialogOpen}
                 itemName={`${activeTab} prompt`}
-                itemType="template"
-                title="Reset Prompt"
+                itemType={uiText('template')}
+                title={uiText('Reset Prompt')}
             />
 
             <UnsavedChangesDialog
@@ -957,7 +966,7 @@ function SettingsPromptEditor({ promptId }: { promptId?: string }) {
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             <AlertCircle className="size-5" />
-                            Validation Results
+                            {uiText('Validation Results')}
                         </DialogTitle>
                         <DialogDescription>
                             The validation result for the {activeTab} prompt template.
@@ -973,19 +982,21 @@ function SettingsPromptEditor({ promptId }: { promptId?: string }) {
                                     <XCircle className="size-4 text-red-500!" />
                                 )}
                                 <AlertTitle>
-                                    {validationResult.result === 'success' ? 'Valid Template' : 'Validation Error'}
+                                    {validationResult.result === 'success'
+                                        ? uiText('Valid Template')
+                                        : uiText('Validation Error')}
                                 </AlertTitle>
                                 <AlertDescription>
                                     <div className="whitespace-pre-line">
                                         {validationResult.message}
                                         {validationResult.details && (
                                             <div className="mt-2">
-                                                <strong>Details:</strong> {validationResult.details}
+                                                <strong>{uiText('Details:')}</strong> {validationResult.details}
                                             </div>
                                         )}
                                         {validationResult.line && (
                                             <div className="mt-1">
-                                                <strong>Line:</strong> {validationResult.line}
+                                                <strong>{uiText('Line:')}</strong> {validationResult.line}
                                             </div>
                                         )}
                                     </div>
@@ -993,7 +1004,7 @@ function SettingsPromptEditor({ promptId }: { promptId?: string }) {
                             </Alert>
 
                             <div className="flex justify-end">
-                                <Button onClick={() => setValidationDialogOpen(false)}>Close</Button>
+                                <Button onClick={() => setValidationDialogOpen(false)}>{uiText('Close')}</Button>
                             </div>
                         </div>
                     )}
@@ -1008,9 +1019,11 @@ function SettingsPromptEditor({ promptId }: { promptId?: string }) {
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             <FileDiff className="size-5" />
-                            Diff
+                            {uiText('Diff')}
                         </DialogTitle>
-                        <DialogDescription>Changes between current value and default template.</DialogDescription>
+                        <DialogDescription>
+                            {uiText('Changes between current value and default template.')}
+                        </DialogDescription>
                     </DialogHeader>
                     <div className="max-h-[70vh] overflow-auto">
                         <DiffContent
@@ -1054,7 +1067,7 @@ function Variables({ currentTemplate, onVariableClick, variables }: VariablesPro
                         </Badge>
                     </h4>
                     <p className="text-muted-foreground mt-1 text-xs">
-                        Click to insert at the cursor, or cycle through existing uses.
+                        {uiText('Click to insert at the cursor, or cycle through existing uses.')}
                     </p>
                 </div>
                 <div className="bg-background">{content}</div>
@@ -1101,7 +1114,7 @@ function VariablesContent({ currentTemplate, onVariableClick, variables }: Varia
                 const count = counts[variable] ?? 0;
                 const isUsed = count > 0;
                 const action = isUsed
-                    ? `Go to next {{.${variable}}} in the template${count > 1 ? ` (${count} uses)` : ''}`
+                    ? `${uiText('Go to next {{.{variable}}} in the template', { variable })}${count > 1 ? uiText(' ({count} uses)', { count }) : ''}`
                     : `Insert {{.${variable}}} at the cursor`;
 
                 return (

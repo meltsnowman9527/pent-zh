@@ -5,6 +5,7 @@ import { useId, useState } from 'react';
 
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group';
 import { Label } from '@/components/ui/label';
+import { uiText } from '@/locales/zh-CN';
 
 import { normalizeLinkUrl } from './markdown-editor-toolbar-url';
 
@@ -74,7 +75,7 @@ export function LinkEditForm({ autoFocus = true, editor, initialUrl, isActive, o
 
     return (
         <div className="flex flex-col gap-2">
-            <Label htmlFor={urlId}>Link URL</Label>
+            <Label htmlFor={urlId}>{uiText('Link URL')}</Label>
             <InputGroup>
                 <InputGroupInput
                     aria-describedby={isInvalid ? errorId : undefined}
@@ -97,7 +98,7 @@ export function LinkEditForm({ autoFocus = true, editor, initialUrl, isActive, o
                     className="gap-0"
                 >
                     <InputGroupButton
-                        aria-label="Apply link"
+                        aria-label={uiText('Apply link')}
                         disabled={url === '' || isInvalid}
                         onClick={applyLink}
                         size="icon-xs"
@@ -105,7 +106,7 @@ export function LinkEditForm({ autoFocus = true, editor, initialUrl, isActive, o
                         <Check />
                     </InputGroupButton>
                     <InputGroupButton
-                        aria-label="Open link in new tab"
+                        aria-label={uiText('Open link in new tab')}
                         disabled={url === '' || isInvalid}
                         onClick={openInNewTab}
                         size="icon-xs"
@@ -114,7 +115,7 @@ export function LinkEditForm({ autoFocus = true, editor, initialUrl, isActive, o
                     </InputGroupButton>
                     {isActive ? (
                         <InputGroupButton
-                            aria-label="Remove link"
+                            aria-label={uiText('Remove link')}
                             onClick={removeLink}
                             size="icon-xs"
                         >
@@ -129,7 +130,7 @@ export function LinkEditForm({ autoFocus = true, editor, initialUrl, isActive, o
                     id={errorId}
                     role="alert"
                 >
-                    Only http, https, mailto and tel links are allowed.
+                    {uiText('Only http, https, mailto and tel links are allowed.')}
                 </p>
             ) : null}
         </div>

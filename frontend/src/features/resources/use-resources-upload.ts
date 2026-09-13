@@ -5,6 +5,7 @@ import type { UserResourceFragmentFragment } from '@/graphql/types';
 
 import { api, getApiErrorMessage, unwrapApiResponse } from '@/lib/axios';
 import { validateUploadBatch } from '@/lib/upload-validation';
+import { uiText } from '@/locales/zh-CN';
 
 import {
     MAX_FILE_SIZE_MB,
@@ -68,7 +69,7 @@ const buildUploadSuccessMessage = (uploadedCount: number, dir?: string) => {
     const target = dir ? `to /${dir}` : 'to your library';
 
     if (uploadedCount === 1) {
-        return { description: `Uploaded ${target}`, title: 'File uploaded' };
+        return { description: uiText('Uploaded {target}', { target }), title: uiText('File uploaded') };
     }
 
     return {
@@ -128,7 +129,7 @@ export function useResourcesUpload({ defaultDir, onSuccess }: UseResourcesUpload
             });
 
             if (validationError) {
-                toast.error('Upload failed', { description: validationError });
+                toast.error(uiText('Upload failed'), { description: validationError });
 
                 return null;
             }
@@ -169,11 +170,11 @@ export function useResourcesUpload({ defaultDir, onSuccess }: UseResourcesUpload
 
                 return data;
             } catch (error) {
-                const description = getApiErrorMessage(error, 'Failed to upload files', {
+                const description = getApiErrorMessage(error, uiText('Failed to upload files'), {
                     409: UPLOAD_OVERWRITE_HINT,
                 });
 
-                toast.error('Upload failed', { description });
+                toast.error(uiText('Upload failed'), { description });
 
                 return null;
             } finally {

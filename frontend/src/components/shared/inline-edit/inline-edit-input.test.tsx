@@ -1,6 +1,8 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
+import { uiText } from '@/locales/zh-CN';
+
 import { InlineEditInput } from './inline-edit-input';
 
 const renderInput = (busy: boolean) => {
@@ -34,7 +36,7 @@ describe('InlineEditInput', () => {
     it('ignores Enter while busy, matching the disabled Save button', () => {
         const { input, onSave } = renderInput(true);
 
-        expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+        expect(screen.getByRole('button', { name: uiText('Save') })).toBeDisabled();
 
         fireEvent.keyDown(input, { key: 'Enter' });
         expect(onSave).not.toHaveBeenCalled();
@@ -43,7 +45,7 @@ describe('InlineEditInput', () => {
     it('ignores Escape while busy, matching the disabled Cancel button', () => {
         const { input, onCancel } = renderInput(true);
 
-        expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
+        expect(screen.getByRole('button', { name: uiText('Cancel') })).toBeDisabled();
 
         fireEvent.keyDown(input, { key: 'Escape' });
         expect(onCancel).not.toHaveBeenCalled();

@@ -1,13 +1,14 @@
 import { FlowStatusIcon } from '@/components/icons/flow-status-icon';
 import { Badge } from '@/components/ui/badge';
 import { StatusType } from '@/graphql/types';
+import { uiText } from '@/locales/zh-CN';
 
 const STATUS_LABELS: Record<StatusType, string> = {
-    [StatusType.Created]: 'Created',
-    [StatusType.Failed]: 'Failed',
-    [StatusType.Finished]: 'Finished',
-    [StatusType.Running]: 'Running',
-    [StatusType.Waiting]: 'Waiting',
+    [StatusType.Created]: uiText('Created'),
+    [StatusType.Failed]: uiText('Failed'),
+    [StatusType.Finished]: uiText('Finished'),
+    [StatusType.Running]: uiText('Running'),
+    [StatusType.Waiting]: uiText('Waiting'),
 };
 
 export function FlowStatusBadge({ className, status }: { className?: string; status: StatusType }) {

@@ -4,6 +4,7 @@ import type { FileNode } from '@/components/shared/file-manager';
 
 import { buildPathsQuery } from '@/features/resources/resources-utils';
 import { api, getApiErrorMessage, unwrapApiResponse } from '@/lib/axios';
+import { uiText } from '@/locales/zh-CN';
 
 import { FLOW_FILES_CONTAINER_API_PATH } from './flow-files-constants';
 import { type ContainerFileFailure, type ContainerFilesResponse, containerFileToFileNode } from './flow-files-utils';
@@ -126,7 +127,7 @@ export function useFlowContainerFiles({ flowId, paths }: UseFlowContainerFilesPa
                 return;
             }
 
-            setError(new Error(getApiErrorMessage(caught, 'Failed to load container files')));
+            setError(new Error(getApiErrorMessage(caught, uiText('Failed to load container files'))));
             setFiles([]);
             setFailures([]);
             setTruncated(false);

@@ -23,6 +23,8 @@ import { findWrapping, liftTarget } from '@tiptap/pm/transform';
 import StarterKit from '@tiptap/starter-kit';
 import { common, createLowlight } from 'lowlight';
 
+import { uiText } from '@/locales/zh-CN';
+
 import { HeadingAutoformat } from './markdown-editor-heading-autoformat';
 import { createMarkdownLayer, TunedTable } from './markdown-editor-marked';
 import { MarkdownPaste } from './markdown-editor-paste';
@@ -549,7 +551,10 @@ export const createMarkdownExtensions = (placeholder?: string) => [
     withWholeDocumentToggle(guardBlockTokenizer(TaskList), 'toggleTaskList', listFamily),
     TaskItem.configure({
         a11y: {
-            checkboxLabel: (node) => `Task item checkbox for ${node.firstChild?.textContent || 'empty task item'}`,
+            checkboxLabel: (node) =>
+                uiText('Task item checkbox for {label}', {
+                    label: node.firstChild?.textContent || uiText('empty task item'),
+                }),
         },
         nested: true,
     }),

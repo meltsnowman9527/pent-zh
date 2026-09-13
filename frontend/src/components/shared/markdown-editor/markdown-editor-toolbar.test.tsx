@@ -3,6 +3,12 @@ import userEvent from '@testing-library/user-event';
 import { Editor } from '@tiptap/core';
 import { beforeAll, describe, expect, it } from 'vitest';
 
+import { uiText } from '@/locales/zh-CN';
+
+// 下拉按钮的 aria-label 是「前缀 + 当前选项」，用空占位取出前缀，避免在测试里写死中文。
+const LIST_LABEL_PREFIX = uiText('List: {label}', { label: '' });
+const TEXT_STYLE_LABEL_PREFIX = uiText('Text style: {label}', { label: '' });
+
 import { createMarkdownExtensions } from './markdown-editor-extensions';
 import { returnFocusToEditor } from './markdown-editor-focus';
 import { setupEditorJsdom } from './markdown-editor-test-setup';
@@ -41,7 +47,7 @@ const mount = (caret: number) => {
 };
 
 describe('toolbar disables controls whose command reports unavailable', () => {
-    it.each(['Bold', 'Italic', 'Strikethrough', 'Inline code', 'Link'])(
+    it.each([uiText('Bold'), uiText('Italic'), uiText('Strikethrough'), uiText('Inline code'), uiText('Link')])(
         '%s is disabled inside a code block and enabled in a paragraph',
         async (label) => {
             const inCode = mount(CODE_BLOCK_CARET);
@@ -59,21 +65,21 @@ describe('toolbar disables controls whose command reports unavailable', () => {
     it('keeps Blockquote enabled inside a code block, where it does apply', async () => {
         const mounted = mount(CODE_BLOCK_CARET);
 
-        await waitFor(() => expect(screen.getByLabelText('Blockquote')).toBeEnabled());
+        await waitFor(() => expect(screen.getByLabelText(uiText('Blockquote'))).toBeEnabled());
         mounted.cleanup();
     });
 
     it('keeps Code block enabled inside a code block, where a second press unwraps it', async () => {
         const mounted = mount(CODE_BLOCK_CARET);
 
-        await waitFor(() => expect(screen.getByLabelText('Code block')).toBeEnabled());
+        await waitFor(() => expect(screen.getByLabelText(uiText('Code block'))).toBeEnabled());
         mounted.cleanup();
     });
 
     // Turning a code block into a list WORKS, but `can().toggleBulletList()` reports false for it, because the
     // `clearNodes()` fallback inside toggleList does nothing when dispatch is undefined. Disabling on that
     // answer would take a working conversion away from the user, so these items stay enabled.
-    it.each(['Bullet list', 'Ordered list', 'Task list'])(
+    it.each([uiText('Bullet list'), uiText('Ordered list'), uiText('Task list')])(
         '%s stays enabled inside a code block, where can() under-reports it',
         async (label) => {
             const mounted = mount(CODE_BLOCK_CARET);
@@ -81,7 +87,7 @@ describe('toolbar disables controls whose command reports unavailable', () => {
 
             expect(mounted.editor.can().toggleBulletList()).toBe(false);
 
-            await user.click(screen.getByLabelText(/^List:/));
+            await user.click(screen.getByLabelText(new RegExp(`^${LIST_LABEL_PREFIX}`)));
 
             await waitFor(() =>
                 expect(screen.getByRole('menuitemradio', { name: new RegExp(label) })).not.toHaveAttribute(
@@ -175,20 +181,23 @@ describe('block controls that a table cell cannot hold are disabled inside one',
 
     // A cell serialises inline, so one click silently degrades the document: a code block in a cell saves as
     // `| ``` alpha ``` |` and reloads as INLINE code, and a horizontal rule applied mid-word splits the word.
-    it.each(['Code block', 'Horizontal rule'])('%s is disabled with the caret inside a cell', async (label) => {
-        const mounted = mountWithCaretInCell();
+    it.each([uiText('Code block'), uiText('Horizontal rule')])(
+        '%s is disabled with the caret inside a cell',
+        async (label) => {
+            const mounted = mountWithCaretInCell();
 
-        await waitFor(() => expect(screen.getByLabelText(label)).toBeDisabled());
-        mounted.cleanup();
-    });
+            await waitFor(() => expect(screen.getByLabelText(label)).toBeDisabled());
+            mounted.cleanup();
+        },
+    );
 
     it('disables every list kind inside a cell', async () => {
         const mounted = mountWithCaretInCell();
         const user = userEvent.setup();
 
-        await user.click(screen.getByLabelText(/^List:/));
+        await user.click(screen.getByLabelText(new RegExp(`^${LIST_LABEL_PREFIX}`)));
 
-        for (const label of ['Bullet list', 'Ordered list', 'Task list']) {
+        for (const label of [uiText('Bullet list'), uiText('Ordered list'), uiText('Task list')]) {
             await waitFor(() =>
                 expect(screen.getByRole('menuitemradio', { name: new RegExp(label) })).toHaveAttribute(
                     'aria-disabled',
@@ -204,10 +213,13 @@ describe('block controls that a table cell cannot hold are disabled inside one',
         const mounted = mountWithCaretInCell();
         const user = userEvent.setup();
 
-        await user.click(screen.getByLabelText(/^Text style:/));
+        await user.click(screen.getByLabelText(new RegExp(`^${TEXT_STYLE_LABEL_PREFIX}`)));
 
         await waitFor(() =>
-            expect(screen.getByRole('menuitemradio', { name: /Heading 2/ })).toHaveAttribute('aria-disabled', 'true'),
+            expect(screen.getByRole('menuitemradio', { name: uiText('Heading 2') })).toHaveAttribute(
+                'aria-disabled',
+                'true',
+            ),
         );
         mounted.cleanup();
     });

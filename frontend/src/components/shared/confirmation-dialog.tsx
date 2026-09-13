@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dialog';
 import { Spinner } from '@/components/ui/spinner';
 import { cn } from '@/lib/utils';
+import { uiText } from '@/locales/zh-CN';
 
 type ConfirmationDialogIconProps = ReactElement<React.SVGProps<SVGSVGElement>>;
 
@@ -36,30 +37,39 @@ interface ConfirmationDialogProps {
 
 function ConfirmationDialog({
     cancelIcon,
-    cancelText = 'Cancel',
+    cancelText = uiText('Cancel'),
     cancelVariant = 'outline',
     confirmIcon = <Trash2 />,
-    confirmText = 'Confirm',
+    confirmText = uiText('Confirm'),
     confirmVariant = 'destructive',
     description,
     handleConfirm,
     handleOpenChange,
     isOpen,
-    itemName = 'this',
-    itemType = 'item',
+    itemName = uiText('this one'),
+    itemType = uiText('item'),
     title,
 }: ConfirmationDialogProps) {
     const [isProcessing, setIsProcessing] = useState(false);
 
-    // `verb !== 'Confirm'` treats the default confirmText as "no custom verb": a bare
-    // Confirm gets the generic "Confirm Action" title instead of "Confirm <itemType>".
+    // The default confirm verb is "no custom verb": a bare confirm gets the generic
+    // title instead of one naming the object being acted on.
     const verb = confirmText.trim();
-    const resolvedTitle = title ?? (verb && verb !== 'Confirm' ? `${verb} ${itemType}` : 'Confirm Action');
+    const resolvedTitle =
+        title ?? (verb && verb !== uiText('Confirm') ? `${verb}${itemType}` : uiText('Confirm Action'));
 
-    const defaultDescription = description || (
+    // The object name is highlighted, so the sentence is split around its placeholder
+    // instead of interpolated: keep `{name}` unsubstituted and cut the template there.
+    const [promptBefore, promptAfter] = uiText('Are you sure you want to {verb} {name} ({type})?', {
+        type: itemType,
+        verb,
+    }).split('{name}');
+
+    const defaultDescription = description ?? (
         <>
-            Are you sure you want to {verb.toLowerCase() || 'perform this action on'}{' '}
-            <strong className="text-foreground font-semibold">{itemName}</strong> {itemType}?
+            {promptBefore}
+            <strong className="text-foreground font-semibold">{itemName}</strong>
+            {promptAfter}
         </>
     );
 

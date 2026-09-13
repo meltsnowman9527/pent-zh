@@ -7,6 +7,7 @@ import Markdown from '@/components/shared/markdown';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { copyMessageToClipboard } from '@/lib/clipboard';
 import { formatDate } from '@/lib/utils/format';
+import { uiText } from '@/locales/zh-CN';
 
 import FlowAgentIcon from './flow-agent-icon';
 
@@ -88,7 +89,7 @@ function FlowAgent({ log, searchValue = '' }: FlowAgentProps) {
                             className="cursor-pointer"
                             onClick={() => setIsDetailsVisible(!isDetailsVisible)}
                         >
-                            {isDetailsVisible ? 'Hide details' : 'Show details'}
+                            {isDetailsVisible ? uiText('Hide details') : uiText('Show details')}
                         </div>
                         {isDetailsVisible && result && (
                             <>
@@ -123,7 +124,7 @@ function FlowAgent({ log, searchValue = '' }: FlowAgentProps) {
                             onClick={handleCopy}
                         />
                     </TooltipTrigger>
-                    <TooltipContent>Copy</TooltipContent>
+                    <TooltipContent>{uiText('Copy')}</TooltipContent>
                 </Tooltip>
                 <span className="text-muted-foreground/50">{formatDate(new Date(createdAt))}</span>
                 {taskId && (

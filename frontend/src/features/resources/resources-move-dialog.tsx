@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useAppForm } from '@/hooks/use-app-form';
+import { uiText } from '@/locales/zh-CN';
 import { useResources } from '@/providers/resources-provider';
 
 import { resourcesMoveFormSchema, type ResourcesMoveFormValues, useResourcesMove } from './use-resources-move';
@@ -180,11 +181,13 @@ function ResourcesMoveDialogForm({ files, onClose }: ResourcesMoveDialogFormProp
     // errors instead of a silently-dead button). Mirrors FormSubmitButton's requireValid gate.
     const isSubmitDisabled = form.formState.isSubmitted && !form.formState.isValid;
     const titleText = isMulti
-        ? `Move ${files.length} items`
+        ? uiText('Move {count} items', { count: files.length })
         : files[0].isDir
-          ? 'Move directory'
-          : 'Rename or move resource';
-    const overwriteCtaLabel = isMulti ? `Move ${files.length} with overwrite` : 'Move with overwrite';
+          ? uiText('Move directory')
+          : uiText('Rename or move resource');
+    const overwriteCtaLabel = isMulti
+        ? uiText('Move {count} with overwrite', { count: files.length })
+        : uiText('Move with overwrite');
 
     return (
         <>
@@ -196,11 +199,9 @@ function ResourcesMoveDialogForm({ files, onClose }: ResourcesMoveDialogFormProp
                     </DialogTitle>
                     <DialogDescription>
                         {isMulti ? (
-                            <>Move every selected item into the destination directory.</>
+                            <>{uiText('Move every selected item into the destination directory.')}</>
                         ) : (
-                            <>
-                                Update the path of <code>{files[0].path}</code>.
-                            </>
+                            <>{uiText('Update the path of {path}.', { path: files[0].path })}</>
                         )}
                     </DialogDescription>
                 </DialogHeader>
@@ -216,7 +217,9 @@ function ResourcesMoveDialogForm({ files, onClose }: ResourcesMoveDialogFormProp
                             name="destination"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>{isMulti ? 'Destination directory' : 'New path'}</FormLabel>
+                                    <FormLabel>
+                                        {isMulti ? uiText('Destination directory') : uiText('New path')}
+                                    </FormLabel>
                                     <FormControl>
                                         <Input
                                             {...field}
@@ -224,7 +227,9 @@ function ResourcesMoveDialogForm({ files, onClose }: ResourcesMoveDialogFormProp
                                             autoFocus
                                             disabled={isMoving}
                                             placeholder={
-                                                isMulti ? 'Leave empty to move into the library root' : undefined
+                                                isMulti
+                                                    ? uiText('Leave empty to move into the library root')
+                                                    : undefined
                                             }
                                         />
                                     </FormControl>
@@ -236,8 +241,9 @@ function ResourcesMoveDialogForm({ files, onClose }: ResourcesMoveDialogFormProp
                                             </>
                                         ) : (
                                             <>
-                                                Relative path inside your library. End with <code>/</code> to drop the
-                                                entry into that directory.
+                                                {uiText(
+                                                    'Relative path inside your library. End with / to drop the entry into that directory.',
+                                                )}
                                             </>
                                         )}
                                     </FormDescription>
@@ -253,7 +259,7 @@ function ResourcesMoveDialogForm({ files, onClose }: ResourcesMoveDialogFormProp
                                 type="button"
                                 variant="outline"
                             >
-                                Cancel
+                                {uiText('Cancel')}
                             </Button>
                             <OverwriteButtons
                                 isDisabled={isSubmitDisabled}

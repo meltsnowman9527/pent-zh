@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
 import { cn } from '@/lib/utils';
+import { uiText } from '@/locales/zh-CN';
 
 const SIDEBAR_COOKIE_NAME = 'sidebar:state';
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
@@ -109,8 +110,8 @@ function Sidebar({
                         } as React.CSSProperties
                     }
                 >
-                    <SheetTitle className="sr-only">Sidebar</SheetTitle>
-                    <SheetDescription className="sr-only">Displays the mobile sidebar.</SheetDescription>
+                    <SheetTitle className="sr-only">{uiText('Sidebar')}</SheetTitle>
+                    <SheetDescription className="sr-only">{uiText('Displays the mobile sidebar.')}</SheetDescription>
                     <div className="flex h-full w-full flex-col">{children}</div>
                 </SheetContent>
             </Sheet>
@@ -417,7 +418,7 @@ function SidebarRail({ className, ...props }: React.ComponentProps<'button'>) {
 
     return (
         <button
-            aria-label="Toggle Sidebar"
+            aria-label={uiText('Toggle Sidebar')}
             className={cn(
                 'hover:after:bg-sidebar-border absolute inset-y-0 z-20 hidden w-4 -translate-x-1/2 transition-all ease-linear group-data-[side=left]:-right-4 group-data-[side=right]:left-0 after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] sm:flex',
                 'in-data-[side=left]:cursor-w-resize in-data-[side=right]:cursor-e-resize',
@@ -430,7 +431,7 @@ function SidebarRail({ className, ...props }: React.ComponentProps<'button'>) {
             data-sidebar="rail"
             onClick={toggleSidebar}
             tabIndex={-1}
-            title="Toggle Sidebar"
+            title={uiText('Toggle Sidebar')}
             {...props}
         />
     );
@@ -462,7 +463,7 @@ function SidebarTrigger({ className, onClick, ...props }: React.ComponentProps<t
             {...props}
         >
             <PanelLeft />
-            <span className="sr-only">Toggle Sidebar</span>
+            <span className="sr-only">{uiText('Toggle Sidebar')}</span>
         </Button>
     );
 }

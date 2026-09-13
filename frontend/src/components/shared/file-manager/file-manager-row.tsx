@@ -29,6 +29,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+import { uiText } from '@/locales/zh-CN';
 
 import type { FileManagerAction, FileManagerInternalNode, FileNode } from './file-manager-types';
 import type { FileManagerNodeDndHandlers } from './use-file-manager-dnd';
@@ -439,7 +440,7 @@ function FileManagerRowImpl({
                     {...skipRowClickProps}
                 >
                     <Checkbox
-                        aria-label={`Select ${file.name}`}
+                        aria-label={uiText('Select {name}', { name: file.name })}
                         // Directories surface a tri-state value derived from their
                         // descendants; files (and edge cases without a precomputed
                         // value) fall back to the row's own selection flag.
@@ -529,7 +530,7 @@ function FileManagerRowImpl({
                         <DropdownMenu onOpenChange={setIsDropdownMenuOpen}>
                             <DropdownMenuTrigger asChild>
                                 <Button
-                                    aria-label="Row actions"
+                                    aria-label={uiText('Row actions')}
                                     className="opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100"
                                     size="icon-xs"
                                     variant="ghost"

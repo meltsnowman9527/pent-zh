@@ -6,6 +6,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { uiText } from '@/locales/zh-CN';
 
 import { DetailNavigationSheet } from './detail-navigation-sheet';
 import { useDetailNavigation } from './use-detail-navigation';
@@ -319,7 +320,7 @@ describe('DetailNavigationSheet — search input', () => {
         const user = userEvent.setup();
         renderSheet({ currentId: 'a', defaultSearchQuery: 'cha' });
 
-        const clearButton = await screen.findByRole('button', { name: 'Clear search' });
+        const clearButton = await screen.findByRole('button', { name: uiText('Clear search') });
         await user.click(clearButton);
 
         const input = await screen.findByRole('textbox');
@@ -352,7 +353,7 @@ describe('DetailNavigationSheet — search input', () => {
         renderSheet({ currentId: 'a', defaultSearchQuery: 'zzzzz' });
 
         await waitFor(() => {
-            expect(screen.getByText(/No items match "zzzzz"\./)).toBeInTheDocument();
+            expect(screen.getByText(uiText('No items match "{query}".', { query: 'zzzzz' }))).toBeInTheDocument();
         });
         expect(screen.queryByRole('listbox', { name: 'Items' })).not.toBeInTheDocument();
     });

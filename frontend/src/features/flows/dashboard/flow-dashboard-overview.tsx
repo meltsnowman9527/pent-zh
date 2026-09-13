@@ -20,6 +20,7 @@ import {
     UsageStatsByModelAgentsForFlowDocument,
 } from '@/graphql/types';
 import { formatCost, formatDuration, formatNumber, formatTokenCount } from '@/lib/utils/format';
+import { uiText } from '@/locales/zh-CN';
 
 export function FlowDashboardOverview({ flowId }: { flowId: string }) {
     const {
@@ -123,35 +124,40 @@ export function FlowDashboardOverview({ flowId }: { flowId: string }) {
         <div className="flex flex-col gap-6">
             <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
                 <MetricCard
-                    description={`Subtasks: ${flowStats?.totalSubtasksCount ?? 0} · Assistants: ${flowStats?.totalAssistantsCount ?? 0}`}
+                    description={uiText('Subtasks: {subtasks} · Assistants: {assistants}', {
+                        assistants: flowStats?.totalAssistantsCount ?? 0,
+                        subtasks: flowStats?.totalSubtasksCount ?? 0,
+                    })}
                     error={!!flowStatsError}
                     icon={<GitFork className="text-muted-foreground size-4" />}
                     loading={anyLoading}
-                    title="Tasks"
+                    title={uiText('Tasks')}
                     value={flowStats ? formatNumber(flowStats.totalTasksCount) : '0'}
                 />
                 <MetricCard
-                    description={`Duration: ${toolcalls ? formatDuration(toolcalls.totalDurationSeconds) : '—'}`}
+                    description={uiText('Duration: {duration}', {
+                        duration: toolcalls ? formatDuration(toolcalls.totalDurationSeconds) : '—',
+                    })}
                     error={!!toolcallsError}
                     icon={<Activity className="text-muted-foreground size-4" />}
                     loading={anyLoading}
-                    title="Tool Calls"
+                    title={uiText('Tool Calls')}
                     value={toolcalls ? formatNumber(toolcalls.totalCount) : '0'}
                 />
                 <MetricCard
-                    description="Input + Output tokens"
+                    description={uiText('Input + Output tokens')}
                     error={!!usageError}
                     icon={<Cpu className="text-muted-foreground size-4" />}
                     loading={anyLoading}
-                    title="Tokens"
+                    title={uiText('Tokens')}
                     value={formatTokenCount(totalTokens)}
                 />
                 <MetricCard
-                    description="LLM spending for this flow"
+                    description={uiText('LLM spending for this flow')}
                     error={!!usageError}
                     icon={<CircleDollarSign className="text-muted-foreground size-4" />}
                     loading={anyLoading}
-                    title="Cost"
+                    title={uiText('Cost')}
                     value={formatCost(totalCost)}
                 />
             </div>
@@ -161,7 +167,7 @@ export function FlowDashboardOverview({ flowId }: { flowId: string }) {
                     <CardHeader>
                         <CardTitle>Usage by Model &amp; Provider</CardTitle>
                         <CardDescription>
-                            LLM token usage and costs grouped by model and provider, with agent types used
+                            {uiText('LLM token usage and costs grouped by model and provider, with agent types used')}
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -171,16 +177,30 @@ export function FlowDashboardOverview({ flowId }: { flowId: string }) {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead className="whitespace-nowrap">Model</TableHead>
-                                        <TableHead className="whitespace-nowrap">Provider</TableHead>
-                                        <TableHead className="whitespace-nowrap">Agents</TableHead>
-                                        <TableHead className="text-right whitespace-nowrap">Tokens In</TableHead>
-                                        <TableHead className="text-right whitespace-nowrap">Tokens Out</TableHead>
-                                        <TableHead className="text-right whitespace-nowrap">Cache In</TableHead>
-                                        <TableHead className="text-right whitespace-nowrap">Cache Out</TableHead>
-                                        <TableHead className="text-right whitespace-nowrap">Cost In</TableHead>
-                                        <TableHead className="text-right whitespace-nowrap">Cost Out</TableHead>
-                                        <TableHead className="text-right whitespace-nowrap">Total Cost</TableHead>
+                                        <TableHead className="whitespace-nowrap">{uiText('Model')}</TableHead>
+                                        <TableHead className="whitespace-nowrap">{uiText('Provider')}</TableHead>
+                                        <TableHead className="whitespace-nowrap">{uiText('Agents')}</TableHead>
+                                        <TableHead className="text-right whitespace-nowrap">
+                                            {uiText('Tokens In')}
+                                        </TableHead>
+                                        <TableHead className="text-right whitespace-nowrap">
+                                            {uiText('Tokens Out')}
+                                        </TableHead>
+                                        <TableHead className="text-right whitespace-nowrap">
+                                            {uiText('Cache In')}
+                                        </TableHead>
+                                        <TableHead className="text-right whitespace-nowrap">
+                                            {uiText('Cache Out')}
+                                        </TableHead>
+                                        <TableHead className="text-right whitespace-nowrap">
+                                            {uiText('Cost In')}
+                                        </TableHead>
+                                        <TableHead className="text-right whitespace-nowrap">
+                                            {uiText('Cost Out')}
+                                        </TableHead>
+                                        <TableHead className="text-right whitespace-nowrap">
+                                            {uiText('Total Cost')}
+                                        </TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -233,8 +253,10 @@ export function FlowDashboardOverview({ flowId }: { flowId: string }) {
             {!!agentTypeRows.length && (
                 <Card>
                     <CardHeader>
-                        <CardTitle>Usage by Agent Type</CardTitle>
-                        <CardDescription>LLM token usage and costs per agent type in this flow</CardDescription>
+                        <CardTitle>{uiText('Usage by Agent Type')}</CardTitle>
+                        <CardDescription>
+                            {uiText('LLM token usage and costs per agent type in this flow')}
+                        </CardDescription>
                     </CardHeader>
                     <CardContent>
                         {usageByAgentLoading ? (
@@ -243,14 +265,14 @@ export function FlowDashboardOverview({ flowId }: { flowId: string }) {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Agent Type</TableHead>
-                                        <TableHead className="text-right">Tokens In</TableHead>
-                                        <TableHead className="text-right">Tokens Out</TableHead>
-                                        <TableHead className="text-right">Cache In</TableHead>
-                                        <TableHead className="text-right">Cache Out</TableHead>
-                                        <TableHead className="text-right">Cost In</TableHead>
-                                        <TableHead className="text-right">Cost Out</TableHead>
-                                        <TableHead className="text-right">Total Cost</TableHead>
+                                        <TableHead>{uiText('Agent Type')}</TableHead>
+                                        <TableHead className="text-right">{uiText('Tokens In')}</TableHead>
+                                        <TableHead className="text-right">{uiText('Tokens Out')}</TableHead>
+                                        <TableHead className="text-right">{uiText('Cache In')}</TableHead>
+                                        <TableHead className="text-right">{uiText('Cache Out')}</TableHead>
+                                        <TableHead className="text-right">{uiText('Cost In')}</TableHead>
+                                        <TableHead className="text-right">{uiText('Cost Out')}</TableHead>
+                                        <TableHead className="text-right">{uiText('Total Cost')}</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -271,8 +293,10 @@ export function FlowDashboardOverview({ flowId }: { flowId: string }) {
             {!!toolcallsByFunction.length && (
                 <Card>
                     <CardHeader>
-                        <CardTitle>Tool Calls by Function</CardTitle>
-                        <CardDescription>Execution statistics per tool function in this flow</CardDescription>
+                        <CardTitle>{uiText('Tool Calls by Function')}</CardTitle>
+                        <CardDescription>
+                            {uiText('Execution statistics per tool function in this flow')}
+                        </CardDescription>
                     </CardHeader>
                     <CardContent>
                         {toolcallsByFunctionLoading ? (
@@ -281,11 +305,11 @@ export function FlowDashboardOverview({ flowId }: { flowId: string }) {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Function</TableHead>
-                                        <TableHead>Type</TableHead>
-                                        <TableHead className="text-right">Count</TableHead>
-                                        <TableHead className="text-right">Total Duration</TableHead>
-                                        <TableHead className="text-right">Avg Duration</TableHead>
+                                        <TableHead>{uiText('Function')}</TableHead>
+                                        <TableHead>{uiText('Type')}</TableHead>
+                                        <TableHead className="text-right">{uiText('Count')}</TableHead>
+                                        <TableHead className="text-right">{uiText('Total Duration')}</TableHead>
+                                        <TableHead className="text-right">{uiText('Avg Duration')}</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -294,7 +318,7 @@ export function FlowDashboardOverview({ flowId }: { flowId: string }) {
                                             <TableCell className="font-medium">{item.functionName}</TableCell>
                                             <TableCell>
                                                 <Badge variant={item.isAgent ? 'secondary' : 'outline'}>
-                                                    {item.isAgent ? 'Agent' : 'Tool'}
+                                                    {item.isAgent ? uiText('Agent') : uiText('Tool')}
                                                 </Badge>
                                             </TableCell>
                                             <TableCell className="text-right">

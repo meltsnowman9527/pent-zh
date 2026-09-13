@@ -1,0 +1,16 @@
+# Rebuild application code; reuse the installed runtime dependencies.
+FROM golang:1.26.5-bookworm AS backend-builder
+WORKDIR /src
+COPY backend/ ./
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    go test -race -p 4 ./pkg/controller -timeout 180s && \
+    CGO_ENABLED=0 go build -p 4 -trimpath \
+      -ldflags '-X pentagi/pkg/version.PackageName=pentagi -X pentagi/pkg/version.PackageVer=2.1.0-local' \
+      -o /out/pentagi ./cmd/pentagi
+
+FROM vxcontrol/pentagi:latest
+COPY --from=backend-builder --chmod=755 /out/pentagi /opt/pentagi/bin/pentagi
+RUN rm -rf /opt/pentagi/fe
+COPY frontend/dist/ /opt/pentagi/fe/
+COPY EULA.md /opt/pentagi/fe/EULA.md

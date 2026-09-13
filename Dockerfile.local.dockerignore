@@ -1,0 +1,11 @@
+**
+!EULA.md
+!backend/
+!backend/**
+!frontend/
+!frontend/dist/
+!frontend/dist/**
+**/.env
+**/.env.*
+**/node_modules
+**/*.log

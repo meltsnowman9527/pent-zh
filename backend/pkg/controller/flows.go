@@ -66,21 +66,25 @@ type FlowController interface {
 const reassignProviderTimeout = 30 * time.Second
 
 type flowController struct {
-	db     database.Querier
-	mx     *sync.Mutex
-	cfg    *config.Config
-	flows  map[int64]FlowWorker
-	docker docker.DockerClient
-	provs  providers.ProviderController
-	subs   subscriptions.SubscriptionsController
-	alc    AgentLogController
-	mlc    MsgLogController
-	aslc   AssistantLogController
-	slc    SearchLogController
-	tlc    TermLogController
-	vslc   VectorStoreLogController
-	tclc   ToolCallLogController
-	sc     ScreenshotController
+	// lifecycleMX preserves mutation ordering while mx only protects the registry.
+	// Model calls and worker shutdown must never hold the registry lock: list and
+	// lookup requests need to remain responsive while those operations wait.
+	lifecycleMX sync.Mutex
+	db          database.Querier
+	mx          *sync.Mutex
+	cfg         *config.Config
+	flows       map[int64]FlowWorker
+	docker      docker.DockerClient
+	provs       providers.ProviderController
+	subs        subscriptions.SubscriptionsController
+	alc         AgentLogController
+	mlc         MsgLogController
+	aslc        AssistantLogController
+	slc         SearchLogController
+	tlc         TermLogController
+	vslc        VectorStoreLogController
+	tclc        ToolCallLogController
+	sc          ScreenshotController
 }
 
 func NewFlowController(
@@ -110,6 +114,8 @@ func NewFlowController(
 }
 
 func (fc *flowController) LoadFlows(ctx context.Context) error {
+	fc.lifecycleMX.Lock()
+	defer fc.lifecycleMX.Unlock()
 	flows, err := fc.db.GetFlows(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to load flows: %w", err)
@@ -142,7 +148,9 @@ func (fc *flowController) LoadFlows(ctx context.Context) error {
 			continue
 		}
 
+		fc.mx.Lock()
 		fc.flows[flow.ID] = fw
+		fc.mx.Unlock()
 	}
 
 	return nil
@@ -157,8 +165,8 @@ func (fc *flowController) CreateFlow(
 	functions *tools.Functions,
 	resources []database.UserResource,
 ) (FlowWorker, error) {
-	fc.mx.Lock()
-	defer fc.mx.Unlock()
+	fc.lifecycleMX.Lock()
+	defer fc.lifecycleMX.Unlock()
 
 	fw, err := NewFlowWorker(ctx, newFlowWorkerCtx{
 		userID:    userID,
@@ -189,7 +197,9 @@ func (fc *flowController) CreateFlow(
 		return nil, fmt.Errorf("failed to create flow worker: %w", err)
 	}
 
+	fc.mx.Lock()
 	fc.flows[fw.GetFlowID()] = fw
+	fc.mx.Unlock()
 
 	return fw, nil
 }
@@ -205,12 +215,11 @@ func (fc *flowController) CreateAssistant(
 	functions *tools.Functions,
 	resources []database.UserResource,
 ) (AssistantWorker, error) {
-	fc.mx.Lock()
-	defer fc.mx.Unlock()
+	fc.lifecycleMX.Lock()
+	defer fc.lifecycleMX.Unlock()
 
 	var (
 		fw  FlowWorker
-		ok  bool
 		err error
 	)
 
@@ -246,7 +255,9 @@ func (fc *flowController) CreateAssistant(
 			return fmt.Errorf("failed to create flow worker: %w", err)
 		}
 
+		fc.mx.Lock()
 		fc.flows[fw.GetFlowID()] = fw
+		fc.mx.Unlock()
 		flowID = fw.GetFlowID()
 		fw.SetStatus(ctx, database.FlowStatusWaiting)
 
@@ -267,7 +278,9 @@ func (fc *flowController) CreateAssistant(
 			return fmt.Errorf("failed to load flow %d: %w", flowID, err)
 		}
 
+		fc.mx.Lock()
 		fc.flows[flowID] = fw
+		fc.mx.Unlock()
 
 		return nil
 	}
@@ -276,7 +289,7 @@ func (fc *flowController) CreateAssistant(
 		if err := newFlow(); err != nil {
 			return nil, err
 		}
-	} else if fw, ok = fc.flows[flowID]; ok {
+	} else if fw, err = fc.GetFlow(ctx, flowID); err == nil {
 		status, err := fw.GetStatus(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get flow %d status: %w", flowID, err)
@@ -329,12 +342,13 @@ func (fc *flowController) CreateAssistant(
 
 func (fc *flowController) ListFlows(ctx context.Context) []FlowWorker {
 	fc.mx.Lock()
-	defer fc.mx.Unlock()
 
 	flows := make([]FlowWorker, 0)
 	for _, flow := range fc.flows {
 		flows = append(flows, flow)
 	}
+
+	fc.mx.Unlock()
 
 	sort.Slice(flows, func(i, j int) bool {
 		return flows[i].GetFlowID() < flows[j].GetFlowID()
@@ -356,15 +370,15 @@ func (fc *flowController) GetFlow(ctx context.Context, flowID int64) (FlowWorker
 }
 
 func (fc *flowController) StopFlow(ctx context.Context, flowID int64) error {
-	fc.mx.Lock()
-	defer fc.mx.Unlock()
+	fc.lifecycleMX.Lock()
+	defer fc.lifecycleMX.Unlock()
 
-	flow, ok := fc.flows[flowID]
-	if !ok {
-		return ErrFlowNotFound
+	flow, err := fc.GetFlow(ctx, flowID)
+	if err != nil {
+		return err
 	}
 
-	err := flow.Stop(ctx)
+	err = flow.Stop(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to stop flow %d: %w", flowID, err)
 	}
@@ -373,31 +387,33 @@ func (fc *flowController) StopFlow(ctx context.Context, flowID int64) error {
 }
 
 func (fc *flowController) FinishFlow(ctx context.Context, flowID int64) error {
-	fc.mx.Lock()
-	defer fc.mx.Unlock()
+	fc.lifecycleMX.Lock()
+	defer fc.lifecycleMX.Unlock()
 
-	flow, ok := fc.flows[flowID]
-	if !ok {
-		return ErrFlowNotFound
+	flow, err := fc.GetFlow(ctx, flowID)
+	if err != nil {
+		return err
 	}
 
-	err := flow.Finish(ctx)
+	err = flow.Finish(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to finish flow %d: %w", flowID, err)
 	}
 
+	fc.mx.Lock()
 	delete(fc.flows, flowID)
+	fc.mx.Unlock()
 
 	return nil
 }
 
 func (fc *flowController) RenameFlow(ctx context.Context, flowID int64, title string) error {
-	fc.mx.Lock()
-	defer fc.mx.Unlock()
+	fc.lifecycleMX.Lock()
+	defer fc.lifecycleMX.Unlock()
 
-	flow, ok := fc.flows[flowID]
-	if !ok {
-		return ErrFlowNotFound
+	flow, err := fc.GetFlow(ctx, flowID)
+	if err != nil {
+		return err
 	}
 
 	return flow.Rename(ctx, title)

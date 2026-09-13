@@ -25,6 +25,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { StatusType } from '@/graphql/types';
 import { useFilesDragAndDrop } from '@/hooks/use-files-drag-and-drop';
 import { copyToClipboard } from '@/lib/report';
+import { uiText } from '@/locales/zh-CN';
 import { useFlow } from '@/providers/flow-provider';
 
 import { FlowFilesAttachResourcesDialog } from './flow-files-attach-resources-dialog';
@@ -65,12 +66,12 @@ function FlowFiles() {
         const wasCopied = await copyToClipboard(file.path);
 
         if (wasCopied) {
-            toast.success('Path copied to clipboard');
+            toast.success(uiText('Path copied to clipboard'));
 
             return;
         }
 
-        toast.error('Failed to copy path');
+        toast.error(uiText('Failed to copy path'));
     }, []);
 
     /**
@@ -90,7 +91,7 @@ function FlowFiles() {
             return;
         }
 
-        toast.error('Failed to copy paths');
+        toast.error(uiText('Failed to copy paths'));
     }, []);
 
     // `flowId` may be missing (no flow selected yet) — return '' so FileManager
@@ -163,10 +164,11 @@ function FlowFiles() {
                 <EmptyMedia variant="icon">
                     <FolderUp />
                 </EmptyMedia>
-                <EmptyTitle>No files in cache</EmptyTitle>
+                <EmptyTitle>{uiText('No files in cache')}</EmptyTitle>
                 <EmptyDescription>
-                    Upload files to make them available at <code>/work/uploads</code>, or use Pull to sync files from
-                    the running container. You can also drag &amp; drop files here.
+                    {uiText(
+                        'Upload files to make them available at /work/uploads, or use Pull to sync files from the running container. You can also drag & drop files here.',
+                    )}
                 </EmptyDescription>
             </EmptyHeader>
         </Empty>
@@ -178,9 +180,10 @@ function FlowFiles() {
                 <EmptyMedia variant="icon">
                     <Search />
                 </EmptyMedia>
-                <EmptyTitle>No matches</EmptyTitle>
+                <EmptyTitle>{uiText('No matches')}</EmptyTitle>
                 <EmptyDescription>
-                    No files match <code>{search.debouncedQuery.trim()}</code>. Try a different query.
+                    {uiText('No files match')}
+                    <code>{search.debouncedQuery.trim()}</code>. Try a different query.
                 </EmptyDescription>
             </EmptyHeader>
         </Empty>
@@ -206,7 +209,7 @@ function FlowFiles() {
                 <div className="bg-primary/10 border-primary pointer-events-none absolute inset-0 z-30 flex items-center justify-center rounded-lg border-2 border-dashed">
                     <div className="text-link flex flex-col items-center gap-2">
                         <FolderUp className="size-8" />
-                        <span className="text-sm font-medium">Drop files to upload</span>
+                        <span className="text-sm font-medium">{uiText('Drop files to upload')}</span>
                     </div>
                 </div>
             )}
@@ -227,13 +230,13 @@ function FlowFiles() {
                                             <InputGroupInput
                                                 {...field}
                                                 autoComplete="off"
-                                                placeholder="Search files..."
+                                                placeholder={uiText('Search files...')}
                                                 type="text"
                                             />
                                             {field.value && (
                                                 <InputGroupAddon align="inline-end">
                                                     <InputGroupButton
-                                                        aria-label="Clear file search"
+                                                        aria-label={uiText('Clear file search')}
                                                         onClick={search.resetSearch}
                                                         type="button"
                                                     >
@@ -251,7 +254,7 @@ function FlowFiles() {
                             <TooltipTrigger asChild>
                                 <span>
                                     <Button
-                                        aria-label="Upload files"
+                                        aria-label={uiText('Upload files')}
                                         disabled={upload.isUploading || isLoading}
                                         onClick={upload.openFilePicker}
                                         size="icon-sm"
@@ -263,9 +266,9 @@ function FlowFiles() {
                                 </span>
                             </TooltipTrigger>
                             <TooltipContent className="max-w-64 text-center text-xs">
-                                <p className="font-medium">Upload files</p>
+                                <p className="font-medium">{uiText('Upload files')}</p>
                                 <p className="mt-1">
-                                    Pushed to <code>/work/uploads</code> — immediately accessible inside the container.
+                                    {uiText('Pushed to /work/uploads — immediately accessible inside the container.')}
                                 </p>
                             </TooltipContent>
                         </Tooltip>
@@ -274,7 +277,7 @@ function FlowFiles() {
                             <TooltipTrigger asChild>
                                 <span>
                                     <Button
-                                        aria-label="Attach resources"
+                                        aria-label={uiText('Attach resources')}
                                         disabled={isAttachResourcesDisabled}
                                         onClick={handleOpenAttachResourcesDialog}
                                         size="icon-sm"
@@ -286,10 +289,11 @@ function FlowFiles() {
                                 </span>
                             </TooltipTrigger>
                             <TooltipContent className="max-w-64 text-center text-xs">
-                                <p className="font-medium">Attach resources</p>
+                                <p className="font-medium">{uiText('Attach resources')}</p>
                                 <p className="mt-1">
-                                    Copied from the library to <code>/work/resources</code> — immediately accessible
-                                    inside the container.
+                                    {uiText(
+                                        'Copied from the library to /work/resources — immediately accessible inside the container.',
+                                    )}
                                 </p>
                             </TooltipContent>
                         </Tooltip>
@@ -298,7 +302,7 @@ function FlowFiles() {
                             <TooltipTrigger asChild>
                                 <span>
                                     <Button
-                                        aria-label="Pull from container"
+                                        aria-label={uiText('Pull from container')}
                                         disabled={isPullDisabled}
                                         onClick={handleOpenPullDialog}
                                         size="icon-sm"
@@ -312,13 +316,13 @@ function FlowFiles() {
                             <TooltipContent className="max-w-64 text-center text-xs">
                                 {isContainerRunning ? (
                                     <>
-                                        <p className="font-medium">Pull file or directory from container</p>
+                                        <p className="font-medium">{uiText('Pull file or directory from container')}</p>
                                         <p className="mt-1">
-                                            Snapshots are stored separately under <strong>Container</strong>.
+                                            {uiText('Snapshots are stored separately under Container.')}
                                         </p>
                                     </>
                                 ) : (
-                                    <p className="font-medium">Container is not running</p>
+                                    <p className="font-medium">{uiText('Container is not running')}</p>
                                 )}
                             </TooltipContent>
                         </Tooltip>
@@ -358,13 +362,13 @@ function FlowFiles() {
             />
 
             <ConfirmationDialog
-                confirmText="Delete"
+                confirmText={uiText('Delete')}
                 handleConfirm={deletion.confirmDelete}
                 handleOpenChange={handleDeleteDialogOpenChange}
                 isOpen={!!deletion.fileToDelete}
                 itemName={deletion.fileToDelete?.name}
-                itemType={deletion.fileToDelete?.isDir ? 'directory' : 'file'}
-                title={deletion.fileToDelete?.isDir ? 'Delete Directory' : 'Delete File'}
+                itemType={deletion.fileToDelete?.isDir ? uiText('directory') : uiText('file')}
+                title={deletion.fileToDelete?.isDir ? uiText('Delete Directory') : uiText('Delete File')}
             />
         </div>
     );

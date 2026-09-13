@@ -5,16 +5,16 @@ import { z } from 'zod';
 import type { OverwriteOutcome } from '@/components/shared/overwrite';
 
 import { api, getApiErrorMessage, getApiErrorStatusCode } from '@/lib/axios';
+import { uiText } from '@/locales/zh-CN';
 
 import { RESOURCES_MOVE_API_PATH } from './resources-constants';
-import { pluralizeItems } from './resources-utils';
 
 export const resourcesMoveFormSchema = z.object({
     destination: z
         .string()
         .trim()
-        .min(1, { message: 'Destination cannot be empty' })
-        .refine((value) => !value.startsWith('/'), { message: 'Destination must be a relative path' })
+        .min(1, { message: uiText('Destination cannot be empty') })
+        .refine((value) => !value.startsWith('/'), { message: uiText('Destination must be a relative path') })
         .refine((value) => !value.split('/').includes('..'), { message: 'Destination must not contain ".."' }),
 });
 
@@ -64,10 +64,10 @@ export function useResourcesMove(): UseResourcesMoveResult {
 
                 const description =
                     sources.length === 1
-                        ? `Moved to /${destination}`
-                        : `Moved ${sources.length} ${pluralizeItems(sources.length)} into /${destination}`;
+                        ? uiText('Moved to /{dir}', { dir: destination })
+                        : uiText('Moved {count} items into /{dir}', { count: sources.length, dir: destination });
 
-                toast.success('Resource moved', { description });
+                toast.success(uiText('Resource moved'), { description });
 
                 return { kind: 'ok' };
             } catch (error) {
@@ -79,9 +79,9 @@ export function useResourcesMove(): UseResourcesMoveResult {
                     return { kind: 'conflict' };
                 }
 
-                const description = getApiErrorMessage(error, 'Failed to move resource');
+                const description = getApiErrorMessage(error, uiText('Failed to move resource'));
 
-                toast.error('Move failed', { description });
+                toast.error(uiText('Move failed'), { description });
 
                 return { kind: 'error' };
             } finally {

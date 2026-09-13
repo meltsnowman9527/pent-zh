@@ -3,6 +3,8 @@ import { OrderedList, TaskList } from '@tiptap/extension-list';
 import { TextSelection } from '@tiptap/pm/state';
 import { beforeAll, describe, expect, it } from 'vitest';
 
+import { uiText } from '@/locales/zh-CN';
+
 import { createMarkdownExtensions, isBlockApplied } from './markdown-editor-extensions';
 import { roundTrip, setupEditorJsdom, structuralCounts } from './markdown-editor-test-setup';
 import { findVariableOccurrences } from './markdown-editor-variable-highlight';
@@ -728,15 +730,17 @@ describe('a task checkbox is announced with its own text, not its subtree', () =
 
     it('a parent task does not absorb the text of its nested tasks', () => {
         expect(labelsFor('- [ ] task open\n- [x] task done\n    - [ ] nested open\n    - [x] nested done\n')).toEqual([
-            'Task item checkbox for task open',
-            'Task item checkbox for task done',
-            'Task item checkbox for nested open',
-            'Task item checkbox for nested done',
+            uiText('Task item checkbox for {label}', { label: 'task open' }),
+            uiText('Task item checkbox for {label}', { label: 'task done' }),
+            uiText('Task item checkbox for {label}', { label: 'nested open' }),
+            uiText('Task item checkbox for {label}', { label: 'nested done' }),
         ]);
     });
 
     it('an empty task still gets a name', () => {
-        expect(labelsFor('- [ ] \n')).toEqual(['Task item checkbox for empty task item']);
+        expect(labelsFor('- [ ] \n')).toEqual([
+            uiText('Task item checkbox for {label}', { label: uiText('empty task item') }),
+        ]);
     });
 });
 

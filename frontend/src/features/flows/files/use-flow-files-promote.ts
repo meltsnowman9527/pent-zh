@@ -5,8 +5,8 @@ import { z } from 'zod';
 import type { OverwriteOutcome } from '@/components/shared/overwrite';
 import type { RestResourceList } from '@/features/resources/resources-rest';
 
-import { pluralizeItems } from '@/features/resources/resources-utils';
 import { api, getApiErrorMessage, getApiErrorStatusCode } from '@/lib/axios';
+import { uiText } from '@/locales/zh-CN';
 
 import { FLOW_FILES_PROMOTE_API_PATH } from './flow-files-constants';
 
@@ -14,8 +14,8 @@ export const flowFilesPromoteFormSchema = z.object({
     destination: z
         .string()
         .trim()
-        .min(1, { message: 'Destination cannot be empty' })
-        .refine((value) => !value.startsWith('/'), { message: 'Destination must be a relative path' })
+        .min(1, { message: uiText('Destination cannot be empty') })
+        .refine((value) => !value.startsWith('/'), { message: uiText('Destination must be a relative path') })
         .refine((value) => !value.split('/').includes('..'), { message: 'Destination must not contain ".."' }),
 });
 
@@ -76,10 +76,13 @@ export function useFlowFilesPromote({ flowId }: UseFlowFilesPromoteParams): UseF
 
                 const description =
                     sources.length === 1
-                        ? `Stored at ${destination.trim()} in your resource library`
-                        : `Stored ${sources.length} ${pluralizeItems(sources.length)} under ${destination.trim()} in your resource library`;
+                        ? uiText('Stored at {path} in your resource library', { path: destination.trim() })
+                        : uiText('Stored {count} items under {path} in your resource library', {
+                              count: sources.length,
+                              path: destination.trim(),
+                          });
 
-                toast.success('Saved to resources', { description });
+                toast.success(uiText('Saved to resources'), { description });
 
                 return { kind: 'ok' };
             } catch (error) {
@@ -87,9 +90,9 @@ export function useFlowFilesPromote({ flowId }: UseFlowFilesPromoteParams): UseF
                     return { kind: 'conflict' };
                 }
 
-                const description = getApiErrorMessage(error, 'Failed to save resource');
+                const description = getApiErrorMessage(error, uiText('Failed to save resource'));
 
-                toast.error('Save as resource failed', { description });
+                toast.error(uiText('Save as resource failed'), { description });
 
                 return { kind: 'error' };
             } finally {

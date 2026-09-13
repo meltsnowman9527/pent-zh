@@ -19,6 +19,7 @@ import { Separator } from '@/components/ui/separator';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { isMac } from '@/lib/utils/platform';
+import { uiText } from '@/locales/zh-CN';
 
 import type { HeadingLevel } from './markdown-editor-toolbar-heading';
 import type { ListType } from './markdown-editor-toolbar-list';
@@ -234,7 +235,7 @@ export const MarkdownEditorToolbar = memo(function MarkdownEditorToolbar({
     return (
         <TooltipProvider delayDuration={400}>
             <div
-                aria-label="Formatting"
+                aria-label={uiText('Formatting')}
                 className={cn(
                     'bg-muted/40 order-last flex items-center border-t px-1 py-1',
                     'md:order-first md:border-t-0 md:border-b',
@@ -269,7 +270,7 @@ export const MarkdownEditorToolbar = memo(function MarkdownEditorToolbar({
                     >
                         <ToolbarToggle
                             disabled={disabled || !state.canBold}
-                            label="Bold"
+                            label={uiText('Bold')}
                             onPressedChange={() => editor.chain().focus().toggleBold().run()}
                             pressed={state.isBold}
                             shortcut={shortcutFor('B')}
@@ -278,7 +279,7 @@ export const MarkdownEditorToolbar = memo(function MarkdownEditorToolbar({
                         </ToolbarToggle>
                         <ToolbarToggle
                             disabled={disabled || !state.canItalic}
-                            label="Italic"
+                            label={uiText('Italic')}
                             onPressedChange={() => editor.chain().focus().toggleItalic().run()}
                             pressed={state.isItalic}
                             shortcut={shortcutFor('I')}
@@ -287,7 +288,7 @@ export const MarkdownEditorToolbar = memo(function MarkdownEditorToolbar({
                         </ToolbarToggle>
                         <ToolbarToggle
                             disabled={disabled || !state.canStrike}
-                            label="Strikethrough"
+                            label={uiText('Strikethrough')}
                             onPressedChange={() => editor.chain().focus().toggleStrike().run()}
                             pressed={state.isStrike}
                         >
@@ -295,7 +296,7 @@ export const MarkdownEditorToolbar = memo(function MarkdownEditorToolbar({
                         </ToolbarToggle>
                         <ToolbarToggle
                             disabled={disabled || !state.canCode}
-                            label="Inline code"
+                            label={uiText('Inline code')}
                             onPressedChange={() => editor.chain().focus().toggleCode().run()}
                             pressed={state.isCode}
                         >
@@ -344,7 +345,7 @@ export const MarkdownEditorToolbar = memo(function MarkdownEditorToolbar({
                     >
                         <ToolbarToggle
                             disabled={disabled || !state.canBlockquote}
-                            label="Blockquote"
+                            label={uiText('Blockquote')}
                             onPressedChange={() => editor.chain().focus().toggleBlockquote().run()}
                             pressed={state.isBlockquote}
                         >
@@ -352,7 +353,7 @@ export const MarkdownEditorToolbar = memo(function MarkdownEditorToolbar({
                         </ToolbarToggle>
                         <ToolbarToggle
                             disabled={disabled || state.isInTableCell}
-                            label="Code block"
+                            label={uiText('Code block')}
                             onPressedChange={() => editor.chain().focus().toggleCodeBlock().run()}
                             pressed={state.isCodeBlock}
                         >
@@ -364,7 +365,7 @@ export const MarkdownEditorToolbar = memo(function MarkdownEditorToolbar({
                         />
                         <ToolbarButton
                             disabled={disabled || state.isInTableCell}
-                            label="Horizontal rule"
+                            label={uiText('Horizontal rule')}
                             onClick={() => editor.chain().focus().setHorizontalRule().run()}
                         >
                             <Minus />
@@ -378,7 +379,7 @@ export const MarkdownEditorToolbar = memo(function MarkdownEditorToolbar({
 
                     <ToolbarButton
                         disabled={disabled}
-                        label="Clear formatting"
+                        label={uiText('Clear formatting')}
                         onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().run()}
                     >
                         <RemoveFormatting />
@@ -396,7 +397,7 @@ export const MarkdownEditorToolbar = memo(function MarkdownEditorToolbar({
                 >
                     <ToolbarButton
                         disabled={disabled || !state.canUndo}
-                        label="Undo"
+                        label={uiText('Undo')}
                         onClick={() => editor.chain().focus().undo().run()}
                         shortcut={shortcutFor('Z')}
                     >
@@ -404,7 +405,7 @@ export const MarkdownEditorToolbar = memo(function MarkdownEditorToolbar({
                     </ToolbarButton>
                     <ToolbarButton
                         disabled={disabled || !state.canRedo}
-                        label="Redo"
+                        label={uiText('Redo')}
                         onClick={() => editor.chain().focus().redo().run()}
                         shortcut={shiftShortcutFor('Z')}
                     >

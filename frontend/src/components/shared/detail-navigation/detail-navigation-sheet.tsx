@@ -6,6 +6,7 @@ import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useElementVirtualList } from '@/hooks/use-element-virtual-list';
 import { cn } from '@/lib/utils';
+import { uiText } from '@/locales/zh-CN';
 
 import type { DetailNavigationController } from './use-detail-navigation';
 
@@ -407,7 +408,7 @@ export function DetailNavigationSheet<T extends { id: string }>({
                             {hasClearButton ? (
                                 <InputGroupAddon align="inline-end">
                                     <InputGroupButton
-                                        aria-label="Clear search"
+                                        aria-label={uiText('Clear search')}
                                         onClick={handleSearchClear}
                                         size="icon-sm"
                                         type="button"
@@ -471,8 +472,8 @@ export function DetailNavigationSheet<T extends { id: string }>({
                 ) : (
                     <div className="text-muted-foreground flex flex-1 items-center justify-center px-4 text-center text-sm">
                         {trimmedQuery.length > 0
-                            ? `No items match "${trimmedQuery}".`
-                            : 'No items match the current filter.'}
+                            ? uiText('No items match "{query}".', { query: trimmedQuery })
+                            : uiText('No items match the current filter.')}
                     </div>
                 )}
             </SheetContent>

@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Popover, PopoverAnchor } from '@/components/ui/popover';
 import { useLatestRef } from '@/hooks/use-latest-ref';
 import { cn } from '@/lib/utils';
+import { uiText } from '@/locales/zh-CN';
 
 interface AutocompleteContextValue {
     commit: (value: string) => void;
@@ -42,7 +43,7 @@ interface AutocompleteContextValue {
  *  <Autocomplete value={path} onValueChange={setPath} onCommit={navigateTo}>
  *      <AutocompleteInput placeholder="/work" />
  *      <AutocompleteContent>
- *          <AutocompleteEmpty>No matches</AutocompleteEmpty>
+ *          <AutocompleteEmpty>{uiText('No matches')}</AutocompleteEmpty>
  *          <AutocompleteGroup heading="Known paths">
  *              {paths.map((p) => (
  *                  <AutocompleteItem key={p} value={p}>{p}</AutocompleteItem>
@@ -256,7 +257,7 @@ function Autocomplete({
             >
                 <Command
                     filter={filter ?? substringFilter}
-                    label="Suggestions"
+                    label={uiText('Suggestions')}
                     shouldFilter={shouldFilter}
                 >
                     {children}

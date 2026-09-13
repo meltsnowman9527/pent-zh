@@ -6,6 +6,7 @@ import { useId, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group';
 import { Label } from '@/components/ui/label';
+import { uiText } from '@/locales/zh-CN';
 
 import { normalizeImageSrc } from './markdown-editor-toolbar-url';
 
@@ -77,7 +78,7 @@ export function ImageEditForm({
     return (
         <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-1.5">
-                <Label htmlFor={srcId}>Image URL</Label>
+                <Label htmlFor={srcId}>{uiText('Image URL')}</Label>
                 <InputGroup>
                     <InputGroupInput
                         aria-describedby={isInvalid ? errorId : undefined}
@@ -95,7 +96,7 @@ export function ImageEditForm({
                         className="gap-0"
                     >
                         <InputGroupButton
-                            aria-label={isEditing ? 'Apply image' : 'Insert image'}
+                            aria-label={isEditing ? uiText('Apply image') : uiText('Insert image')}
                             disabled={src === '' || isInvalid}
                             onClick={apply}
                             size="icon-xs"
@@ -104,7 +105,7 @@ export function ImageEditForm({
                         </InputGroupButton>
                         {isEditing ? (
                             <InputGroupButton
-                                aria-label="Remove image"
+                                aria-label={uiText('Remove image')}
                                 onClick={remove}
                                 size="icon-xs"
                             >
@@ -115,12 +116,12 @@ export function ImageEditForm({
                 </InputGroup>
             </div>
             <div className="flex flex-col gap-1.5">
-                <Label htmlFor={altId}>Alt text (optional)</Label>
+                <Label htmlFor={altId}>{uiText('Alt text (optional)')}</Label>
                 <Input
                     id={altId}
                     onChange={(event) => setAlt(event.target.value)}
                     onKeyDown={applyOnEnter}
-                    placeholder="Describe the image"
+                    placeholder={uiText('Describe the image')}
                     value={alt}
                 />
             </div>
@@ -130,7 +131,7 @@ export function ImageEditForm({
                     id={errorId}
                     role="alert"
                 >
-                    Only http(s) or base64 raster image URLs are allowed.
+                    {uiText('Only http(s) or base64 raster image URLs are allowed.')}
                 </p>
             ) : null}
         </div>

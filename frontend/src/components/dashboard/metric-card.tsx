@@ -4,6 +4,7 @@ import { AlertCircle } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { uiText } from '@/locales/zh-CN';
 
 export function MetricCard({
     className,
@@ -48,7 +49,7 @@ export function MetricCard({
                     (loading ? (
                         <Skeleton className="mt-1 h-3 w-32" />
                     ) : (
-                        <p className="text-muted-foreground text-xs">{error ? "Couldn't load" : description}</p>
+                        <p className="text-muted-foreground text-xs">{error ? uiText("Couldn't load") : description}</p>
                     ))}
             </CardContent>
         </Card>

@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { uiText } from '@/locales/zh-CN';
 
 import { InputSearch } from './input-search';
 
@@ -138,7 +139,8 @@ describe('InputSearch — typing and outbound emit', () => {
 });
 
 describe('InputSearch — trailing clear button', () => {
-    const queryClearButton = () => screen.queryByRole('button', { name: 'Clear search docs' });
+    const queryClearButton = () =>
+        screen.queryByRole('button', { name: uiText('Clear {label}', { label: 'search docs' }) });
 
     it('does not render the clear button when the field is empty', () => {
         render(

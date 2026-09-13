@@ -31,6 +31,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { useTableState } from '@/hooks/use-table-state';
 import { routes } from '@/lib/routes';
 import { mergeHrefWithSearchParams } from '@/lib/url-params';
+import { uiText } from '@/locales/zh-CN';
 import { type Template, useTemplates } from '@/providers/templates-provider';
 
 function Templates() {
@@ -89,7 +90,7 @@ function Templates() {
 
         try {
             await updateTemplate(editingTemplateId, { text: template.text, title: newTitle });
-            toast.success('Template renamed successfully');
+            toast.success(uiText('Template renamed successfully'));
             setEditingTemplateId(null);
         } catch {
             // Error already handled in provider with toast
@@ -138,7 +139,7 @@ function Templates() {
                                 inputRef={editingInputRef}
                                 onCancel={handleTemplateRenameCancel}
                                 onSave={handleTemplateRenameSave}
-                                placeholder="Template title"
+                                placeholder={uiText('Template title')}
                             />
                         </div>
                     );
@@ -149,7 +150,7 @@ function Templates() {
             header: ({ column }) => (
                 <DataTableColumnHeader
                     column={column}
-                    title="Title"
+                    title={uiText('Title')}
                 />
             ),
             meta: { searchable: true },
@@ -164,7 +165,7 @@ function Templates() {
             header: ({ column }) => (
                 <DataTableColumnHeader
                     column={column}
-                    title="Text"
+                    title={uiText('Text')}
                 />
             ),
             meta: { searchable: true },
@@ -178,7 +179,7 @@ function Templates() {
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button
-                                    aria-label="Open menu"
+                                    aria-label={uiText('Open menu')}
                                     className="size-8 p-0"
                                     onClick={(e) => e.stopPropagation()}
                                     variant="ghost"
@@ -193,11 +194,11 @@ function Templates() {
                             >
                                 <DropdownMenuItem onClick={() => handleTemplateOpen(template.id)}>
                                     <Pencil />
-                                    Edit
+                                    {uiText('Edit')}
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleTemplateRenameStart(template)}>
                                     <Pencil className="size-3" />
-                                    Rename
+                                    {uiText('Rename')}
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
@@ -207,12 +208,12 @@ function Templates() {
                                     {deletingIds.has(template.id) ? (
                                         <>
                                             <Spinner variant="circle" />
-                                            Deleting...
+                                            {uiText('Deleting...')}
                                         </>
                                     ) : (
                                         <>
                                             <Trash />
-                                            Delete
+                                            {uiText('Delete')}
                                         </>
                                     )}
                                 </DropdownMenuItem>
@@ -233,11 +234,11 @@ function Templates() {
         <>
             <ContextMenuItem onClick={() => handleTemplateOpen(template.id)}>
                 <Pencil />
-                Edit
+                {uiText('Edit')}
             </ContextMenuItem>
             <ContextMenuItem onClick={() => handleTemplateRenameStart(template)}>
                 <PencilLine />
-                Rename
+                {uiText('Rename')}
             </ContextMenuItem>
             <ContextMenuSeparator />
             <ContextMenuItem
@@ -245,7 +246,7 @@ function Templates() {
                 onClick={() => handleDeleteDialogOpen(template)}
             >
                 <Trash />
-                {deletingIds.has(template.id) ? 'Deleting...' : 'Delete'}
+                {deletingIds.has(template.id) ? uiText('Deleting...') : uiText('Delete')}
             </ContextMenuItem>
         </>
     );
@@ -253,12 +254,12 @@ function Templates() {
     const pageHeader = (
         <AppHeader>
             <AppHeaderContent>
-                <AppHeaderTitle icon={<FileText className="size-4 shrink-0" />}>Templates</AppHeaderTitle>
+                <AppHeaderTitle icon={<FileText className="size-4 shrink-0" />}>{uiText('Templates')}</AppHeaderTitle>
             </AppHeaderContent>
             <AppHeaderActions>
                 <AppHeaderAction
                     icon={<Plus />}
-                    label="New Template"
+                    label={uiText('New Template')}
                     onClick={() => navigate(routes.newTemplate)}
                     variant="secondary"
                 />
@@ -272,8 +273,8 @@ function Templates() {
                 {pageHeader}
                 <div className="flex flex-1 flex-col gap-4 p-4">
                     <LoadingState
-                        description="Please wait while we fetch your flow templates"
-                        title="Loading templates..."
+                        description={uiText('Please wait while we fetch your flow templates')}
+                        title={uiText('Loading templates...')}
                     />
                 </div>
             </>
@@ -289,7 +290,7 @@ function Templates() {
                     <ErrorState
                         message={error.message}
                         onRetry={refetch}
-                        title="Error loading templates"
+                        title={uiText('Error loading templates')}
                     />
                 </div>
             </>
@@ -306,8 +307,8 @@ function Templates() {
                             <EmptyMedia variant="icon">
                                 <FileText />
                             </EmptyMedia>
-                            <EmptyTitle>No templates yet</EmptyTitle>
-                            <EmptyDescription>Create your first template to get started</EmptyDescription>
+                            <EmptyTitle>{uiText('No templates yet')}</EmptyTitle>
+                            <EmptyDescription>{uiText('Create your first template to get started')}</EmptyDescription>
                         </EmptyHeader>
                         <EmptyContent>
                             <Button
@@ -315,7 +316,7 @@ function Templates() {
                                 variant="secondary"
                             >
                                 <Plus />
-                                New Template
+                                {uiText('New Template')}
                             </Button>
                         </EmptyContent>
                     </Empty>
@@ -332,7 +333,7 @@ function Templates() {
                     columns={columns}
                     data={templates}
                     empty={{ entityName: 'templates' }}
-                    filterPlaceholder="Filter templates..."
+                    filterPlaceholder={uiText('Filter templates...')}
                     filterValue={filter}
                     onFilterChange={setFilter}
                     onRowClick={(template) => {
@@ -344,13 +345,13 @@ function Templates() {
                 />
 
                 <ConfirmationDialog
-                    cancelText="Cancel"
-                    confirmText="Delete"
+                    cancelText={uiText('Cancel')}
+                    confirmText={uiText('Delete')}
                     handleConfirm={handleDelete}
                     handleOpenChange={setIsDeleteDialogOpen}
                     isOpen={isDeleteDialogOpen}
                     itemName={deletingTemplate?.title}
-                    itemType="template"
+                    itemType={uiText('template')}
                 />
             </div>
         </>

@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/context-menu';
 import { useLatestRef } from '@/hooks/use-latest-ref';
 import { cn } from '@/lib/utils';
+import { uiText } from '@/locales/zh-CN';
 
 import type { FileManagerRowDisplay, FileManagerRowHandlers } from './file-manager-row';
 import type {
@@ -68,14 +69,14 @@ const defaultSortHeaderAriaLabel = (
     const label = COLUMN_LABEL_FOR_ARIA[column];
 
     if (direction === 'asc') {
-        return `Sort by ${label} (descending)`;
+        return uiText('Sort by {label} (descending)', { label });
     }
 
     if (direction === 'desc') {
-        return `Clear sorting on ${label}`;
+        return uiText('Clear sorting on {label}', { label });
     }
 
-    return `Sort by ${label} (ascending)`;
+    return uiText('Sort by {label} (ascending)', { label });
 };
 
 const renderEmptyAreaItems = (items: readonly FileManagerEmptyAreaAction[]): ReactNode[] => {
@@ -430,7 +431,7 @@ export function FileManager({
     // clicks outside any row, which is the entire point.
     const treeBody = (
         <div
-            aria-label="File tree"
+            aria-label={uiText('File tree')}
             aria-multiselectable={isCheckboxVisible || undefined}
             className={cn(
                 'flex flex-1 flex-col overflow-y-auto py-1 transition-colors',
@@ -490,7 +491,7 @@ export function FileManager({
             >
                 {isCheckboxVisible ? (
                     <Checkbox
-                        aria-label={effectiveLabels.selectAllAriaLabel ?? 'Select all'}
+                        aria-label={effectiveLabels.selectAllAriaLabel ?? uiText('Select all')}
                         checked={getCheckboxState(isAllSelected, isSomeSelected)}
                         onCheckedChange={toggleSelectAll}
                     />
@@ -506,8 +507,8 @@ export function FileManager({
                             aria-expanded={isAllExpanded}
                             aria-label={
                                 isAllExpanded
-                                    ? (effectiveLabels.collapseAllAriaLabel ?? 'Collapse all')
-                                    : (effectiveLabels.expandAllAriaLabel ?? 'Expand all')
+                                    ? (effectiveLabels.collapseAllAriaLabel ?? uiText('Collapse all'))
+                                    : (effectiveLabels.expandAllAriaLabel ?? uiText('Expand all'))
                             }
                             className="text-muted-foreground hover:bg-muted -mx-0.5 size-4 shrink-0 rounded hover:text-blue-400"
                             onClick={toggleExpandAll}
@@ -522,11 +523,16 @@ export function FileManager({
                             className="-mx-0.5 size-4 shrink-0"
                         />
                     )}
-                    {renderSortableHeader('name', effectiveLabels.columnName ?? 'Name', isNameSortable)}
+                    {renderSortableHeader('name', effectiveLabels.columnName ?? uiText('Name'), isNameSortable)}
                 </div>
-                {isSizeVisible && renderSortableHeader('size', effectiveLabels.columnSize ?? 'Size', isSizeSortable)}
+                {isSizeVisible &&
+                    renderSortableHeader('size', effectiveLabels.columnSize ?? uiText('Size'), isSizeSortable)}
                 {isModifiedVisible &&
-                    renderSortableHeader('modified', effectiveLabels.columnModified ?? 'Modified', isModifiedSortable)}
+                    renderSortableHeader(
+                        'modified',
+                        effectiveLabels.columnModified ?? uiText('Modified'),
+                        isModifiedSortable,
+                    )}
                 {hasActions && (
                     <span
                         aria-hidden="true"

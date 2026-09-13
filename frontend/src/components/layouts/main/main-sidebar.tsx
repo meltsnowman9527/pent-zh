@@ -50,6 +50,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useResourcesUpload } from '@/features/resources/use-resources-upload';
 import { useTheme } from '@/hooks/use-theme';
 import { routes } from '@/lib/routes';
+import { uiText } from '@/locales/zh-CN';
 import { useFavorites } from '@/providers/favorites-provider';
 import { useSidebarFlows } from '@/providers/sidebar-flows-provider';
 import { useUser } from '@/providers/user-provider';
@@ -120,7 +121,7 @@ export function MainSidebar() {
                                 <SidebarMenuButton asChild>
                                     <Link to={routes.newFlow}>
                                         <Plus />
-                                        New Flow
+                                        {uiText('New Flow')}
                                     </Link>
                                 </SidebarMenuButton>
                             </SidebarMenuItem>
@@ -131,7 +132,7 @@ export function MainSidebar() {
                                 >
                                     <Link to={routes.dashboard}>
                                         <LayoutDashboard />
-                                        Dashboard
+                                        {uiText('Dashboard')}
                                     </Link>
                                 </SidebarMenuButton>
                             </SidebarMenuItem>
@@ -142,7 +143,7 @@ export function MainSidebar() {
                                 >
                                     <Link to={routes.flows}>
                                         <GitFork />
-                                        Flows
+                                        {uiText('Flows')}
                                     </Link>
                                 </SidebarMenuButton>
                                 <SidebarMenuAction
@@ -151,7 +152,7 @@ export function MainSidebar() {
                                     showOnHover
                                 >
                                     <Link
-                                        aria-label="New flow"
+                                        aria-label={uiText('New flow')}
                                         to={routes.newFlow}
                                     >
                                         <Plus />
@@ -165,7 +166,7 @@ export function MainSidebar() {
                                 >
                                     <Link to={routes.templates}>
                                         <FileText />
-                                        Templates
+                                        {uiText('Templates')}
                                     </Link>
                                 </SidebarMenuButton>
                                 <SidebarMenuAction
@@ -174,7 +175,7 @@ export function MainSidebar() {
                                     showOnHover
                                 >
                                     <Link
-                                        aria-label="New template"
+                                        aria-label={uiText('New template')}
                                         to={routes.newTemplate}
                                     >
                                         <Plus />
@@ -188,14 +189,14 @@ export function MainSidebar() {
                                 >
                                     <Link to={routes.resources}>
                                         <Folder />
-                                        Resources
+                                        {uiText('Resources')}
                                     </Link>
                                 </SidebarMenuButton>
                                 <SidebarMenuAction
                                     className="data-[state=open]:bg-accent rounded-sm"
                                     onClick={resourcesUpload.openFilePicker}
                                     showOnHover
-                                    title="Upload file"
+                                    title={uiText('Upload file')}
                                     type="button"
                                 >
                                     <Plus />
@@ -208,7 +209,7 @@ export function MainSidebar() {
                                 >
                                     <Link to={routes.knowledges}>
                                         <LibraryBig />
-                                        Knowledges
+                                        {uiText('Knowledges')}
                                     </Link>
                                 </SidebarMenuButton>
                                 <SidebarMenuAction
@@ -217,7 +218,7 @@ export function MainSidebar() {
                                     showOnHover
                                 >
                                     <Link
-                                        aria-label="New knowledge"
+                                        aria-label={uiText('New knowledge')}
                                         to={routes.newKnowledge}
                                     >
                                         <Plus />
@@ -232,7 +233,7 @@ export function MainSidebar() {
                     <SidebarGroup>
                         <SidebarGroupLabel className="flex items-center gap-2">
                             <Clock />
-                            Recent Flows
+                            {uiText('Recent Flows')}
                         </SidebarGroupLabel>
                         <SidebarGroupContent>
                             <SidebarMenu>
@@ -254,7 +255,7 @@ export function MainSidebar() {
                     <SidebarGroup>
                         <SidebarGroupLabel className="flex items-center gap-2">
                             <Star />
-                            Favorite Flows
+                            {uiText('Favorite Flows')}
                         </SidebarGroupLabel>
                         <SidebarGroupContent>
                             <SidebarMenu>
@@ -284,7 +285,7 @@ export function MainSidebar() {
                                 to={routes.settings.root}
                             >
                                 <Settings />
-                                Settings
+                                {uiText('Settings')}
                             </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -324,7 +325,7 @@ export function MainSidebar() {
                                             <span className="truncate font-semibold">{user?.name}</span>
                                             <span className="truncate text-xs">{user?.mail}</span>
                                             <span className="text-muted-foreground truncate text-xs">
-                                                {user?.type === 'local' ? 'local' : 'oauth'}
+                                                {user?.type === 'local' ? '本地账户' : '第三方账户'}
                                             </span>
                                         </div>
                                     </div>
@@ -335,7 +336,7 @@ export function MainSidebar() {
                                     onSelect={(event) => event.preventDefault()}
                                 >
                                     <Settings2 />
-                                    Theme
+                                    {uiText('Theme')}
                                     <Tabs
                                         className="-my-1.5 -mr-2 ml-auto"
                                         onValueChange={(value) => setTheme(value as Theme)}
@@ -343,21 +344,21 @@ export function MainSidebar() {
                                     >
                                         <TabsList className="dark:bg-background h-7 p-0.5">
                                             <TabsTrigger
-                                                aria-label="System theme"
+                                                aria-label={uiText('System theme')}
                                                 className="dark:data-[state=active]:bg-card h-6 px-2"
                                                 value="system"
                                             >
                                                 <Monitor className="size-4" />
                                             </TabsTrigger>
                                             <TabsTrigger
-                                                aria-label="Light theme"
+                                                aria-label={uiText('Light theme')}
                                                 className="dark:data-[state=active]:bg-card h-6 px-2"
                                                 value="light"
                                             >
                                                 <Sun className="size-4" />
                                             </TabsTrigger>
                                             <TabsTrigger
-                                                aria-label="Dark theme"
+                                                aria-label={uiText('Dark theme')}
                                                 className="dark:data-[state=active]:bg-card h-6 px-2"
                                                 value="dark"
                                             >
@@ -373,13 +374,13 @@ export function MainSidebar() {
                                         to={routes.settings.account}
                                     >
                                         <UserIcon className="mr-2 size-4" />
-                                        Profile
+                                        {uiText('Profile')}
                                     </Link>
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={() => logout()}>
                                     <LogOut className="mr-2 size-4" />
-                                    Log out
+                                    {uiText('Log out')}
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
@@ -420,7 +421,7 @@ function FlowMenuItem({ activeFlowId, flow, isFavorite, onToggleFavorite }: Flow
                 </Link>
             </SidebarMenuButton>
             <SidebarMenuAction
-                aria-label="Toggle favorite"
+                aria-label={uiText('Toggle favorite')}
                 aria-pressed={isFavorite}
                 className="data-[state=open]:bg-accent rounded-sm"
                 onClick={() => onToggleFavorite(flow.id)}

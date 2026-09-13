@@ -9,17 +9,18 @@ import { InputPassword } from '@/components/ui/input-password';
 import { useAppForm } from '@/hooks/use-app-form';
 import { api, resolveApiErrorMessage } from '@/lib/axios';
 import { cn } from '@/lib/utils';
+import { uiText } from '@/locales/zh-CN';
 
 const passwordChangeSchema = z
     .object({
-        confirmPassword: z.string().min(1, { message: 'Confirm your password' }),
-        currentPassword: z.string().min(1, { message: 'Current password is required' }),
+        confirmPassword: z.string().min(1, { message: uiText('Confirm your password') }),
+        currentPassword: z.string().min(1, { message: uiText('Current password is required') }),
         newPassword: z
             .string()
-            .min(8, { message: 'Password must be at least 8 characters' })
+            .min(8, { message: uiText('Password must be at least 8 characters') })
             // bcrypt, which hashes it server-side, refuses anything longer than 72 bytes.
             .refine((password) => new TextEncoder().encode(password).length <= 72, {
-                message: 'Password must not exceed 72 characters',
+                message: uiText('Password must not exceed 72 characters'),
             })
             .refine(
                 (password) => {
@@ -36,25 +37,26 @@ const passwordChangeSchema = z
                     );
                 },
                 {
-                    message:
+                    message: uiText(
                         'Password must be either longer than 15 characters, or at least 8 characters with a number, lowercase, uppercase, and special character (!@#$&*)',
+                    ),
                 },
             ),
     })
     .refine((data) => data.newPassword === data.confirmPassword, {
-        message: "Passwords don't match",
+        message: uiText("Passwords don't match"),
         path: ['confirmPassword'],
     })
     .refine((data) => data.currentPassword !== data.newPassword, {
-        message: 'New password must be different from current password',
+        message: uiText('New password must be different from current password'),
         path: ['newPassword'],
     });
 
 const ERROR_BY_CODE: Record<string, string> = {
-    'Users.ChangePasswordCurrentUser.InvalidCurrentPassword': 'Current password is incorrect',
-    'Users.ChangePasswordCurrentUser.InvalidNewPassword': 'New password does not meet requirements',
-    'Users.ChangePasswordCurrentUser.InvalidPassword': 'Password validation failed',
-    'Users.NotFound': 'User not found',
+    'Users.ChangePasswordCurrentUser.InvalidCurrentPassword': uiText('Current password is incorrect'),
+    'Users.ChangePasswordCurrentUser.InvalidNewPassword': uiText('New password does not meet requirements'),
+    'Users.ChangePasswordCurrentUser.InvalidPassword': uiText('Password validation failed'),
+    'Users.NotFound': uiText('User not found'),
 };
 
 interface PasswordChangeFormProps {
@@ -96,11 +98,11 @@ export function PasswordChangeForm({
             });
 
             form.reset();
-            toast.success('Password successfully changed');
+            toast.success(uiText('Password successfully changed'));
 
             onSuccess?.();
         } catch (err: unknown) {
-            setError(resolveApiErrorMessage(err, ERROR_BY_CODE, 'Failed to change password'));
+            setError(resolveApiErrorMessage(err, ERROR_BY_CODE, uiText('Failed to change password')));
         }
     };
 
@@ -114,7 +116,7 @@ export function PasswordChangeForm({
             type="button"
             variant="ghost"
         >
-            Skip for now
+            {uiText('Skip for now')}
         </Button>
     );
     const cancelButton = onCancel && (
@@ -125,7 +127,7 @@ export function PasswordChangeForm({
             type="button"
             variant="outline"
         >
-            Cancel
+            {uiText('Cancel')}
         </Button>
     );
     const submitButton = (
@@ -133,7 +135,7 @@ export function PasswordChangeForm({
             className={cn(isVertical && 'w-full')}
             size={buttonSize}
         >
-            <span>Update Password</span>
+            <span>{uiText('Update Password')}</span>
         </FormSubmitButton>
     );
 
@@ -149,11 +151,11 @@ export function PasswordChangeForm({
                     name="currentPassword"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Current Password</FormLabel>
+                            <FormLabel>{uiText('Current Password')}</FormLabel>
                             <FormControl>
                                 <InputPassword
                                     {...field}
-                                    placeholder="Enter your current password"
+                                    placeholder={uiText('Enter your current password')}
                                 />
                             </FormControl>
                             <FormMessage />
@@ -166,16 +168,15 @@ export function PasswordChangeForm({
                     name="newPassword"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel>New Password</FormLabel>
+                            <FormLabel>{uiText('New Password')}</FormLabel>
                             <FormControl>
                                 <InputPassword
                                     {...field}
-                                    placeholder="Enter your new password"
+                                    placeholder={uiText('Enter your new password')}
                                 />
                             </FormControl>
                             <FormDescription className="text-xs">
-                                Must be 16+ characters, or 8+ with number, lowercase, uppercase, and special character
-                                (!@#$&*)
+                                密码需至少 16 个字符，或至少 8 个字符且包含数字、大小写字母和特殊字符（!@#$&*）。
                             </FormDescription>
                             <FormMessage />
                         </FormItem>
@@ -187,11 +188,11 @@ export function PasswordChangeForm({
                     name="confirmPassword"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Confirm New Password</FormLabel>
+                            <FormLabel>{uiText('Confirm New Password')}</FormLabel>
                             <FormControl>
                                 <InputPassword
                                     {...field}
-                                    placeholder="Confirm your new password"
+                                    placeholder={uiText('Confirm your new password')}
                                 />
                             </FormControl>
                             <FormMessage />

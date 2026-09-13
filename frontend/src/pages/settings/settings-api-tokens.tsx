@@ -53,12 +53,17 @@ import { useAppForm } from '@/hooks/use-app-form';
 import { useTableState } from '@/hooks/use-table-state';
 import { cn } from '@/lib/utils';
 import { formatDate } from '@/lib/utils/format';
+import { uiText } from '@/locales/zh-CN';
 import { baseUrl } from '@/models/api';
 
 type APIToken = ApiTokenFragmentFragment;
 
 // 100 mirrors the backend cap (server/models/api_tokens.go + the createAPIToken/updateAPIToken resolvers).
-export const tokenNameSchema = z.string().trim().max(100, 'Token name must be 100 characters or less').default('');
+export const tokenNameSchema = z
+    .string()
+    .trim()
+    .max(100, uiText('Token name must be 100 characters or less'))
+    .default('');
 
 const createTokenFormSchema = z.object({
     // Nullable in form input (the date picker starts empty); the refine gates
@@ -66,7 +71,7 @@ const createTokenFormSchema = z.object({
     expiresAt: z
         .date()
         .nullable()
-        .refine((value) => value !== null, { message: 'Expiration date is required' }),
+        .refine((value) => value !== null, { message: uiText('Expiration date is required') }),
     name: tokenNameSchema,
 });
 
@@ -133,7 +138,7 @@ const copyToClipboard = async (text: string): Promise<boolean> => {
 
         return true;
     } catch (error) {
-        console.error('Failed to copy to clipboard:', error);
+        console.error(uiText('Failed to copy to clipboard:'), error);
 
         return false;
     }
@@ -170,7 +175,7 @@ function CreateRowActions({
     return (
         <div className="flex justify-end">
             <Button
-                aria-label={isLoading ? 'Submitting…' : 'Submit'}
+                aria-label={isLoading ? uiText('Submitting…') : uiText('Submit')}
                 className="shrink-0"
                 disabled={isLoading || !isValid}
                 onClick={onSubmit}
@@ -180,7 +185,7 @@ function CreateRowActions({
                 {isLoading ? <Spinner variant="circle" /> : <Check />}
             </Button>
             <Button
-                aria-label="Cancel"
+                aria-label={uiText('Cancel')}
                 className="shrink-0"
                 onClick={onCancel}
                 size="icon-sm"
@@ -208,7 +213,7 @@ function EditRowActions({
     return (
         <div className="flex justify-end">
             <Button
-                aria-label={isLoading ? 'Submitting…' : 'Submit'}
+                aria-label={isLoading ? uiText('Submitting…') : uiText('Submit')}
                 className="shrink-0"
                 disabled={isLoading || !isValid}
                 onClick={onSubmit}
@@ -218,7 +223,7 @@ function EditRowActions({
                 {isLoading ? <Spinner variant="circle" /> : <Check />}
             </Button>
             <Button
-                aria-label="Cancel"
+                aria-label={uiText('Cancel')}
                 className="shrink-0"
                 onClick={onCancel}
                 size="icon-sm"
@@ -318,7 +323,7 @@ function SettingsAPITokens() {
                 setEditingTokenId(null);
                 editForm.reset(EDIT_TOKEN_DEFAULTS);
             } catch (error) {
-                toast.error('Failed to update token', {
+                toast.error(uiText('Failed to update token'), {
                     description: error instanceof Error ? error.message : undefined,
                 });
             }
@@ -372,7 +377,7 @@ function SettingsAPITokens() {
             setCreatingToken(false);
             createForm.reset(CREATE_TOKEN_DEFAULTS);
         } catch (error) {
-            toast.error('Failed to create token', {
+            toast.error(uiText('Failed to create token'), {
                 description: error instanceof Error ? error.message : undefined,
             });
         }
@@ -397,7 +402,7 @@ function SettingsAPITokens() {
 
                 setDeletingToken(null);
             } catch (error) {
-                toast.error('Failed to delete token', {
+                toast.error(uiText('Failed to delete token'), {
                     description: error instanceof Error ? error.message : undefined,
                 });
             }
@@ -409,12 +414,12 @@ function SettingsAPITokens() {
         const success = await copyToClipboard(tokenId);
 
         if (success) {
-            toast.success('Token ID copied to clipboard');
+            toast.success(uiText('Token ID copied to clipboard'));
 
             return;
         }
 
-        toast.error('Failed to copy token ID to clipboard');
+        toast.error(uiText('Failed to copy token ID to clipboard'));
     }, []);
 
     const columns: ColumnDef<APIToken>[] = useMemo(
@@ -438,7 +443,7 @@ function SettingsAPITokens() {
                                         autoFocus
                                         className="h-8"
                                         id={createNameFieldId}
-                                        placeholder="Token name (optional)"
+                                        placeholder={uiText('Token name (optional)')}
                                     />
                                 )}
                             />
@@ -457,7 +462,7 @@ function SettingsAPITokens() {
                                         autoFocus
                                         className="h-8"
                                         id={editNameFieldId}
-                                        placeholder="Token name (optional)"
+                                        placeholder={uiText('Token name (optional)')}
                                     />
                                 )}
                             />
@@ -474,7 +479,7 @@ function SettingsAPITokens() {
                 header: ({ column }) => (
                     <DataTableColumnHeader
                         column={column}
-                        title="Name"
+                        title={uiText('Name')}
                     />
                 ),
                 meta: { searchable: true },
@@ -487,7 +492,7 @@ function SettingsAPITokens() {
                     const isCreating = token.id === 'create-new';
 
                     if (isCreating) {
-                        return <div className="text-muted-foreground text-sm">N/A</div>;
+                        return <div className="text-muted-foreground text-sm">{uiText('N/A')}</div>;
                     }
 
                     const tokenId = row.getValue('tokenId') as string;
@@ -496,7 +501,7 @@ function SettingsAPITokens() {
                         <div className="flex items-center gap-2">
                             <code className="text-sm">{tokenId}</code>
                             <Button
-                                aria-label="Copy token ID"
+                                aria-label={uiText('Copy token ID')}
                                 className="size-6 p-0"
                                 onClick={() => handleCopyTokenId(tokenId)}
                                 variant="ghost"
@@ -510,10 +515,10 @@ function SettingsAPITokens() {
                 header: ({ column }) => (
                     <DataTableColumnHeader
                         column={column}
-                        title="Token ID"
+                        title={uiText('Token ID')}
                     />
                 ),
-                meta: { columnMenuLabel: 'Token ID', searchable: true },
+                meta: { columnMenuLabel: uiText('Token ID'), searchable: true },
                 size: 200,
             },
             {
@@ -564,7 +569,7 @@ function SettingsAPITokens() {
                 header: ({ column }) => (
                     <DataTableColumnHeader
                         column={column}
-                        title="Status"
+                        title={uiText('Status')}
                     />
                 ),
                 meta: { searchable: true },
@@ -600,7 +605,7 @@ function SettingsAPITokens() {
                                                 {field.value ? (
                                                     format(field.value, 'd MMM yyyy', { locale: enUS })
                                                 ) : (
-                                                    <span>Pick date</span>
+                                                    <span>{uiText('Pick date')}</span>
                                                 )}
                                             </Button>
                                         </PopoverTrigger>
@@ -629,7 +634,7 @@ function SettingsAPITokens() {
                 header: ({ column }) => (
                     <DataTableColumnHeader
                         column={column}
-                        title="Expires"
+                        title={uiText('Expires')}
                     />
                 ),
                 size: 150,
@@ -647,7 +652,7 @@ function SettingsAPITokens() {
                     const isCreating = token.id === 'create-new';
 
                     if (isCreating) {
-                        return <div className="text-muted-foreground text-sm">N/A</div>;
+                        return <div className="text-muted-foreground text-sm">{uiText('N/A')}</div>;
                     }
 
                     const dateString = row.getValue('createdAt') as string;
@@ -657,10 +662,10 @@ function SettingsAPITokens() {
                 header: ({ column }) => (
                     <DataTableColumnHeader
                         column={column}
-                        title="Created"
+                        title={uiText('Created')}
                     />
                 ),
-                meta: { columnMenuLabel: 'Created' },
+                meta: { columnMenuLabel: uiText('Created') },
                 size: 120,
                 sortingFn: (rowA, rowB) => {
                     const dateA = new Date(rowA.getValue('createdAt') as string);
@@ -702,7 +707,7 @@ function SettingsAPITokens() {
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                     <Button
-                                        aria-label="Open menu"
+                                        aria-label={uiText('Open menu')}
                                         className="shrink-0"
                                         size="icon-sm"
                                         variant="ghost"
@@ -716,11 +721,11 @@ function SettingsAPITokens() {
                                 >
                                     <DropdownMenuItem onClick={() => handleEdit(token)}>
                                         <Pencil />
-                                        Edit
+                                        {uiText('Edit')}
                                     </DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => handleCopyTokenId(token.tokenId)}>
                                         <Copy />
-                                        Copy Token ID
+                                        {uiText('Copy Token ID')}
                                     </DropdownMenuItem>
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem
@@ -730,12 +735,12 @@ function SettingsAPITokens() {
                                         {isDeleteLoading && deletingToken?.tokenId === token.tokenId ? (
                                             <>
                                                 <Spinner variant="circle" />
-                                                Deleting...
+                                                {uiText('Deleting...')}
                                             </>
                                         ) : (
                                             <>
                                                 <Trash />
-                                                Delete
+                                                {uiText('Delete')}
                                             </>
                                         )}
                                     </DropdownMenuItem>
@@ -781,11 +786,11 @@ function SettingsAPITokens() {
                 <>
                     <ContextMenuItem onClick={() => handleEdit(token)}>
                         <Pencil />
-                        Edit
+                        {uiText('Edit')}
                     </ContextMenuItem>
                     <ContextMenuItem onClick={() => handleCopyTokenId(token.tokenId)}>
                         <Copy />
-                        Copy Token ID
+                        {uiText('Copy Token ID')}
                     </ContextMenuItem>
                     <ContextMenuSeparator />
                     <ContextMenuItem
@@ -793,7 +798,9 @@ function SettingsAPITokens() {
                         onClick={() => handleDeleteDialogOpen(token)}
                     >
                         <Trash />
-                        {isDeleteLoading && deletingToken?.tokenId === token.tokenId ? 'Deleting...' : 'Delete'}
+                        {isDeleteLoading && deletingToken?.tokenId === token.tokenId
+                            ? uiText('Deleting...')
+                            : uiText('Delete')}
                     </ContextMenuItem>
                 </>
             );
@@ -804,19 +811,19 @@ function SettingsAPITokens() {
     const pageHeader = (
         <AppHeader>
             <AppHeaderContent>
-                <AppHeaderTitle icon={<Key className="size-4 shrink-0" />}>API Tokens</AppHeaderTitle>
+                <AppHeaderTitle icon={<Key className="size-4 shrink-0" />}>{uiText('API Tokens')}</AppHeaderTitle>
             </AppHeaderContent>
             <AppHeaderActions>
                 <AppHeaderAction
                     icon={<Plus />}
-                    label="Create Token"
+                    label={uiText('Create Token')}
                     onClick={handleCreateNew}
                     variant="secondary"
                 />
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button
-                            aria-label="Developer tools"
+                            aria-label={uiText('Developer tools')}
                             className="size-8 p-0"
                             size="sm"
                             variant="ghost"
@@ -860,8 +867,8 @@ function SettingsAPITokens() {
                 {pageHeader}
                 <div className="flex flex-1 flex-col gap-4 p-4">
                     <LoadingState
-                        description="Please wait while we fetch your API tokens"
-                        title="Loading tokens..."
+                        description={uiText('Please wait while we fetch your API tokens')}
+                        title={uiText('Loading tokens...')}
                     />
                 </div>
             </>
@@ -877,7 +884,7 @@ function SettingsAPITokens() {
                     <ErrorState
                         message={error.message}
                         onRetry={refetch}
-                        title="Error loading tokens"
+                        title={uiText('Error loading tokens')}
                     />
                 </div>
             </>
@@ -896,9 +903,9 @@ function SettingsAPITokens() {
                             <EmptyMedia variant="icon">
                                 <Key />
                             </EmptyMedia>
-                            <EmptyTitle>No API tokens configured</EmptyTitle>
+                            <EmptyTitle>{uiText('No API tokens configured')}</EmptyTitle>
                             <EmptyDescription>
-                                Create your first API token to access PentAGI programmatically
+                                {uiText('Create your first API token to access PentAGI programmatically')}
                             </EmptyDescription>
                         </EmptyHeader>
                         <EmptyContent>
@@ -907,7 +914,7 @@ function SettingsAPITokens() {
                                 variant="secondary"
                             >
                                 <Plus />
-                                Create Token
+                                {uiText('Create Token')}
                             </Button>
                         </EmptyContent>
                     </Empty>
@@ -923,8 +930,8 @@ function SettingsAPITokens() {
                 <DataTable<APIToken>
                     columns={columns}
                     data={creatingToken ? [createNewTokenPlaceholder, ...tokens] : tokens}
-                    empty={{ entityName: 'API tokens' }}
-                    filterPlaceholder="Filter tokens..."
+                    empty={{ entityName: uiText('API tokens') }}
+                    filterPlaceholder={uiText('Filter tokens...')}
                     filterValue={filter}
                     onFilterChange={setFilter}
                     onPageChange={handlePageChange}
@@ -938,9 +945,9 @@ function SettingsAPITokens() {
                 >
                     <DialogContent>
                         <DialogHeader>
-                            <DialogTitle>API Token Created</DialogTitle>
+                            <DialogTitle>{uiText('API Token Created')}</DialogTitle>
                             <DialogDescription>
-                                Copy this token now. You won't be able to see it again for security reasons.
+                                {uiText("Copy this token now. You won't be able to see it again for security reasons.")}
                             </DialogDescription>
                         </DialogHeader>
                         <div className="bg-muted rounded p-4">
@@ -954,16 +961,16 @@ function SettingsAPITokens() {
                                         const success = await copyToClipboard(tokenSecret);
 
                                         if (success) {
-                                            toast.success('Token copied to clipboard');
+                                            toast.success(uiText('Token copied to clipboard'));
                                         } else {
-                                            toast.error('Failed to copy token to clipboard');
+                                            toast.error(uiText('Failed to copy token to clipboard'));
                                         }
                                     }
                                 }}
                                 variant="secondary"
                             >
                                 <Copy />
-                                Copy Token
+                                {uiText('Copy Token')}
                             </Button>
                             <Button
                                 className="flex-1"
@@ -973,20 +980,20 @@ function SettingsAPITokens() {
                                 }}
                                 variant="outline"
                             >
-                                Close
+                                {uiText('Close')}
                             </Button>
                         </div>
                     </DialogContent>
                 </Dialog>
 
                 <ConfirmationDialog
-                    cancelText="Cancel"
-                    confirmText="Delete"
+                    cancelText={uiText('Cancel')}
+                    confirmText={uiText('Delete')}
                     handleConfirm={() => handleDelete(deletingToken?.tokenId)}
                     handleOpenChange={setIsDeleteDialogOpen}
                     isOpen={isDeleteDialogOpen}
                     itemName={deletingToken?.name || deletingToken?.tokenId}
-                    itemType="token"
+                    itemType={uiText('token')}
                 />
             </div>
         </>

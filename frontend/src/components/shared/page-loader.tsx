@@ -1,7 +1,9 @@
+import { uiText } from '@/locales/zh-CN';
+
 function PageLoader() {
     return (
         <div className="grid h-screen w-full place-items-center">
-            <p>Loading...</p>
+            <p>{uiText('Loading...')}</p>
         </div>
     );
 }
