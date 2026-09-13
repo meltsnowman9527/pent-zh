@@ -43,7 +43,10 @@ afterEach(() => {
     execFileSync('git', ['worktree', 'prune'], { cwd: join(__dirname, '..', '..') });
 });
 
-describe('review-sandbox clean — containment', () => {
+// POSIX-only: every case spawns review-sandbox.sh (bash) and drives GNU find/touch through
+// execFileSync. Windows has no shebang support for .sh, so the file is skipped there rather than
+// failing on a missing interpreter. CI runs it on ubuntu-latest (`.github/workflows/ci.yml`).
+describe.skipIf(process.platform === 'win32')('review-sandbox clean — containment', () => {
     it('removes a sandbox it created', () => {
         const { stdout: sandbox } = run('create');
 
@@ -80,7 +83,7 @@ describe('review-sandbox clean — containment', () => {
     });
 });
 
-describe('review-sandbox create — where the sandbox lands', () => {
+describe.skipIf(process.platform === 'win32')('review-sandbox create — where the sandbox lands', () => {
     // `clean --all` also sweeps a root derived from the script's own location, which no TMPDIR can
     // move: before PENTAGI_SANDBOX_ROOT governed it too, running this very file deleted real stale
     // sandboxes from the repo's parent directory on the developer's machine.
@@ -115,7 +118,7 @@ describe('review-sandbox create — where the sandbox lands', () => {
     });
 });
 
-describe('review-sandbox clean — the sweep', () => {
+describe.skipIf(process.platform === 'win32')('review-sandbox clean — the sweep', () => {
     it('refuses a bare clean rather than taking the whole root', () => {
         const { stdout: sandbox } = run('create');
 

@@ -44,7 +44,10 @@ beforeAll(() => {
 
 afterAll(() => rmSync(repo, { force: true, recursive: true }));
 
-describe('codegen freshness gate — range selection', () => {
+// POSIX-only: every case spawns a `#!/usr/bin/env bash` script through execFileSync and drives GNU
+// find/touch. Windows has no shebang support for .sh, so the file is skipped there rather than
+// failing on a missing interpreter. CI runs it on ubuntu-latest (`.github/workflows/ci.yml`).
+describe.skipIf(process.platform === 'win32')('codegen freshness gate — range selection', () => {
     it('checks a follow-up push whose newest commit did not touch a codegen input', () => {
         expect(run('pull_request', sha.schema, sha.base, sha.merge)).toBe('changed=true');
     });
