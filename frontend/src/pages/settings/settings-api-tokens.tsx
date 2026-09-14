@@ -472,7 +472,9 @@ function SettingsAPITokens() {
 
                     return (
                         <div className="font-medium">
-                            {token.name || <span className="text-muted-foreground font-normal italic">{uiText("(unnamed)")}</span>}
+                            {token.name || (
+                                <span className="text-muted-foreground font-normal italic">{uiText('(unnamed)')}</span>
+                            )}
                         </div>
                     );
                 },
@@ -483,7 +485,7 @@ function SettingsAPITokens() {
                         title={uiText('Name')}
                     />
                 ),
-                meta: { searchable: true },
+                meta: { columnMenuLabel: uiText('Name'), searchable: true },
                 size: 300,
             },
             {
@@ -577,7 +579,7 @@ function SettingsAPITokens() {
                         title={uiText('Status')}
                     />
                 ),
-                meta: { searchable: true },
+                meta: { columnMenuLabel: uiText('Status'), searchable: true },
                 size: 120,
             },
             {
@@ -642,6 +644,7 @@ function SettingsAPITokens() {
                         title={uiText('Expires')}
                     />
                 ),
+                meta: { columnMenuLabel: uiText('Expires') },
                 size: 150,
                 sortingFn: (rowA, rowB) => {
                     const expiresA = getTokenExpirationDate(rowA.original);

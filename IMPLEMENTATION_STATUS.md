@@ -121,6 +121,21 @@
   - 测试：新增 `sidebar-flows-provider.test.tsx`（2 项：必须请求 `cache-and-network` 而不能是 `cache-first`；`focus`/`online` 触发 `refetch`，卸载后不再触发）。
 - 验证：`pnpm test` **1385 通过 / 16 跳过 / 0 失败**；`eslint`、`tsc -b`、生产构建通过；镜像重建并部署（容器 13:50:17），`http://localhost:8443` 返回 200，容器内 `index.html` 与本地 `dist` 一致（md5 `e007eb81ef2a3e1b5d41be0ec2b4f253`）。
 
+### 中文化补漏：筛选菜单与消息类型（2026-09-14 晚）
+
+用户反馈两处残留英文：任务流程列表的筛选/列设置区域，以及交互助手的消息类型（Input/Answer）。三处根因分别是：
+
+- **列下拉菜单回退成列 id**：`DataTable` 的标签取 `meta.columnMenuLabel ?? column.id`，而任务流程页只有 Created / Deleted at 两列写了标签（`updatedAt` 还是裸英文 `'Updated'`），其余列直接回退成列 id，于是「列设置」与「搜索范围」两个菜单里出现 `provider` / `terminals` / `status` / `updatedAt` 等英文。已给全部列补 `uiText(...)` 标签并修掉 `'Updated'`。同类问题一并修复：知识库（`'Type'`/`'Question'`/`'Flags'` 也是裸英文）、模板、提示词、模型服务、API 令牌页缺标签的列。
+- **空状态把英文名词插进中文**：`empty={{ entityName: 'flows' }}` 被拼进「暂无{entity}」「{entity}中没有匹配…」等中文句子，显示为「暂无flows」。已改为 `uiText('Flows')` / `uiText('deleted flows')` 等；影响任务流程、知识库、模板、智能体/工具提示词四处（API 令牌与模型服务此前已是 `uiText`）。
+- **消息类型 tooltip 取枚举值**：`FlowMessageTypeIcon` 的 tooltip 默认 `type` 再经 `formatName`，所以助手消息的类型悬浮提示显示 Input/Answer/Advice 等英文。已改为经文案表（新增 Input/Answer/Advice/Ask/Browser/Done/Thoughts 词条；File/Report/Search/Terminal 复用已有词条），显式传入 tooltip 的调用方行为不变。
+
+防回归：
+
+- 新增 `e2e/table-copy-hygiene.unit.test.ts`：扫描 `src` 下非测试文件，禁止 `columnMenuLabel: '…'`、`entityName: '…'`、`filterPlaceholder="…"` 这类绕过文案表的裸字面量（`columnMenuLabel` 漏写还会静默回退成列 id，因此一并守住）。
+- 新增 `flow-message-type-icon.test.tsx`：断言 Input/Answer 的悬浮提示为中文且不含英文枚举值，显式 tooltip 仍按调用方文案显示。
+
+验证：`pnpm test` **1389 通过 / 16 跳过 / 0 失败**；`eslint`、`tsc -b`、生产构建通过；镜像重建并部署（容器 14:00:41），`http://localhost:8443` 返回 200，容器内 `index.html` 与本地 `dist` 一致（md5 `10d923bda53e80ae33002a590e4c18e7`）。
+
 ## 扫描口径说明
 
 统计“还剩多少英文文案”时必须扫描 `frontend/src` 下的**全部**非测试 `.ts` 与 `.tsx`（只扫 `.tsx` 会漏掉路由标题注册表、API 层、上传校验与资源/文件操作 hook 里的用户可见文案），并把已出现的 `uiText(...)` 调用遮蔽后再匹配，不能跳过已接入文案表的文件：早期版本跳过这些文件，导致 `flow-files.tsx`、`flow-assistant-messages.tsx`、`flows.tsx` 等已接入文案表的文件里剩余的英文没有被统计，进度被高估。匹配要覆盖五类：JSX 文本节点（单行与多行）、常见属性值（含自定义属性）、字符串字面量、**反引号模板字面量**（toast 描述、无障碍名、确认句大量藏在这里），以及把选项名拼进 `aria-label` 的位置。另外两类第九批仍未覆盖，统计时不能省：一是被行内 `<code>` 切开的描述句，`>` 规则只能匹配紧跟标签后的第一段，`</code>` 之后的英文尾巴要单独搜索；二是徽标、下拉项里由数据驱动的显示标签（如令牌状态 `active`/`revoked`/`expired`），它们不是“大写单词开头的句子”，需要按“界面可能出现的英文单词”回查。匹配 `>` 时还要排除箭头函数与注释：前一字符是 `=` 或 `-` 的候选要剔除，否则 `() => ...` 与行内注释里的英文会淹没结果。加入新文案时，词条去重要同时检查 `'Key':` 与裸标识符 `Key:` 两种写法，否则会写出重复键，`tsc` 会以 TS1117 报错。

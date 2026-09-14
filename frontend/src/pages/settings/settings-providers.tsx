@@ -170,7 +170,7 @@ function SettingsProviders() {
                 ),
                 // Name flexes to fill remaining width — fixed `size` would push
                 // the Type column off-screen on narrow viewports (e.g. 375px).
-                meta: { searchable: true },
+                meta: { columnMenuLabel: uiText('Name'), searchable: true },
             },
             {
                 accessorKey: 'type',
@@ -195,7 +195,7 @@ function SettingsProviders() {
                         title={uiText('Type')}
                     />
                 ),
-                meta: { searchable: true },
+                meta: { columnMenuLabel: uiText('Type'), searchable: true },
                 minSize: 110,
                 size: 160,
             },
@@ -234,6 +234,7 @@ function SettingsProviders() {
                         title={uiText('Updated')}
                     />
                 ),
+                meta: { columnMenuLabel: uiText('Updated') },
                 size: 120,
                 sortingFn: (rowA, rowB) => {
                     const dateA = new Date(rowA.getValue('updatedAt') as string);

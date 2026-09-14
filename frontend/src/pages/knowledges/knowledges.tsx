@@ -214,7 +214,7 @@ function Knowledges() {
                 />
             ),
             maxSize: 180,
-            meta: { columnMenuLabel: 'Type', searchable: true },
+            meta: { columnMenuLabel: uiText('Type'), searchable: true },
             minSize: 110,
             size: 130,
         },
@@ -256,7 +256,7 @@ function Knowledges() {
                     title={uiText('Question')}
                 />
             ),
-            meta: { columnMenuLabel: 'Question', searchable: true },
+            meta: { columnMenuLabel: uiText('Question'), searchable: true },
             minSize: 180,
             size: 280,
         },
@@ -292,7 +292,7 @@ function Knowledges() {
             ),
             id: 'flags',
             maxSize: 200,
-            meta: { columnMenuLabel: 'Flags' },
+            meta: { columnMenuLabel: uiText('Flags') },
             minSize: 110,
             size: 150,
         },
@@ -473,7 +473,7 @@ function Knowledges() {
                 <DataTable
                     columns={columns}
                     data={knowledges}
-                    empty={{ entityName: 'knowledge documents' }}
+                    empty={{ entityName: uiText('knowledge documents') }}
                     filterPlaceholder={uiText('Filter knowledge documents...')}
                     filterValue={filter}
                     onFilterChange={setFilter}

@@ -860,7 +860,7 @@ function SettingsPrompts() {
                         <DataTable<AgentPromptTableData>
                             columns={agentColumns}
                             data={agentPrompts}
-                            empty={{ entityName: 'agent prompts' }}
+                            empty={{ entityName: uiText('Agent Prompts') }}
                             filterPlaceholder={uiText('Filter agents...')}
                             initialPageSize={1000}
                             renderRowContextMenu={renderAgentRowContextMenu}
@@ -883,7 +883,7 @@ function SettingsPrompts() {
                         <DataTable<ToolPromptTableData>
                             columns={toolColumns}
                             data={toolPrompts}
-                            empty={{ entityName: 'tool prompts' }}
+                            empty={{ entityName: uiText('Tool Prompts') }}
                             filterPlaceholder={uiText('Filter tools...')}
                             initialPageSize={1000}
                             renderRowContextMenu={renderToolRowContextMenu}

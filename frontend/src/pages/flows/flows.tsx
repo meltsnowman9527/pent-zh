@@ -89,7 +89,7 @@ const idColumn: ColumnDef<Flow> = {
         />
     ),
     maxSize: 80,
-    meta: { searchable: true },
+    meta: { columnMenuLabel: uiText('ID'), searchable: true },
     minSize: 60,
     size: 70,
 };
@@ -104,7 +104,7 @@ const titleColumn: ColumnDef<Flow> = {
             title={uiText('Title')}
         />
     ),
-    meta: { searchable: true },
+    meta: { columnMenuLabel: uiText('Title'), searchable: true },
     minSize: 200,
     size: 300,
 };
@@ -132,7 +132,7 @@ const statusCellColumn: ColumnDef<Flow> = {
         />
     ),
     maxSize: 130,
-    meta: { searchable: true },
+    meta: { columnMenuLabel: uiText('Status'), searchable: true },
     minSize: 80,
     size: 100,
 };
@@ -325,7 +325,7 @@ function Flows() {
                         title={uiText('Title')}
                     />
                 ),
-                meta: { searchable: true },
+                meta: { columnMenuLabel: uiText('Title'), searchable: true },
                 minSize: 200,
                 size: 300,
             },
@@ -359,7 +359,7 @@ function Flows() {
                     />
                 ),
                 maxSize: 130,
-                meta: { searchable: true },
+                meta: { columnMenuLabel: uiText('Status'), searchable: true },
                 minSize: 80,
                 size: 100,
             },
@@ -391,7 +391,7 @@ function Flows() {
                 ),
                 id: 'provider',
                 maxSize: 150,
-                meta: { searchable: true },
+                meta: { columnMenuLabel: uiText('Provider'), searchable: true },
                 minSize: 80,
                 size: 100,
                 sortingFn: (rowA, rowB) => {
@@ -456,7 +456,7 @@ function Flows() {
                 ),
                 id: 'terminals',
                 maxSize: 220,
-                meta: { searchable: true },
+                meta: { columnMenuLabel: uiText('Terminals'), searchable: true },
                 minSize: 160,
                 size: 180,
                 sortingFn: (rowA, rowB) => {
@@ -504,7 +504,7 @@ function Flows() {
                     />
                 ),
                 maxSize: 140,
-                meta: { columnMenuLabel: 'Updated' },
+                meta: { columnMenuLabel: uiText('Updated') },
                 minSize: 100,
                 size: 120,
                 sortingFn: (rowA, rowB) => {
@@ -888,7 +888,7 @@ function Flows() {
                 <DataTable<Flow>
                     columns={isRecycleBin ? deletedColumns : columns}
                     data={tableFlows}
-                    empty={{ entityName: isRecycleBin ? 'deleted flows' : 'flows' }}
+                    empty={{ entityName: isRecycleBin ? uiText('deleted flows') : uiText('Flows') }}
                     filterPlaceholder={uiText('Filter flows...')}
                     filterValue={filter}
                     isVirtualized

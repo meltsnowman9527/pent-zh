@@ -153,7 +153,7 @@ function Templates() {
                     title={uiText('Title')}
                 />
             ),
-            meta: { searchable: true },
+            meta: { columnMenuLabel: uiText('Title'), searchable: true },
         },
         {
             accessorKey: 'text',
@@ -168,7 +168,7 @@ function Templates() {
                     title={uiText('Text')}
                 />
             ),
-            meta: { searchable: true },
+            meta: { columnMenuLabel: uiText('Text'), searchable: true },
         },
         {
             cell: ({ row }) => {
@@ -332,7 +332,7 @@ function Templates() {
                 <DataTable
                     columns={columns}
                     data={templates}
-                    empty={{ entityName: 'templates' }}
+                    empty={{ entityName: uiText('Templates') }}
                     filterPlaceholder={uiText('Filter templates...')}
                     filterValue={filter}
                     onFilterChange={setFilter}
