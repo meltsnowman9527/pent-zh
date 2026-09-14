@@ -1,3 +1,5 @@
+import { uiText } from '@/locales/zh-CN';
+
 import { SEEDED_USER } from '../fixtures/auth.ts';
 import { expect, test } from '../fixtures/test.ts';
 import { expectCleanPage } from '../helpers/errors.ts';
@@ -11,17 +13,17 @@ test.describe('smoke', { tag: '@smoke' }, () => {
             await page.goto('/flows');
 
             await expect(page).toHaveURL(/\/login\?returnUrl=%2Fflows/);
-            await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible();
+            await expect(page.getByRole('button', { exact: true, name: uiText('Sign in') })).toBeVisible();
             // The guest /info carries OAuth providers, so the login page renders its OAuth buttons.
-            await expect(page.getByRole('button', { name: 'Continue with Google' })).toBeVisible();
+            await expect(page.getByRole('button', { name: uiText('Continue with Google') })).toBeVisible();
             expectCleanPage(pageErrorLog);
         });
 
         test('logs in through the form and lands on the flows list', async ({ page, pageErrorLog }) => {
             await page.goto('/flows');
-            await page.getByLabel('Login').fill(SEEDED_USER.mail);
-            await page.getByRole('textbox', { name: 'Password' }).fill('e2e-password');
-            await page.getByRole('button', { name: 'Sign in' }).click();
+            await page.getByLabel(uiText('Login')).fill(SEEDED_USER.mail);
+            await page.getByRole('textbox', { name: uiText('Password') }).fill('e2e-password');
+            await page.getByRole('button', { exact: true, name: uiText('Sign in') }).click();
 
             await expect(page).toHaveURL(/\/flows$/);
             await expect(page.getByText(SEEDED_USER.mail)).toBeVisible();
@@ -34,19 +36,19 @@ test.describe('smoke', { tag: '@smoke' }, () => {
 
         test('surfaces the error and re-disables Sign in until a field changes', async ({ page, pageErrorLog }) => {
             await page.goto('/login');
-            await page.getByLabel('Login').fill(SEEDED_USER.mail);
-            await page.getByRole('textbox', { name: 'Password' }).fill('wrong-password');
-            await page.getByRole('button', { name: 'Sign in' }).click();
+            await page.getByLabel(uiText('Login')).fill(SEEDED_USER.mail);
+            await page.getByRole('textbox', { name: uiText('Password') }).fill('wrong-password');
+            await page.getByRole('button', { exact: true, name: uiText('Sign in') }).click();
 
-            await expect(page.getByText('Login failed. Please try again.').first()).toBeVisible();
+            await expect(page.getByText(uiText('Login failed. Please try again.')).first()).toBeVisible();
             await expect(page).toHaveURL(/\/login/);
             // Disabled by FormSubmitButton's `requireValid` gate (`isSubmitted && !isValid`), not by
             // the 401: the typed values are still schema-valid, and only a change recomputes validity.
-            await expect(page.getByRole('button', { name: 'Sign in' })).toBeDisabled();
+            await expect(page.getByRole('button', { exact: true, name: uiText('Sign in') })).toBeDisabled();
 
-            await page.getByRole('textbox', { name: 'Password' }).fill('another-password');
+            await page.getByRole('textbox', { name: uiText('Password') }).fill('another-password');
 
-            await expect(page.getByRole('button', { name: 'Sign in' })).toBeEnabled();
+            await expect(page.getByRole('button', { exact: true, name: uiText('Sign in') })).toBeEnabled();
             // The 401 logs an expected browser console error, but the path must raise no
             // uncaught JS exception / unhandled rejection.
             expect(pageErrorLog.pageErrors).toEqual([]);

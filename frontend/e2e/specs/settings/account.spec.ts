@@ -1,5 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 
+import { uiText } from '@/locales/zh-CN';
+
 import type { Cassette } from '../../mocks/cassette.ts';
 
 import { SEEDED_USER } from '../../fixtures/auth.ts';
@@ -16,24 +18,26 @@ const accountCassette = (rest: Cassette['rest'] = {}): Cassette => ({
     rest: { ...baseRest(), ...rest },
 });
 
-const section = (page: Page, title: string): Locator =>
-    page.locator('[data-slot="card"]').filter({ has: page.locator('[data-slot="card-title"]', { hasText: title }) });
+const section = (page: Page, title: Parameters<typeof uiText>[0]): Locator =>
+    page
+        .locator('[data-slot="card"]')
+        .filter({ has: page.locator('[data-slot="card-title"]', { hasText: uiText(title) }) });
 
-const openSection = async (page: Page, title: string): Promise<Locator> => {
+const openSection = async (page: Page, title: Parameters<typeof uiText>[0]): Promise<Locator> => {
     const card = section(page, title);
 
-    await card.getByRole('button', { name: 'Change' }).click();
+    await card.getByRole('button', { name: uiText('Change') }).click();
 
     return card;
 };
 
 const fillPasswordForm = async (page: Page, next: string, confirm = next): Promise<void> => {
-    await page.getByLabel('Current Password').fill(CURRENT_PASSWORD);
-    await page.getByLabel('New Password', { exact: true }).fill(next);
-    await page.getByLabel('Confirm New Password').fill(confirm);
+    await page.getByLabel(uiText('Current Password')).fill(CURRENT_PASSWORD);
+    await page.getByLabel(uiText('New Password'), { exact: true }).fill(next);
+    await page.getByLabel(uiText('Confirm New Password')).fill(confirm);
 };
 
-const submitPasswordForm = (page: Page): Promise<void> => page.getByRole('button', { name: 'Update Password' }).click();
+const submitPasswordForm = (page: Page): Promise<void> => page.getByRole('button', { name: uiText('Update Password') }).click();
 
 test.describe('account settings', { tag: '@settings' }, () => {
     test.describe('read', () => {
@@ -43,8 +47,10 @@ test.describe('account settings', { tag: '@settings' }, () => {
             await page.goto('/settings/account');
 
             await expect(page.getByRole('heading', { exact: true, name: SEEDED_USER.name })).toBeVisible();
-            await expect(page.getByText('Member since January 2026')).toBeVisible();
-            await expect(page.getByText('Local account')).toBeVisible();
+            // settings-account.tsx formats created_at with date-fns `yyyy年M月`, so the seeded
+            // 2026-01-10T09:00:00Z identity renders as 2026年1月.
+            await expect(page.getByText(uiText('Member since {date}', { date: '2026年1月' }))).toBeVisible();
+            await expect(page.getByText(uiText('Local account'))).toBeVisible();
             await expect(section(page, 'Display name').getByText(SEEDED_USER.name)).toBeVisible();
             await expect(section(page, 'Email address').getByText(SEEDED_USER.mail)).toBeVisible();
             await expect(section(page, 'Password').getByText('••••••••••••')).toBeVisible();
@@ -74,19 +80,25 @@ test.describe('account settings', { tag: '@settings' }, () => {
             // and every later row is then validated live on change.
             await fillPasswordForm(page, 'NewPass1!abc', 'OtherPass1!abc');
             await submitPasswordForm(page);
-            await expect(page.getByText("Passwords don't match")).toBeVisible();
+            await expect(page.getByText(uiText("Passwords don't match"))).toBeVisible();
 
             await fillPasswordForm(page, 'newpass1');
-            await expect(page.getByText('Password must be either longer than 15 characters')).toBeVisible();
+            await expect(
+                page.getByText(
+                    uiText(
+                        'Password must be either longer than 15 characters, or at least 8 characters with a number, lowercase, uppercase, and special character (!@#$&*)',
+                    ),
+                ),
+            ).toBeVisible();
 
             await fillPasswordForm(page, 'short1!');
-            await expect(page.getByText('Password must be at least 8 characters')).toBeVisible();
+            await expect(page.getByText(uiText('Password must be at least 8 characters'))).toBeVisible();
 
             await fillPasswordForm(page, `${MAX_LENGTH_PASSWORD}x`);
-            await expect(page.getByText('Password must not exceed 72 characters')).toBeVisible();
+            await expect(page.getByText(uiText('Password must not exceed 72 characters'))).toBeVisible();
 
             await fillPasswordForm(page, CURRENT_PASSWORD);
-            await expect(page.getByText('New password must be different from current password')).toBeVisible();
+            await expect(page.getByText(uiText('New password must be different from current password'))).toBeVisible();
 
             expect(attempts, 'no invalid password may reach the backend').toEqual([]);
             expectCleanPage(pageErrorLog);
@@ -115,7 +127,7 @@ test.describe('account settings', { tag: '@settings' }, () => {
             await fillPasswordForm(page, MAX_LENGTH_PASSWORD);
             await submitPasswordForm(page);
 
-            await expect(page.getByText('Password successfully changed')).toBeVisible();
+            await expect(page.getByText(uiText('Password successfully changed'))).toBeVisible();
             await expect(section(page, 'Password').getByText('••••••••••••')).toBeVisible();
 
             expectCleanPage(pageErrorLog);
@@ -144,9 +156,9 @@ test.describe('account settings', { tag: '@settings' }, () => {
             await fillPasswordForm(page, 'NewPass1!abc');
             await submitPasswordForm(page);
 
-            await expect(page.getByText('Current password is incorrect')).toBeVisible();
+            await expect(page.getByText(uiText('Current password is incorrect'))).toBeVisible();
             await expect(page.getByText('invalid current password')).toBeHidden();
-            await expect(page.getByRole('button', { name: 'Update Password' })).toBeVisible();
+            await expect(page.getByRole('button', { name: uiText('Update Password') })).toBeVisible();
 
             expect(pageErrorLog.pageErrors, 'no uncaught page errors').toEqual([]);
             expect(
@@ -176,16 +188,16 @@ test.describe('account settings', { tag: '@settings' }, () => {
 
             const nameCard = await openSection(page, 'Display name');
 
-            await nameCard.getByLabel('Display name').fill('E2E renamed admin');
-            await nameCard.getByRole('button', { name: 'Update Name' }).click();
-            await expect(page.getByText('Name successfully updated')).toBeVisible();
+            await nameCard.getByLabel(uiText('Display name')).fill('E2E renamed admin');
+            await nameCard.getByRole('button', { name: uiText('Update Name') }).click();
+            await expect(page.getByText(uiText('Name successfully updated'))).toBeVisible();
 
             const emailCard = await openSection(page, 'Email address');
 
-            await emailCard.getByLabel('Current Password').fill(CURRENT_PASSWORD);
-            await emailCard.getByLabel('New Email').fill('renamed@pentagi.com');
-            await emailCard.getByRole('button', { name: 'Update Email' }).click();
-            await expect(page.getByText('Email successfully updated')).toBeVisible();
+            await emailCard.getByLabel(uiText('Current Password')).fill(CURRENT_PASSWORD);
+            await emailCard.getByLabel(uiText('New Email')).fill('renamed@pentagi.com');
+            await emailCard.getByRole('button', { name: uiText('Update Email') }).click();
+            await expect(page.getByText(uiText('Email successfully updated'))).toBeVisible();
 
             expectCleanPage(pageErrorLog);
         });

@@ -1,5 +1,7 @@
 import type { Page } from '@playwright/test';
 
+import { uiText } from '@/locales/zh-CN';
+
 import { expect, test } from '../../fixtures/test.ts';
 import { expectCleanPage } from '../../helpers/errors.ts';
 import {
@@ -33,12 +35,13 @@ test.describe('settings prompt detail', { tag: '@coverage' }, () => {
         }),
     });
 
-    const EDITOR = 'System prompt template';
+    // The rich editor is addressed by its localized aria-label (`System prompt template` is the key).
+    const EDITOR = uiText('System prompt template');
 
     // The raw/rich switch lives inside the actions menu, which stays open on select.
     const switchToRaw = async (page: Page) => {
-        await page.getByRole('button', { name: 'Prompt actions' }).click();
-        await page.getByLabel('Raw source').click();
+        await page.getByRole('button', { name: uiText('Prompt actions') }).click();
+        await page.getByLabel(uiText('Raw source')).click();
         await page.keyboard.press('Escape');
     };
 
@@ -98,7 +101,7 @@ test.describe('settings prompt detail', { tag: '@coverage' }, () => {
             (candidate) => candidate.method() === 'POST' && candidate.postDataJSON()?.operationName === 'createPrompt',
         );
 
-        await page.getByRole('button', { exact: true, name: 'Save' }).click();
+        await page.getByRole('button', { exact: true, name: uiText('Save') }).click();
 
         const { variables } = (await request).postDataJSON();
 
@@ -113,7 +116,8 @@ test.describe('settings prompt detail', { tag: '@coverage' }, () => {
 });
 
 test.describe('settings prompt detail, already overridden', { tag: '@coverage' }, () => {
-    const EDITOR = 'System prompt template';
+    // The rich editor is addressed by its localized aria-label (`System prompt template` is the key).
+    const EDITOR = uiText('System prompt template');
 
     test.describe('save', () => {
         test.use({
@@ -154,7 +158,7 @@ test.describe('settings prompt detail, already overridden', { tag: '@coverage' }
                     candidate.method() === 'POST' && candidate.postDataJSON()?.operationName === 'updatePrompt',
             );
 
-            await page.getByRole('button', { exact: true, name: 'Save' }).click();
+            await page.getByRole('button', { exact: true, name: uiText('Save') }).click();
 
             const { variables } = (await request).postDataJSON();
 
@@ -187,15 +191,15 @@ test.describe('settings prompt detail, already overridden', { tag: '@coverage' }
 
             await expect(editor.getByRole('heading', { name: 'Operator override' })).toBeVisible();
 
-            await page.getByRole('button', { name: 'Prompt actions' }).click();
-            await page.getByRole('menuitem', { name: 'Reset' }).click();
+            await page.getByRole('button', { name: uiText('Prompt actions') }).click();
+            await page.getByRole('menuitem', { name: uiText('Reset') }).click();
 
             const request = page.waitForRequest(
                 (candidate) =>
                     candidate.method() === 'POST' && candidate.postDataJSON()?.operationName === 'deletePrompt',
             );
 
-            await page.getByRole('dialog').getByRole('button', { exact: true, name: 'Reset' }).click();
+            await page.getByRole('dialog').getByRole('button', { exact: true, name: uiText('Reset') }).click();
 
             expect((await request).postDataJSON().variables).toEqual({ promptId: PROMPT_OVERRIDE.id });
 

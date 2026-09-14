@@ -165,6 +165,18 @@ export const flowsCassette = (override: Cassette = {}): Cassette =>
                         data: flowQueryData(FLOW_A, messagesFor('5', FLOW_A_INITIAL_IDS), FLOW_A_TERMINAL_LOGS),
                         variables: { id: '5' },
                     },
+                    // The fake server remembers what it streamed. FlowDocument is cache-and-network
+                    // (flow-provider.tsx), so leaving and returning to the flow refetches it: answering
+                    // with the initial seed again would silently drop the frames the stream delivered.
+                    // Served in sequence — the first query of a test still gets the initial seed.
+                    {
+                        data: flowQueryData(
+                            FLOW_A,
+                            messagesFor('5', [...FLOW_A_INITIAL_IDS, ...FLOW_A_STREAMED_IDS]),
+                            FLOW_A_TERMINAL_LOGS,
+                        ),
+                        variables: { id: '5' },
+                    },
                     {
                         data: flowQueryData(
                             FLOW_A,

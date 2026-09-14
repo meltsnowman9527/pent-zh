@@ -3,6 +3,8 @@ import type { Page } from '@playwright/test';
 
 import type { ResourceAddedDocument } from '@/graphql/types';
 
+import { uiText } from '@/locales/zh-CN';
+
 import { expect, test } from '../../fixtures/test.ts';
 import { expectCleanPage } from '../../helpers/errors.ts';
 import {
@@ -21,6 +23,11 @@ interface DownloadClick {
     href: string;
 }
 
+// Both CTAs and the copy row action go through the copy table since the last hygiene pass
+// (src/features/resources/resources-*-dialog.tsx, src/pages/resources/resources.tsx).
+const COPY_PRIMARY_LABEL = uiText('Copy');
+const MOVE_PRIMARY_LABEL = uiText('Move');
+
 test.describe('resources', { tag: '@coverage' }, () => {
     test.describe('listing', () => {
         test.use({ cassette: resourcesCassette() });
@@ -30,9 +37,13 @@ test.describe('resources', { tag: '@coverage' }, () => {
 
             await expect(page.getByRole('treeitem', { name: /reports/ })).toBeVisible();
             await expect(page.getByRole('treeitem', { name: /notes\.txt/ })).toBeVisible();
-            await expect(page.getByRole('button', { name: 'Sort by name (ascending)' })).toBeVisible();
-            await expect(page.getByRole('button', { name: 'Sort by size (ascending)' })).toBeVisible();
-            await expect(page.getByRole('button', { name: 'Sort by modified date (ascending)' })).toBeVisible();
+            // The column heading is `Sort by {label} (ascending)`; `label` is the file manager's own
+            // English column id (file-manager.tsx COLUMN_LABEL_FOR_ARIA), not a copy-table entry.
+            const sortAscending = (label: string) => uiText('Sort by {label} (ascending)', { label });
+
+            await expect(page.getByRole('button', { name: sortAscending('name') })).toBeVisible();
+            await expect(page.getByRole('button', { name: sortAscending('size') })).toBeVisible();
+            await expect(page.getByRole('button', { name: sortAscending('modified date') })).toBeVisible();
             expectCleanPage(pageErrorLog);
         });
     });
@@ -65,16 +76,16 @@ test.describe('resources', { tag: '@coverage' }, () => {
 
         test('creates a directory and the new row arrives via subscription', async ({ page, pageErrorLog }) => {
             await page.goto('/resources');
-            await page.getByRole('button', { name: 'New folder' }).click();
+            await page.getByRole('button', { name: uiText('New folder') }).click();
 
             const dialog = page.getByRole('dialog');
 
-            await expect(dialog.getByRole('heading', { name: 'Create directory' })).toBeVisible();
-            await expect(dialog.getByLabel('Path')).toHaveValue('new-folder');
-            await dialog.getByLabel('Path').fill(TYPED_PATH);
-            await dialog.getByRole('button', { name: 'Create' }).click();
+            await expect(dialog.getByRole('heading', { name: uiText('Create directory') })).toBeVisible();
+            await expect(dialog.getByLabel(uiText('Path'))).toHaveValue('new-folder');
+            await dialog.getByLabel(uiText('Path')).fill(TYPED_PATH);
+            await dialog.getByRole('button', { name: uiText('Create') }).click();
 
-            await expect(page.getByText('Directory created')).toBeVisible();
+            await expect(page.getByText(uiText('Directory created'))).toBeVisible();
             await expect(page.getByRole('treeitem', { name: new RegExp(TYPED_PATH) })).toBeVisible();
             expectCleanPage(pageErrorLog);
         });
@@ -86,11 +97,14 @@ test.describe('resources', { tag: '@coverage' }, () => {
         test('shows the upload call to action', async ({ page, pageErrorLog }) => {
             await page.goto('/resources');
 
-            await expect(page.getByText('No resources yet')).toBeVisible();
+            await expect(page.getByText(uiText('No resources yet'))).toBeVisible();
             // Scope to the drop zone (its hint is unique) so the toolbar's Upload button is excluded.
-            const dropZone = page.locator('div').filter({ hasText: 'Up to 300 MB per file' }).last();
+            const dropZone = page
+                .locator('div')
+                .filter({ hasText: uiText('Up to 300 MB per file · 2 GB per upload') })
+                .last();
 
-            await expect(dropZone.getByRole('button', { name: 'Upload files' })).toBeVisible();
+            await expect(dropZone.getByRole('button', { name: uiText('Upload files') })).toBeVisible();
             expectCleanPage(pageErrorLog);
         });
     });
@@ -101,7 +115,7 @@ test.describe('resources', { tag: '@coverage' }, () => {
         test.use({ cassette: resourcesCassette({ rest: resourceWrites() }) });
 
         const rowActions = (page: Page, name: string) =>
-            page.getByRole('treeitem', { name: new RegExp(name) }).getByRole('button', { name: 'Row actions' });
+            page.getByRole('treeitem', { name: new RegExp(name) }).getByRole('button', { name: uiText('Row actions') });
 
         test('rename issues a PUT to /resources/move carrying the typed destination', async ({
             page,
@@ -115,12 +129,12 @@ test.describe('resources', { tag: '@coverage' }, () => {
             );
 
             await rowActions(page, FILE_RESOURCE.name).click();
-            await page.getByRole('menuitem', { name: 'Rename or move' }).click();
+            await page.getByRole('menuitem', { name: uiText('Rename or move') }).click();
 
             const dialog = page.getByRole('dialog');
 
-            await dialog.getByLabel('New path').fill(RENAMED_PATH);
-            await dialog.getByRole('button', { exact: true, name: 'Move' }).click();
+            await dialog.getByLabel(uiText('New path')).fill(RENAMED_PATH);
+            await dialog.getByRole('button', { exact: true, name: MOVE_PRIMARY_LABEL }).click();
 
             expect((await request).postDataJSON()).toMatchObject({
                 destination: RENAMED_PATH,
@@ -138,12 +152,12 @@ test.describe('resources', { tag: '@coverage' }, () => {
             );
 
             await rowActions(page, FILE_RESOURCE.name).click();
-            await page.getByRole('menuitem', { name: 'Copy to…' }).click();
+            await page.getByRole('menuitem', { name: uiText('Copy to…') }).click();
 
             const dialog = page.getByRole('dialog');
 
-            await dialog.getByLabel('Destination path').fill(COPY_DESTINATION);
-            await dialog.getByRole('button', { exact: true, name: 'Copy' }).click();
+            await dialog.getByLabel(uiText('Destination path')).fill(COPY_DESTINATION);
+            await dialog.getByRole('button', { exact: true, name: COPY_PRIMARY_LABEL }).click();
 
             expect((await request).postDataJSON()).toMatchObject({
                 destination: COPY_DESTINATION,
@@ -166,14 +180,14 @@ test.describe('resources', { tag: '@coverage' }, () => {
             });
 
             await rowActions(page, FILE_RESOURCE.name).click();
-            await page.getByRole('menuitem', { name: 'Copy to…' }).click();
-            await page.getByRole('dialog').getByLabel('Destination path').fill(FOLDER_RESOURCE.name);
-            await page.getByRole('dialog').getByRole('button', { exact: true, name: 'Copy' }).click();
+            await page.getByRole('menuitem', { name: uiText('Copy to…') }).click();
+            await page.getByRole('dialog').getByLabel(uiText('Destination path')).fill(FOLDER_RESOURCE.name);
+            await page.getByRole('dialog').getByRole('button', { exact: true, name: COPY_PRIMARY_LABEL }).click();
 
-            await expect(page.getByRole('dialog', { name: 'Replace existing item?' })).toBeVisible();
+            await expect(page.getByRole('dialog', { name: uiText('Replace existing item?') })).toBeVisible();
             expect(copyRequests, 'nothing is sent while the guard is open').toBe(0);
 
-            await page.getByRole('button', { name: 'Cancel' }).click();
+            await page.getByRole('button', { name: uiText('Cancel') }).click();
             expect(copyRequests, 'cancelling the guard sends nothing at all').toBe(0);
         });
 
@@ -186,8 +200,8 @@ test.describe('resources', { tag: '@coverage' }, () => {
             );
 
             await rowActions(page, FILE_RESOURCE.name).click();
-            await page.getByRole('menuitem', { name: 'Delete' }).click();
-            await page.getByRole('dialog').getByRole('button', { exact: true, name: 'Delete' }).click();
+            await page.getByRole('menuitem', { name: uiText('Delete') }).click();
+            await page.getByRole('dialog').getByRole('button', { exact: true, name: uiText('Delete') }).click();
 
             expect(new URL((await request).url()).searchParams.getAll('paths[]')).toEqual([FILE_RESOURCE.path]);
             expectCleanPage(pageErrorLog);
@@ -200,7 +214,7 @@ test.describe('resources', { tag: '@coverage' }, () => {
             await page.goto('/resources');
             await rowActions(page, FILE_RESOURCE.name).click();
 
-            const link = page.getByRole('menuitem', { name: 'Download' });
+            const link = page.getByRole('menuitem', { name: uiText('Download') });
 
             await expect(link).toHaveAttribute('download', FILE_RESOURCE.name);
 
@@ -234,9 +248,13 @@ test.describe('resources', { tag: '@coverage' }, () => {
                 };
             });
             await page.goto('/resources');
-            await page.getByRole('checkbox', { name: `Select ${FILE_RESOURCE.name}` }).click();
-            await page.getByRole('checkbox', { name: `Select ${FOLDER_RESOURCE.name}` }).click();
-            await page.getByRole('button', { exact: true, name: 'Download' }).click();
+            await page
+                .getByRole('checkbox', { name: uiText('Select {name}', { name: FILE_RESOURCE.name }) })
+                .click();
+            await page
+                .getByRole('checkbox', { name: uiText('Select {name}', { name: FOLDER_RESOURCE.name }) })
+                .click();
+            await page.getByRole('button', { exact: true, name: uiText('Download') }).click();
 
             const clicks = await page.evaluate(
                 () => (window as unknown as { e2eDownloads: DownloadClick[] }).e2eDownloads,

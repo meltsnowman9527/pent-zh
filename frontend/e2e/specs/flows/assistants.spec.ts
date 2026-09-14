@@ -4,6 +4,7 @@ import type { Page } from '@playwright/test';
 import type { CallAssistantDocument, DeleteAssistantDocument } from '@/graphql/types';
 
 import { ResultType, StatusType } from '@/graphql/types';
+import { uiText } from '@/locales/zh-CN';
 
 import { expect, test } from '../../fixtures/test.ts';
 import { expectCleanPage } from '../../helpers/errors.ts';
@@ -18,13 +19,13 @@ import { PROVIDER } from '../../mocks/cassettes/flows.ts';
 
 const openAssistantTab = async (page: Page) => {
     await page.goto('/flows/5');
-    await page.getByRole('tab', { name: 'Assistant' }).click();
-    await expect(page.getByPlaceholder('Search messages...')).toBeVisible();
+    await page.getByRole('tab', { name: uiText('Assistant') }).click();
+    await expect(page.getByPlaceholder(uiText('Search messages...'))).toBeVisible();
 };
 
 const openPicker = async (page: Page) => {
-    await page.getByRole('button', { name: 'Select assistant' }).click();
-    await expect(page.getByPlaceholder('Search assistants...')).toBeVisible();
+    await page.getByRole('button', { name: uiText('Select assistant') }).click();
+    await expect(page.getByPlaceholder(uiText('Search assistants...'))).toBeVisible();
 };
 
 const operationRequest = (page: Page, operationName: string) =>
@@ -68,24 +69,24 @@ test.describe('flow assistants', { tag: '@flows' }, () => {
         test('creates an assistant from the empty composer and selects it', async ({ page, pageErrorLog }) => {
             await openAssistantTab(page);
             await openPicker(page);
-            await page.getByRole('option', { name: 'Create new assistant' }).click();
+            await page.getByRole('option', { name: uiText('Create new assistant') }).click();
 
-            const composer = page.getByPlaceholder('Type a message to create a new assistant...');
-            const picker = page.getByRole('button', { name: 'Select assistant' });
+            const composer = page.getByPlaceholder(uiText('Type a message to create a new assistant...'));
+            const picker = page.getByRole('button', { name: uiText('Select assistant') });
 
             await expect(composer).toBeVisible();
-            await expect(picker).toHaveText('New');
+            await expect(picker).toHaveText(uiText('New'));
             await composer.fill('plan the recon');
 
             // A brand-new assistant inherits no provider. The only one on offer is also the one the
             // previously selected assistant used — the case a defaults-sync that ignores the picked
             // value silently reverts.
-            await page.getByRole('button', { name: 'Select Provider' }).click();
+            await page.getByRole('button', { name: uiText('Select Provider') }).click();
             await page.getByRole('menuitem', { name: PROVIDER.name }).click();
 
             const request = operationRequest(page, 'createAssistant');
 
-            await page.getByRole('button', { name: 'Submit' }).click();
+            await page.getByRole('button', { name: uiText('Submit') }).click();
 
             expect((await request).postDataJSON().variables).toEqual({
                 flowId: '5',
@@ -123,13 +124,13 @@ test.describe('flow assistants', { tag: '@flows' }, () => {
         test('sends a follow-up to the assistant the picker already selected', async ({ page, pageErrorLog }) => {
             await openAssistantTab(page);
 
-            const composer = page.getByPlaceholder('Continue the conversation...');
+            const composer = page.getByPlaceholder(uiText('Continue the conversation...'));
 
             await composer.fill('and the other ports?');
 
             const request = operationRequest(page, 'callAssistant');
 
-            await page.getByRole('button', { name: 'Submit' }).click();
+            await page.getByRole('button', { name: uiText('Submit') }).click();
 
             expect((await request).postDataJSON().variables).toEqual({
                 assistantId: WAITING_ASSISTANT.id,
@@ -188,7 +189,7 @@ test.describe('flow assistants', { tag: '@flows' }, () => {
             await openPicker(page);
             await page.getByRole('option', { name: new RegExp(RUNNING_ASSISTANT.title) }).click();
 
-            const stop = page.getByRole('button', { name: 'Cancel' });
+            const stop = page.getByRole('button', { name: uiText('Cancel') });
 
             await expect(stop).toBeVisible();
 
@@ -200,7 +201,7 @@ test.describe('flow assistants', { tag: '@flows' }, () => {
                 assistantId: RUNNING_ASSISTANT.id,
                 flowId: '5',
             });
-            await expect(page.getByPlaceholder('Continue the conversation...')).toBeVisible();
+            await expect(page.getByPlaceholder(uiText('Continue the conversation...'))).toBeVisible();
             expectCleanPage(pageErrorLog);
         });
     });
@@ -245,11 +246,11 @@ test.describe('flow assistants', { tag: '@flows' }, () => {
 
             const dialog = page.getByRole('dialog');
 
-            await expect(dialog.getByText('Delete Assistant')).toBeVisible();
+            await expect(dialog.getByText(uiText('Delete Assistant'))).toBeVisible();
 
             const request = operationRequest(page, 'deleteAssistant');
 
-            await dialog.getByRole('button', { name: 'Delete' }).click();
+            await dialog.getByRole('button', { name: uiText('Delete') }).click();
 
             expect((await request).postDataJSON().variables).toEqual({
                 assistantId: RUNNING_ASSISTANT.id,

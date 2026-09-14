@@ -1,5 +1,7 @@
 import type { Page } from '@playwright/test';
 
+import { uiText } from '@/locales/zh-CN';
+
 import { expect, test } from '../../fixtures/test.ts';
 import { expectCleanPage } from '../../helpers/errors.ts';
 import {
@@ -20,27 +22,38 @@ import {
 const agentRow = (page: Page, agentName: string) =>
     page.locator('[data-slot="accordion-item"]').filter({ hasText: agentName });
 
+/**
+ * The test-result accordion header renders `<agent> <passed>/<total>` with the `passed` badge glued
+ * to the counts inside one element (settings-provider.tsx), and the heading/trigger takes its
+ * accessible name from that whole row — so there is no space before `已通过`.
+ */
+const verdictName = (agentName: string, passed: number, total: number): string =>
+    `${agentName} ${passed}/${total}${uiText('passed')}`;
+
+/** Any verdict row, whatever the agent or the counts. */
+const ANY_VERDICT = new RegExp(uiText('passed'));
+
 test.describe('settings providers', { tag: '@coverage' }, () => {
     test.use({ cassette: settingsProvidersCassette() });
 
     test('shows the empty state when no providers are configured', async ({ page, pageErrorLog }) => {
         await page.goto('/settings/providers');
 
-        await expect(page.getByText('No providers configured')).toBeVisible();
-        await expect(page.getByRole('button', { name: 'Add Provider' })).toBeVisible();
+        await expect(page.getByText(uiText('No providers configured'))).toBeVisible();
+        await expect(page.getByRole('button', { name: uiText('Add Provider') })).toBeVisible();
 
         expectCleanPage(pageErrorLog);
     });
 
     test('opens the create form from the empty state', async ({ page, pageErrorLog }) => {
         await page.goto('/settings/providers');
-        await page.getByRole('button', { name: 'Add Provider' }).click();
+        await page.getByRole('button', { name: uiText('Add Provider') }).click();
 
         await expect(page).toHaveURL(/\/settings\/providers\/new$/);
-        await expect(page.getByRole('heading', { name: 'Create a new provider' })).toBeVisible();
-        await expect(page.getByText('Type', { exact: true })).toBeVisible();
-        await expect(page.getByRole('button', { name: 'Select provider' })).toBeVisible();
-        await expect(page.getByLabel('Name', { exact: true })).toBeVisible();
+        await expect(page.getByRole('heading', { name: uiText('Create a new provider') })).toBeVisible();
+        await expect(page.getByText(uiText('Type'), { exact: true })).toBeVisible();
+        await expect(page.getByRole('button', { name: uiText('Select provider') })).toBeVisible();
+        await expect(page.getByLabel(uiText('Name'), { exact: true })).toBeVisible();
 
         expectCleanPage(pageErrorLog);
     });
@@ -59,7 +72,10 @@ test.describe('settings providers create form', { tag: '@coverage' }, () => {
         await page.goto('/settings/providers/new?type=anthropic');
 
         await page.getByRole('button', { name: /^Adviser/ }).click();
-        await page.getByRole('button', { name: 'Open model list' }).first().click();
+        await page
+            .getByRole('button', { name: uiText('Open {label} list', { label: uiText('Model') }) })
+            .first()
+            .click();
 
         // A catalog-only model (not the seeded agent default), so it can only appear if the type's
         // model list reached the dropdown — the path an empty catalog leaves unreachable.
@@ -94,15 +110,15 @@ test.describe('settings providers write path', { tag: '@coverage' }, () => {
     }) => {
         await page.goto('/settings/providers/new?type=anthropic');
 
-        await expect(page.getByLabel('Name', { exact: true })).toBeVisible();
-        await page.getByLabel('Name', { exact: true }).fill(CREATED_NAME);
+        await expect(page.getByLabel(uiText('Name'), { exact: true })).toBeVisible();
+        await page.getByLabel(uiText('Name'), { exact: true }).fill(CREATED_NAME);
 
         const request = page.waitForRequest(
             (candidate) =>
                 candidate.method() === 'POST' && candidate.postDataJSON()?.operationName === 'createProvider',
         );
 
-        await page.getByRole('button', { exact: true, name: 'Create' }).click();
+        await page.getByRole('button', { exact: true, name: uiText('Create') }).click();
 
         const { variables } = (await request).postDataJSON();
 
@@ -127,7 +143,7 @@ test.describe('settings provider edit paths', { tag: '@coverage' }, () => {
 
     const openProvider = async (page: Page) => {
         await page.goto(`/settings/providers/${SEEDED_PROVIDER.id}`);
-        await expect(page.getByLabel('Name', { exact: true })).toHaveValue(SEEDED_PROVIDER.name);
+        await expect(page.getByLabel(uiText('Name'), { exact: true })).toHaveValue(SEEDED_PROVIDER.name);
     };
 
     const mutationRequest = (page: Page, operationName: string) =>
@@ -151,11 +167,11 @@ test.describe('settings provider edit paths', { tag: '@coverage' }, () => {
 
         test('Save carries the id of the provider being edited', async ({ page, pageErrorLog }) => {
             await openProvider(page);
-            await page.getByLabel('Name', { exact: true }).fill(RENAMED);
+            await page.getByLabel(uiText('Name'), { exact: true }).fill(RENAMED);
 
             const request = mutationRequest(page, 'updateProvider');
 
-            await page.getByRole('button', { exact: true, name: 'Save' }).click();
+            await page.getByRole('button', { exact: true, name: uiText('Save') }).click();
 
             const { variables } = (await request).postDataJSON();
 
@@ -183,8 +199,8 @@ test.describe('settings provider edit paths', { tag: '@coverage' }, () => {
 
         test('Delete confirms by name, sends the id, and returns to the list', async ({ page, pageErrorLog }) => {
             await openProvider(page);
-            await page.getByRole('button', { name: 'Provider actions' }).click();
-            await page.getByRole('menuitem', { name: 'Delete' }).click();
+            await page.getByRole('button', { name: uiText('Provider actions') }).click();
+            await page.getByRole('menuitem', { name: uiText('Delete') }).click();
 
             const dialog = page.getByRole('dialog');
 
@@ -193,7 +209,7 @@ test.describe('settings provider edit paths', { tag: '@coverage' }, () => {
 
             const request = mutationRequest(page, 'deleteProvider');
 
-            await dialog.getByRole('button', { name: 'Delete' }).click();
+            await dialog.getByRole('button', { name: uiText('Delete') }).click();
 
             expect((await request).postDataJSON().variables).toEqual({ providerId: SEEDED_PROVIDER.id });
             await expect(page).toHaveURL(/\/settings\/providers$/);
@@ -231,12 +247,12 @@ test.describe('settings provider edit paths', { tag: '@coverage' }, () => {
 
             await expect(row).toBeVisible();
             await row.hover();
-            await row.getByRole('button', { name: 'Open menu' }).click();
-            await page.getByRole('menuitem', { name: 'Delete' }).click();
+            await row.getByRole('button', { name: uiText('Open menu') }).click();
+            await page.getByRole('menuitem', { name: uiText('Delete') }).click();
 
             const request = mutationRequest(page, 'deleteProvider');
 
-            await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click();
+            await page.getByRole('dialog').getByRole('button', { name: uiText('Delete') }).click();
 
             expect((await request).postDataJSON().variables).toEqual({ providerId: OTHER_PROVIDER.id });
             // The row goes only because the refetch answers without it, and the sibling proves the
@@ -269,7 +285,7 @@ test.describe('settings provider edit paths', { tag: '@coverage' }, () => {
 
             const request = mutationRequest(page, 'testAgent');
 
-            await agentRow(page, 'Adviser').getByRole('button', { exact: true, name: 'Test' }).click();
+            await agentRow(page, 'Adviser').getByRole('button', { exact: true, name: uiText('Test') }).click();
 
             const { variables } = (await request).postDataJSON();
 
@@ -286,8 +302,8 @@ test.describe('settings provider edit paths', { tag: '@coverage' }, () => {
 
             // Only the agent that was tested appears — the dialog is keyed by the clicked agent, so a
             // handler that tested the wrong one would name it here.
-            await expect(dialog.getByRole('heading', { name: 'Adviser 1/1 passed' })).toBeVisible();
-            await expect(dialog.getByRole('heading', { name: /passed/ })).toHaveCount(1);
+            await expect(dialog.getByRole('heading', { name: verdictName('Adviser', 1, 1) })).toBeVisible();
+            await expect(dialog.getByRole('heading', { name: ANY_VERDICT })).toHaveCount(1);
             expectCleanPage(pageErrorLog);
         });
     });
@@ -311,7 +327,7 @@ test.describe('settings provider edit paths', { tag: '@coverage' }, () => {
 
             const request = mutationRequest(page, 'testProvider');
 
-            await page.locator('header').getByRole('button', { exact: true, name: 'Test' }).click();
+            await page.locator('header').getByRole('button', { exact: true, name: uiText('Test') }).click();
 
             const { variables } = (await request).postDataJSON();
 
@@ -320,10 +336,10 @@ test.describe('settings provider edit paths', { tag: '@coverage' }, () => {
 
             const dialog = page.getByRole('dialog');
 
-            await expect(dialog.getByRole('heading', { name: /passed/ }), 'one row per agent').toHaveCount(13);
-            await expect(dialog.getByRole('heading', { name: 'Pentester 0/1 passed' })).toBeVisible();
+            await expect(dialog.getByRole('heading', { name: ANY_VERDICT }), 'one row per agent').toHaveCount(13);
+            await expect(dialog.getByRole('heading', { name: verdictName('Pentester', 0, 1) })).toBeVisible();
 
-            await dialog.getByRole('button', { name: 'Pentester 0/1 passed' }).click();
+            await dialog.getByRole('button', { name: verdictName('Pentester', 0, 1) }).click();
 
             // The failing agent's own error must reach the operator; a dialog that renders only the
             // verdict leaves them with nothing to act on.

@@ -1,5 +1,7 @@
 import { expect, test as setup } from '@playwright/test';
 
+import { uiText } from '@/locales/zh-CN';
+
 import { AUTH_STATE_PATH } from '../playwright.config.ts';
 
 const E2E_USER = process.env.E2E_USER ?? 'admin@pentagi.com';
@@ -9,13 +11,13 @@ setup('authenticate', async ({ page }) => {
     // A real backend login + the websocket teardown can outrun the 30s default.
     setup.setTimeout(90_000);
     await page.goto('/login');
-    await page.getByLabel('Login').fill(E2E_USER);
-    await page.getByRole('textbox', { name: 'Password' }).fill(E2E_PASSWORD);
-    await page.getByRole('button', { name: 'Sign in' }).click();
+    await page.getByLabel(uiText('Login')).fill(E2E_USER);
+    await page.getByRole('textbox', { name: uiText('Password') }).fill(E2E_PASSWORD);
+    await page.getByRole('button', { name: uiText('Sign in') }).click();
 
     // The migration-seeded admin carries password_change_required — the forced
     // change screen is skippable and must not block the suite.
-    const skip = page.getByRole('button', { name: 'Skip for now' });
+    const skip = page.getByRole('button', { name: uiText('Skip for now') });
     // The user menu is labelled with the signed-in address, so derive the "logged in" signal
     // from E2E_USER rather than a hardcoded admin@ (there is no button named "flows").
     const loggedIn = page.getByRole('button', {

@@ -5,10 +5,11 @@ import type { BadgeVariant } from '@/components/ui/badge';
 import { badgeVariants } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
 import { routes } from '@/lib/routes';
+import { uiText } from '@/locales/zh-CN';
 
 import { expect, test } from '../../fixtures/test.ts';
 import { populatedSettingsProvidersCassette } from '../../mocks/cassettes/settings-providers.ts';
-import { ROUTE_MANIFEST } from '../../routes.ts';
+import { ROUTE_MANIFEST, ROUTE_READY_TIMEOUT } from '../../routes.ts';
 
 const BADGE_VARIANTS = Object.keys({
     blue: true,
@@ -114,7 +115,7 @@ test.describe('palette compliance', { tag: '@cross' }, () => {
 
             test('rendered badges and buttons carry no off-palette colour', async ({ page }) => {
                 await page.goto(entry.path);
-                await expect(entry.ready(page)).toBeVisible();
+                await expect(entry.ready(page)).toBeVisible({ timeout: ROUTE_READY_TIMEOUT });
 
                 const offenders = await scanOffenders(page);
 
@@ -128,9 +129,9 @@ test.describe('palette compliance', { tag: '@cross' }, () => {
             for (const tab of entry.tabs ?? []) {
                 test(`tab "${tab.name}" carries no off-palette colour`, async ({ page }) => {
                     await page.goto(entry.path);
-                    await expect(entry.ready(page)).toBeVisible();
-                    await page.getByRole('tab', { name: tab.name }).click();
-                    await expect(tab.ready(page)).toBeVisible();
+                    await expect(entry.ready(page)).toBeVisible({ timeout: ROUTE_READY_TIMEOUT });
+                    await page.getByRole('tab', { name: uiText(tab.name) }).click();
+                    await expect(tab.ready(page)).toBeVisible({ timeout: ROUTE_READY_TIMEOUT });
 
                     const offenders = await scanOffenders(page);
                     const key = `${entry.path} [${tab.name}]`;

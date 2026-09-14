@@ -8,6 +8,7 @@ import type {
 } from '@/graphql/types';
 
 import { ResultType } from '@/graphql/types';
+import { uiText } from '@/locales/zh-CN';
 
 import { expect, test } from '../../fixtures/test.ts';
 import { typeIntoEditor } from '../../helpers/editor.ts';
@@ -21,10 +22,10 @@ import {
 
 const openNewKnowledgeForm = async (page: Page) => {
     await page.goto('/knowledges');
-    await page.getByRole('button', { name: 'New Knowledge' }).click();
+    await page.getByRole('button', { name: uiText('New Knowledge') }).click();
 
     await expect(page).toHaveURL(/\/knowledges\/new$/);
-    await expect(page.getByRole('combobox', { name: 'Answer type' })).toBeVisible();
+    await expect(page.getByRole('combobox', { name: uiText('Answer type') })).toBeVisible();
 };
 
 test.describe('knowledges crud', { tag: '@crud' }, () => {
@@ -33,11 +34,11 @@ test.describe('knowledges crud', { tag: '@crud' }, () => {
 
         test('blocks submit until the answer type is picked', async ({ page, pageErrorLog }) => {
             await openNewKnowledgeForm(page);
-            await page.getByRole('textbox', { name: 'Question' }).fill('What is the E2E answer?');
+            await page.getByRole('textbox', { name: uiText('Question') }).fill('What is the E2E answer?');
             await typeIntoEditor(page, 'Content', 'E2E knowledge content');
-            await page.getByRole('button', { name: 'Create' }).click();
+            await page.getByRole('button', { name: uiText('Create') }).click();
 
-            await expect(page.getByText('Answer type is required')).toBeVisible();
+            await expect(page.getByText(uiText('Answer type is required'))).toBeVisible();
             await expect(page).toHaveURL(/\/knowledges\/new$/);
             expectCleanPage(pageErrorLog);
         });
@@ -71,14 +72,14 @@ test.describe('knowledges crud', { tag: '@crud' }, () => {
 
         test('creates a document and lands on its detail page', async ({ page, pageErrorLog }) => {
             await openNewKnowledgeForm(page);
-            await page.getByRole('textbox', { name: 'Question' }).fill('What is the E2E answer?');
+            await page.getByRole('textbox', { name: uiText('Question') }).fill('What is the E2E answer?');
             await typeIntoEditor(page, 'Content', 'E2E knowledge content');
-            await page.getByRole('combobox', { name: 'Answer type' }).click();
+            await page.getByRole('combobox', { name: uiText('Answer type') }).click();
             await page.getByRole('option', { name: 'other' }).click();
-            await page.getByRole('button', { name: 'Create' }).click();
+            await page.getByRole('button', { name: uiText('Create') }).click();
 
             await expect(page).toHaveURL(/\/knowledges\/301$/);
-            await expect(page.getByRole('textbox', { name: 'Question' })).toHaveValue('What is the E2E answer?');
+            await expect(page.getByRole('textbox', { name: uiText('Question') })).toHaveValue('What is the E2E answer?');
             expectCleanPage(pageErrorLog);
         });
     });
@@ -114,16 +115,20 @@ test.describe('knowledges crud', { tag: '@crud' }, () => {
             const row = page.getByRole('row', { name: /E2E Seed Question/ });
 
             await row.hover();
-            await row.getByRole('button', { name: 'Open menu' }).click();
-            await page.getByRole('menuitem', { name: 'Delete' }).click();
+            await row.getByRole('button', { name: uiText('Open menu') }).click();
+            await page.getByRole('menuitem', { name: uiText('Delete') }).click();
 
             const dialog = page.getByRole('dialog');
 
-            await expect(dialog.getByRole('heading', { name: 'Delete knowledge document' })).toBeVisible();
-            await dialog.getByRole('button', { name: 'Delete' }).click();
+            // The ConfirmationDialog title is `${confirmText}${itemType}` (confirmation-dialog.tsx),
+            // i.e. `删除` + `知识文档`, not a `Delete {name}` template.
+            await expect(
+                dialog.getByRole('heading', { name: `${uiText('Delete')}${uiText('knowledge document')}` }),
+            ).toBeVisible();
+            await dialog.getByRole('button', { name: uiText('Delete') }).click();
 
             await expect(page.getByRole('row', { name: /E2E Seed Question/ })).toBeHidden();
-            await expect(page.getByText('No knowledge documents yet')).toBeVisible();
+            await expect(page.getByText(uiText('No knowledge documents yet'))).toBeVisible();
             expectCleanPage(pageErrorLog);
         });
     });
@@ -140,7 +145,7 @@ test.describe('knowledges crud', { tag: '@crud' }, () => {
         test('shows an in-page error with Retry, not a bounce to the list', async ({ page }) => {
             await page.goto(`/knowledges/${KNOWLEDGE_DOC.id}`);
 
-            await expect(page.getByRole('button', { name: 'Try again' })).toBeVisible();
+            await expect(page.getByRole('button', { name: uiText('Try again') })).toBeVisible();
             await expect(page).toHaveURL(new RegExp(`/knowledges/${KNOWLEDGE_DOC.id}$`));
         });
     });
@@ -159,7 +164,7 @@ test.describe('knowledges crud', { tag: '@crud' }, () => {
         test('does not bounce a permission denial to the list', async ({ page }) => {
             await page.goto(`/knowledges/${KNOWLEDGE_DOC.id}`);
 
-            await expect(page.getByRole('button', { name: 'Try again' })).toBeVisible();
+            await expect(page.getByRole('button', { name: uiText('Try again') })).toBeVisible();
             await expect(page).toHaveURL(new RegExp(`/knowledges/${KNOWLEDGE_DOC.id}$`));
         });
     });
@@ -191,7 +196,7 @@ test.describe('knowledges crud', { tag: '@crud' }, () => {
                     candidate.postDataJSON()?.operationName === 'updateKnowledgeDocument',
             );
 
-            await page.getByRole('button', { exact: true, name: 'Save' }).click();
+            await page.getByRole('button', { exact: true, name: uiText('Save') }).click();
 
             const { variables } = (await request).postDataJSON();
 
@@ -206,18 +211,21 @@ test.describe('knowledges crud', { tag: '@crud' }, () => {
 
         test('keeps the pager left of save and the actions menu', async ({ page }) => {
             await page.goto(`/knowledges/${KNOWLEDGE_DOC.id}`);
-            await expect(page.getByRole('button', { name: 'Knowledge actions' })).toBeVisible();
+            await expect(page.getByRole('button', { name: uiText('Knowledge actions') })).toBeVisible();
 
             const labels = await page
                 .locator('header button')
                 .evaluateAll((buttons) =>
                     buttons.map((button) => button.getAttribute('aria-label') ?? button.textContent),
                 );
-            const positionOf = (label: string) => labels.findIndex((candidate) => (candidate ?? '').includes(label));
+            const positionOf = (key: Parameters<typeof uiText>[0]) =>
+                labels.findIndex((candidate) => (candidate ?? '').includes(uiText(key)));
 
             // findIndex returns -1 for an absent label, and -1 < any real index, so the ordering below
             // passes vacuously when a button is missing. Require presence first.
-            for (const label of ['Save', 'Previous', 'Next', 'Knowledge actions']) {
+            const HEADER_BUTTONS = ['Save', 'Previous', 'Next', 'Knowledge actions'] as const;
+
+            for (const label of HEADER_BUTTONS) {
                 expect(positionOf(label), `header is missing the "${label}" button`).toBeGreaterThanOrEqual(0);
             }
 

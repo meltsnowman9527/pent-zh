@@ -1,10 +1,12 @@
+import { uiText } from '@/locales/zh-CN';
+
 import { expect, test } from '../../fixtures/test.ts';
 import { scanA11y, waiversForScan } from '../../helpers/a11y.ts';
 import { expectCleanPage } from '../../helpers/errors.ts';
 import { FILE_RESOURCE, resourcesCassette } from '../../mocks/cassettes/resources.ts';
 import { populatedSettingsProvidersCassette } from '../../mocks/cassettes/settings-providers.ts';
 import { loginJourneyCassette } from '../../mocks/cassettes/smoke.ts';
-import { ROUTE_MANIFEST } from '../../routes.ts';
+import { ROUTE_MANIFEST, ROUTE_READY_TIMEOUT } from '../../routes.ts';
 
 const THEMES = ['light', 'dark'] as const;
 
@@ -21,7 +23,7 @@ for (const theme of THEMES) {
 
             test('login page', async ({ page }) => {
                 await page.goto('/login');
-                await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible();
+                await expect(page.getByRole('button', { exact: true, name: uiText('Sign in') })).toBeVisible();
                 // Same guard as the manifest scan: a dark seed that stops applying must not
                 // silently re-scan the light page under a dark label.
                 await expect(page.locator('html')).toHaveClass(theme === 'dark' ? /dark/ : /light/);
@@ -47,7 +49,7 @@ for (const theme of THEMES) {
 
                 test('has no axe violations', async ({ page }) => {
                     await page.goto(entry.path);
-                    await expect(entry.ready(page)).toBeVisible();
+                    await expect(entry.ready(page)).toBeVisible({ timeout: ROUTE_READY_TIMEOUT });
                     // Not redundant: a theme seed that silently stops applying reruns light under a dark label.
                     await expect(page.locator('html')).toHaveClass(theme === 'dark' ? /dark/ : /light/);
                     await scanA11y(page, entry.path, waiversForScan(entry.a11yWaivers));
@@ -56,10 +58,10 @@ for (const theme of THEMES) {
                 for (const tab of entry.tabs ?? []) {
                     test(`tab "${tab.name}" has no axe violations`, async ({ page }) => {
                         await page.goto(entry.path);
-                        await expect(entry.ready(page)).toBeVisible();
+                        await expect(entry.ready(page)).toBeVisible({ timeout: ROUTE_READY_TIMEOUT });
                         await expect(page.locator('html')).toHaveClass(theme === 'dark' ? /dark/ : /light/);
-                        await page.getByRole('tab', { name: tab.name }).click();
-                        await expect(tab.ready(page)).toBeVisible();
+                        await page.getByRole('tab', { name: uiText(tab.name) }).click();
+                        await expect(tab.ready(page)).toBeVisible({ timeout: ROUTE_READY_TIMEOUT });
                         await scanA11y(
                             page,
                             `${entry.path} [${tab.name}]`,
@@ -81,7 +83,7 @@ test.describe('dialog keyboard contract', { tag: '@cross' }, () => {
     test('Escape returns focus to the control that opened the dialog', async ({ page, pageErrorLog }) => {
         await page.goto('/resources');
 
-        const opener = page.getByRole('button', { name: 'New folder' });
+        const opener = page.getByRole('button', { name: uiText('New folder') });
 
         await opener.focus();
         await page.keyboard.press('Enter');
@@ -99,9 +101,9 @@ test.describe('dialog keyboard contract', { tag: '@cross' }, () => {
     // restore it on navigation instead. This case is what tells the two apart.
     test('Escape returns focus for a dialog whose content is always mounted', async ({ page, pageErrorLog }) => {
         await page.goto('/resources');
-        await page.getByRole('checkbox', { name: `Select ${FILE_RESOURCE.name}` }).click();
+        await page.getByRole('checkbox', { name: uiText('Select {name}', { name: FILE_RESOURCE.name }) }).click();
 
-        const opener = page.getByRole('button', { exact: true, name: 'Delete' });
+        const opener = page.getByRole('button', { exact: true, name: uiText('Delete') });
 
         await opener.click();
         await expect(page.getByRole('dialog')).toBeVisible();

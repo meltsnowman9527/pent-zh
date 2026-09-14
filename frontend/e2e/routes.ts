@@ -1,6 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 
 import { routes } from '@/lib/routes';
+import { uiText } from '@/locales/zh-CN';
 
 import type { A11yWaiver } from './helpers/a11y.ts';
 import type { Cassette } from './mocks/cassette.ts';
@@ -13,6 +14,14 @@ import { resourcesCassette } from './mocks/cassettes/resources.ts';
 import { settingsPromptsCassette } from './mocks/cassettes/settings-prompts.ts';
 import { settingsProvidersCassette } from './mocks/cassettes/settings-providers.ts';
 import { templatesCassette } from './mocks/cassettes/templates.ts';
+
+/**
+ * How long a sweep waits for a route's readiness marker. The flow route's marker is
+ * the terminal, which mounts after the flow query resolves; under the full parallel
+ * suite the 5s default turned that wait into a flake (one a11y scan in 16 lost the
+ * race), and the wait is for readiness rather than for behaviour.
+ */
+export const ROUTE_READY_TIMEOUT = 15_000;
 
 export interface RouteManifestEntry {
     a11yWaivers?: A11yWaiver[];
@@ -31,7 +40,8 @@ export interface RouteManifestEntry {
 }
 
 export interface RouteTab {
-    name: string;
+    /** Copy-table key: the trigger renders `uiText(name)`, so title/waiver lookups keep the English key. */
+    name: Parameters<typeof uiText>[0];
     /**
      * Must be absent while the panel loads: a marker that also renders on the
      * skeleton lets every per-tab scan pass on an empty panel.
@@ -39,11 +49,19 @@ export interface RouteTab {
     ready: (page: Page) => Locator;
 }
 
+/**
+ * The row-select checkbox renders `Select {name}`, so axe reports a bare
+ * `button[aria-label="选择reports"]` with no parent path and the label is the only available
+ * anchor. Requiring the `button` tag keeps the waiver off a non-button with the same label;
+ * the label half comes from the copy table so it cannot drift from the rendered text.
+ */
+const ROW_SELECT_ANCHOR = String.raw`button\[aria-label="` + uiText('Select {name}', { name: '' });
+
 /** Order matters: the flow auto-opens Assistant, so tabs.spec pins that no entry is already open. */
 export const FLOW_DETAIL_TABS: RouteTab[] = [
-    { name: 'Dashboard', ready: (page) => page.getByText('Usage by Model & Provider') },
-    { name: 'Assistant', ready: (page) => page.getByText('New assistant', { exact: true }) },
-    { name: 'Automation', ready: (page) => page.getByText('No active tasks') },
+    { name: 'Dashboard', ready: (page) => page.getByText(uiText('Usage by Model & Provider')) },
+    { name: 'Assistant', ready: (page) => page.getByText(uiText('New assistant'), { exact: true }) },
+    { name: 'Automation', ready: (page) => page.getByText(uiText('No active tasks')) },
     { name: 'Tasks', ready: (page) => page.getByText('E2E Task Alpha') },
     { name: 'Agents', ready: (page) => page.getByText('E2E agent reconnaissance') },
     { name: 'Searches', ready: (page) => page.getByText('E2E search for the CVE') },
@@ -75,7 +93,11 @@ export const ROUTE_MANIFEST: RouteManifestEntry[] = [
             { rule: 'color-contrast', target: /text-muted-foreground\\?\/50/ },
             { rule: 'aria-progressbar-name', tabs: ['Tasks'], target: /\.bg-primary\\\/20/ },
             { rule: 'button-name', tabs: ['Files'], target: /tooltip-trigger.*size-8\[data-slot="button"\]/ },
-            { rule: 'target-size', tabs: ['Files'], target: /text-blue-400|button\[aria-label="Select / },
+            {
+                rule: 'target-size',
+                tabs: ['Files'],
+                target: new RegExp(String.raw`text-blue-400|` + ROW_SELECT_ANCHOR),
+            },
             // The same file-manager row metadata waived on /resources — the Files tab embeds it.
             { rule: 'color-contrast', tabs: ['Files'], target: /text-muted-foreground\\?\/80/ },
             {
@@ -139,13 +161,13 @@ export const ROUTE_MANIFEST: RouteManifestEntry[] = [
     {
         cassette: settingsPromptsCassette,
         path: routes.settings.prompts,
-        ready: (page) => page.getByRole('heading', { name: 'Agent Prompts' }),
+        ready: (page) => page.getByRole('heading', { name: uiText('Agent Prompts') }),
         sources: ['src/pages/settings/settings-prompts.tsx'],
     },
     {
         cassette: settingsProvidersCassette,
         path: routes.settings.providers,
-        ready: (page) => page.getByText('No providers configured'),
+        ready: (page) => page.getByText(uiText('No providers configured')),
         sources: ['src/pages/settings/settings-providers.tsx'],
     },
     {
@@ -154,11 +176,9 @@ export const ROUTE_MANIFEST: RouteManifestEntry[] = [
         // target floor — widening them is a density decision for the file manager.
         a11yWaivers: [
             { rule: 'color-contrast', target: /text-muted-foreground\\?\/80/ },
-            // `.rounded` is anchored with a boundary so it can't match every rounded-* utility. axe
-            // emits the row-select buttons as a bare `button[aria-label="Select <name>"]` with no
-            // parent path, so the label is the only available anchor — require the button tag at
-            // least, rather than a bare `aria-label="Select ` that would also waive a non-button.
-            { rule: 'target-size', target: /\.rounded(?![-\w])|button\[aria-label="Select / },
+            // `.rounded` is anchored with a boundary so it can't match every rounded-* utility, and
+            // the row-select half is ROW_SELECT_ANCHOR (see above).
+            { rule: 'target-size', target: new RegExp(String.raw`\.rounded(?![-\w])|` + ROW_SELECT_ANCHOR) },
         ],
         cassette: resourcesCassette,
         path: routes.resources,

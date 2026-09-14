@@ -7,6 +7,7 @@ import type {
 } from '@/graphql/types';
 
 import { ResultType } from '@/graphql/types';
+import { uiText } from '@/locales/zh-CN';
 
 import { expect, test } from '../../fixtures/test.ts';
 import { typeIntoEditor } from '../../helpers/editor.ts';
@@ -51,13 +52,13 @@ test.describe('templates crud', { tag: '@crud' }, () => {
 
             await expect(page.getByRole('row', { name: /E2E Seed Template/ })).toBeVisible();
 
-            await page.getByRole('button', { name: 'New Template' }).click();
+            await page.getByRole('button', { name: uiText('New Template') }).click();
 
             await expect(page).toHaveURL(/\/templates\/new$/);
 
-            await page.getByLabel('Title').fill(NEW_TITLE);
+            await page.getByLabel(uiText('Title')).fill(NEW_TITLE);
             await typeIntoEditor(page, 'Template content', NEW_TEXT);
-            await page.getByRole('button', { name: 'Create' }).click();
+            await page.getByRole('button', { name: uiText('Create') }).click();
 
             await expect(page).toHaveURL(/\/templates$/);
             await expect(page.getByRole('row', { name: /E2E Created Template/ })).toBeVisible();
@@ -93,12 +94,12 @@ test.describe('templates crud', { tag: '@crud' }, () => {
             const row = page.getByRole('row', { name: /E2E Seed Template/ });
 
             await row.hover();
-            await row.getByRole('button', { name: 'Open menu' }).click();
-            await page.getByRole('menuitem', { name: 'Rename' }).click();
-            await page.getByPlaceholder('Template title').fill('E2E Renamed Template');
-            await page.getByPlaceholder('Template title').press('Enter');
+            await row.getByRole('button', { name: uiText('Open menu') }).click();
+            await page.getByRole('menuitem', { name: uiText('Rename') }).click();
+            await page.getByPlaceholder(uiText('Template title')).fill('E2E Renamed Template');
+            await page.getByPlaceholder(uiText('Template title')).press('Enter');
 
-            await expect(page.getByText('Template renamed successfully')).toBeVisible();
+            await expect(page.getByText(uiText('Template renamed successfully'))).toBeVisible();
             await expect(page.getByRole('row', { name: /E2E Renamed Template/ })).toBeVisible();
             await expect(page.getByRole('row', { name: /E2E Seed Template/ })).toBeHidden();
             expectCleanPage(pageErrorLog);
@@ -140,16 +141,20 @@ test.describe('templates crud', { tag: '@crud' }, () => {
             const row = page.getByRole('row', { name: /E2E Seed Template/ });
 
             await row.hover();
-            await row.getByRole('button', { name: 'Open menu' }).click();
-            await page.getByRole('menuitem', { name: 'Delete' }).click();
+            await row.getByRole('button', { name: uiText('Open menu') }).click();
+            await page.getByRole('menuitem', { name: uiText('Delete') }).click();
 
             const dialog = page.getByRole('dialog');
 
-            await expect(dialog.getByText('Delete template')).toBeVisible();
-            await dialog.getByRole('button', { name: 'Delete' }).click();
+            // The ConfirmationDialog title is `${confirmText}${itemType}` (confirmation-dialog.tsx),
+            // i.e. `删除` + `提示词模板`, not a `Delete {name}` template.
+            await expect(
+                dialog.getByRole('heading', { name: `${uiText('Delete')}${uiText('template')}` }),
+            ).toBeVisible();
+            await dialog.getByRole('button', { name: uiText('Delete') }).click();
 
             await expect(page.getByRole('row', { name: /E2E Seed Template/ })).toBeHidden();
-            await expect(page.getByText('No templates yet')).toBeVisible();
+            await expect(page.getByText(uiText('No templates yet'))).toBeVisible();
             expectCleanPage(pageErrorLog);
         });
     });

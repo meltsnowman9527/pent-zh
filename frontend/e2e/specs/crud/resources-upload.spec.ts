@@ -1,5 +1,7 @@
 import type { Page } from '@playwright/test';
 
+import { uiText } from '@/locales/zh-CN';
+
 import { expect, test } from '../../fixtures/test.ts';
 import { expectCleanPage } from '../../helpers/errors.ts';
 import { resourcesCassette, UPLOADED_FRAGMENT, UPLOADED_RESOURCE } from '../../mocks/cassettes/resources.ts';
@@ -62,7 +64,7 @@ test.describe('resources upload', { tag: '@crud' }, () => {
             expect(body).toContain(`filename="${UPLOADED_RESOURCE.name}"`);
             expect(body).toContain('e2e upload payload');
 
-            await expect(page.getByText('File uploaded')).toBeVisible();
+            await expect(page.getByText(uiText('File uploaded'))).toBeVisible();
             await expect(page.getByRole('treeitem', { name: new RegExp(UPLOADED_RESOURCE.name) })).toBeVisible();
             expectCleanPage(pageErrorLog);
         });
@@ -124,7 +126,7 @@ test.describe('resources upload', { tag: '@crud' }, () => {
 
             await pickFiles(page, [textFile('notes.txt', 'same name, new bytes')]);
 
-            await expect(page.getByText('Upload failed')).toBeVisible();
+            await expect(page.getByText(uiText('Upload failed'))).toBeVisible();
             await expect(page.getByText('resource already exists', { exact: true })).toBeVisible();
 
             expect(pageErrorLog.pageErrors, 'no uncaught page errors').toEqual([]);

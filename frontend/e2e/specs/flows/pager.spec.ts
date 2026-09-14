@@ -1,3 +1,5 @@
+import { uiText } from '@/locales/zh-CN';
+
 import { expect, test } from '../../fixtures/test.ts';
 import { expectCleanPage } from '../../helpers/errors.ts';
 import { flowsCassette, flowTabsCassette } from '../../mocks/cassettes/flows.ts';
@@ -10,16 +12,17 @@ test.describe('flow pager', { tag: ['@flows', '@smoke'] }, () => {
 
         test('keeps the variable Report action left of the pager and fixed actions', async ({ page }) => {
             await page.goto('/flows/5');
-            await expect(page.locator('header').getByRole('button', { name: 'Report' })).toBeVisible();
+            await expect(page.locator('header').getByRole('button', { name: uiText('Report') })).toBeVisible();
 
             const labels = await page
                 .locator('header button')
                 .evaluateAll((buttons) => buttons.map((button) => button.getAttribute('aria-label') ?? ''));
-            const positionOf = (label: string) => labels.findIndex((candidate) => candidate.startsWith(label));
+            const positionOf = (key: Parameters<typeof uiText>[0]) =>
+                labels.findIndex((candidate) => candidate.startsWith(uiText(key)));
 
             // findIndex returns -1 for an absent label, and -1 < any real index, so the ordering below
             // passes vacuously when a button is missing. Require presence first.
-            for (const label of ['Report', 'Toggle favorite', 'Previous', 'Next', 'Flow actions']) {
+            for (const label of ['Report', 'Toggle favorite', 'Previous', 'Next', 'Flow actions'] as const) {
                 expect(positionOf(label), `header is missing the "${label}" button`).toBeGreaterThanOrEqual(0);
             }
 
@@ -56,13 +59,13 @@ test.describe('flow pager', { tag: ['@flows', '@smoke'] }, () => {
             (window as unknown as { __routeTrail: string[] }).__routeTrail.length = 0;
         });
 
-        await header.getByRole('button', { name: 'Next' }).click();
+        await header.getByRole('button', { name: uiText('Next') }).click();
 
         await expect(page).toHaveURL(/\/flows\/6$/);
         await expect(header.getByText('E2E Beta')).toBeVisible();
-        await expect(header.getByRole('button', { name: 'Next' })).toBeVisible();
+        await expect(header.getByRole('button', { name: uiText('Next') })).toBeVisible();
 
-        await header.getByRole('button', { name: 'Previous' }).click();
+        await header.getByRole('button', { name: uiText('Previous') }).click();
 
         await expect(page).toHaveURL(/\/flows\/5$/);
         await expect(header.getByText('E2E Alpha')).toBeVisible();

@@ -1,5 +1,7 @@
 import { devices } from '@playwright/test';
 
+import { uiText } from '@/locales/zh-CN';
+
 import { expect, test } from '../../fixtures/test.ts';
 import { expectCleanPage } from '../../helpers/errors.ts';
 import { flowsCassette } from '../../mocks/cassettes/flows.ts';
@@ -17,20 +19,25 @@ test.describe('responsive', { tag: '@cross' }, () => {
         test('collapses to the mobile shell without horizontal overflow', async ({ page, pageErrorLog }) => {
             await page.goto('/flows');
 
-            await expect(page.getByRole('button', { name: 'Toggle Sidebar' })).toBeVisible();
+            await expect(page.getByRole('button', { name: uiText('Toggle Sidebar') })).toBeVisible();
             // Owned by the mobile shell: the sidebar collapses to an off-canvas sheet, so its
             // nav links are hidden until the trigger opens it (they are inline-visible on desktop).
-            await expect(page.getByRole('link', { name: 'Dashboard' })).toBeHidden();
+            await expect(page.getByRole('link', { name: uiText('Dashboard') })).toBeHidden();
             expect(await page.evaluate(hasHorizontalOverflow)).toBe(false);
 
             await page.getByRole('row', { name: /E2E Alpha/ }).click();
             await expect(page.locator('header').getByText('E2E Alpha')).toBeVisible();
-            await expect(page.getByRole('button', { name: 'Flow actions' })).toBeVisible();
+            await expect(page.getByRole('button', { name: uiText('Flow actions') })).toBeVisible();
             expect(await page.evaluate(hasHorizontalOverflow)).toBe(false);
 
-            await page.getByRole('button', { name: 'Flow actions' }).click();
-            await expect(page.getByRole('menuitem', { name: /Flows/ })).toBeVisible();
-            await expect(page.getByRole('menuitem', { name: /favorites/ })).toBeVisible();
+            await page.getByRole('button', { name: uiText('Flow actions') }).click();
+            await expect(page.getByRole('menuitem', { name: uiText('Flows') })).toBeVisible();
+            // The star item flips its wording with the flow's favourite state, so match either.
+            await expect(
+                page.getByRole('menuitem', {
+                    name: new RegExp([uiText('Add to favorites'), uiText('Remove from favorites')].join('|')),
+                }),
+            ).toBeVisible();
             await page.keyboard.press('Escape');
 
             expectCleanPage(pageErrorLog);
@@ -41,13 +48,13 @@ test.describe('responsive', { tag: '@cross' }, () => {
         test('768 keeps the sidebar inline, 767 collapses it to the mobile sheet', async ({ page, pageErrorLog }) => {
             await page.setViewportSize({ height: 800, width: 768 });
             await page.goto('/flows');
-            await expect(page.getByRole('link', { name: 'Dashboard' })).toBeVisible();
+            await expect(page.getByRole('link', { name: uiText('Dashboard') })).toBeVisible();
 
             await page.setViewportSize({ height: 800, width: 767 });
             // `hidden md:block` hides the desktop tree either way, so its absence — the closed mobile
             // sheet renders nothing — is the only reading that tells the hook's answer from the CSS.
             await expect(page.locator('[data-sidebar="sidebar"]')).toHaveCount(0);
-            await expect(page.getByRole('link', { name: 'Dashboard' })).toBeHidden();
+            await expect(page.getByRole('link', { name: uiText('Dashboard') })).toBeHidden();
             expect(await page.evaluate(hasHorizontalOverflow)).toBe(false);
             expectCleanPage(pageErrorLog);
         });

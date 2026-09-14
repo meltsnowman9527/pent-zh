@@ -1,5 +1,7 @@
 import type { Page } from '@playwright/test';
 
+import { uiText } from '@/locales/zh-CN';
+
 import { expect, test } from '../../fixtures/test.ts';
 import { expectCleanPage } from '../../helpers/errors.ts';
 import { FLOW_A, flowQueryData, flowsCassette } from '../../mocks/cassettes/flows.ts';
@@ -11,8 +13,8 @@ const emptyFlowCassette = () =>
         subscriptions: { messageLogAdded: [{ frames: [], variables: { flowId: '5' } }] },
     });
 
-const expectSelectedTab = async (page: Page, name: string) => {
-    await expect(page.getByRole('tab', { name })).toHaveAttribute('aria-selected', 'true');
+const expectSelectedTab = async (page: Page, name: Parameters<typeof uiText>[0]) => {
+    await expect(page.getByRole('tab', { name: uiText(name) })).toHaveAttribute('aria-selected', 'true');
 };
 
 test.describe('flow tab deep link', { tag: '@flows' }, () => {
@@ -25,7 +27,7 @@ test.describe('flow tab deep link', { tag: '@flows' }, () => {
         }) => {
             await page.goto('/flows/5?tab=assistant');
             await expectSelectedTab(page, 'Assistant');
-            await expect(page.getByText('New assistant', { exact: true })).toBeVisible();
+            await expect(page.getByText(uiText('New assistant'), { exact: true })).toBeVisible();
 
             expectCleanPage(pageErrorLog);
         });
@@ -40,7 +42,7 @@ test.describe('flow tab deep link', { tag: '@flows' }, () => {
         }) => {
             await page.goto('/flows/5?tab=automation');
             await expectSelectedTab(page, 'Automation');
-            await expect(page.getByRole('tabpanel', { name: 'Automation' })).toBeVisible();
+            await expect(page.getByRole('tabpanel', { name: uiText('Automation') })).toBeVisible();
 
             expectCleanPage(pageErrorLog);
         });
@@ -49,7 +51,7 @@ test.describe('flow tab deep link', { tag: '@flows' }, () => {
             await page.goto('/flows/5');
             await expectSelectedTab(page, 'Assistant');
 
-            await page.getByRole('tab', { name: 'Automation' }).click();
+            await page.getByRole('tab', { name: uiText('Automation') }).click();
 
             await expect(page).toHaveURL(/[?&]tab=automation/);
             await expectSelectedTab(page, 'Automation');

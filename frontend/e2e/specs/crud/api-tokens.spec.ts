@@ -2,6 +2,8 @@ import type { ResultOf } from '@graphql-typed-document-node/core';
 
 import type { CreateApiTokenDocument, DeleteApiTokenDocument } from '@/graphql/types';
 
+import { uiText } from '@/locales/zh-CN';
+
 import { CASSETTE_EPOCH } from '../../fixtures/backend.ts';
 import { expect, test } from '../../fixtures/test.ts';
 import { expectCleanPage } from '../../helpers/errors.ts';
@@ -50,14 +52,14 @@ test.describe('api tokens crud', { tag: '@crud' }, () => {
 
             await expect(page.getByRole('row', { name: /E2E seed token/ })).toBeVisible();
 
-            await page.getByRole('button', { name: 'Create Token' }).click();
-            await page.getByPlaceholder('Token name (optional)').fill('E2E created token');
+            await page.getByRole('button', { name: uiText('Create Token') }).click();
+            await page.getByPlaceholder(uiText('Token name (optional)')).fill('E2E created token');
 
-            const submit = page.getByRole('button', { name: 'Submit' });
+            const submit = page.getByRole('button', { name: uiText('Submit') });
 
             await expect(submit).toBeDisabled();
 
-            await page.getByRole('button', { name: 'Pick date' }).click();
+            await page.getByRole('button', { name: uiText('Pick date') }).click();
             await page.getByRole('button', { name: 'Tuesday, January 20th, 2026' }).click();
             await page.keyboard.press('Escape');
 
@@ -79,7 +81,7 @@ test.describe('api tokens crud', { tag: '@crud' }, () => {
 
             const dialog = page.getByRole('dialog');
 
-            await expect(dialog.getByText('API Token Created')).toBeVisible();
+            await expect(dialog.getByText(uiText('API Token Created'))).toBeVisible();
             await expect(dialog.getByText(CREATED_TOKEN_SECRET)).toBeVisible();
 
             await page.keyboard.press('Escape');
@@ -115,13 +117,17 @@ test.describe('api tokens crud', { tag: '@crud' }, () => {
             const doomedRow = page.getByRole('row', { name: /E2E doomed token/ });
 
             await doomedRow.hover();
-            await doomedRow.getByRole('button', { name: 'Open menu' }).click();
-            await page.getByRole('menuitem', { name: 'Delete' }).click();
+            await doomedRow.getByRole('button', { name: uiText('Open menu') }).click();
+            await page.getByRole('menuitem', { name: uiText('Delete') }).click();
 
             const dialog = page.getByRole('dialog');
 
-            await expect(dialog.getByText('Delete token')).toBeVisible();
-            await dialog.getByRole('button', { name: 'Delete' }).click();
+            // The ConfirmationDialog title is `${confirmText}${itemType}` (confirmation-dialog.tsx),
+            // i.e. `删除` + `API 令牌`, not a `Delete {name}` template.
+            await expect(
+                dialog.getByRole('heading', { name: `${uiText('Delete')}${uiText('token')}` }),
+            ).toBeVisible();
+            await dialog.getByRole('button', { name: uiText('Delete') }).click();
 
             await expect(doomedRow).toBeHidden();
             await expect(page.getByRole('row', { name: /E2E seed token/ })).toBeVisible();

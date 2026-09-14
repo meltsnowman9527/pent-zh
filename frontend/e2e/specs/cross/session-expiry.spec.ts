@@ -1,5 +1,7 @@
 import type { Page } from '@playwright/test';
 
+import { uiText } from '@/locales/zh-CN';
+
 import type { Cassette } from '../../mocks/cassette.ts';
 
 import { authenticatedInfoEntry, guestInfoEntry } from '../../fixtures/auth.ts';
@@ -49,7 +51,7 @@ test.describe('session expiry', { tag: '@cross' }, () => {
             await page.goto('/resources');
 
             await expect(page).toHaveURL(/\/login\?returnUrl=%2Fresources/);
-            await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible();
+            await expect(page.getByRole('button', { exact: true, name: uiText('Sign in') })).toBeVisible();
             // The login page's own /info rewrites the key, so only the identity inside it matters.
             expect(await storedUser(page), 'the expired identity must not survive in storage').toBeNull();
 
@@ -81,7 +83,7 @@ test.describe('session expiry', { tag: '@cross' }, () => {
             await page.goto('/flows');
 
             await expect(page).toHaveURL(/\/login\?returnUrl=%2Fflows/);
-            await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible();
+            await expect(page.getByRole('button', { exact: true, name: uiText('Sign in') })).toBeVisible();
         });
     });
 
@@ -97,7 +99,7 @@ test.describe('session expiry', { tag: '@cross' }, () => {
             await page.goto('/flows');
 
             await expect(page).toHaveURL(/\/login\?returnUrl=%2Fflows/);
-            await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible();
+            await expect(page.getByRole('button', { exact: true, name: uiText('Sign in') })).toBeVisible();
         });
     });
 

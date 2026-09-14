@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+import { uiText } from '@/locales/zh-CN';
+
 import { MESSAGE_ID_SELECTOR } from '../../helpers/subscriptions.ts';
 import { readTerminalBuffer } from '../../helpers/terminal.ts';
 
@@ -18,7 +20,7 @@ test.describe('real backend flow run', { tag: '@real' }, () => {
 
         // The form is invalid until the providers query lands, so a cold stack keeps Submit
         // disabled for a while — clicking straight away spends the whole test timeout on it.
-        const submit = page.getByRole('button', { name: 'Submit' });
+        const submit = page.getByRole('button', { name: uiText('Submit') });
 
         await expect(submit).toBeEnabled({ timeout: 60_000 });
         await submit.click();
@@ -46,7 +48,7 @@ test.describe('real backend flow run', { tag: '@real' }, () => {
         await expect(
             page
                 .getByRole('row', { name: new RegExp(`${flowId}.*Say Hello Flow`) })
-                .getByText('Waiting', { exact: true }),
+                .getByText(uiText('Waiting'), { exact: true }),
         ).toBeVisible({ timeout: 60_000 });
         expect(pageErrors, 'uncaught errors during the flow run').toEqual([]);
     });

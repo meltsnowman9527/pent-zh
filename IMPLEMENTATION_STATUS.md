@@ -168,7 +168,7 @@
 - `vitest` **1399 通过 / 16 跳过 / 0 失败**（新增 `lib/report/report.test.ts` 8 项：会话顺序、终端 fence、ANSI 剔除、标题下移但代码块不动、空态、分派、文件名；`flow-report.test.tsx` 4 项：任务报告、助手报告、URL 数字 id 匹配、加载失败）。
 - `eslint --max-warnings 0`、`tsc -b`、生产构建通过；镜像重建并部署（容器 15:36:36），`http://localhost:8443` 返回 200，容器内 `index.html` 与本地 `dist` 一致（md5 `1b791ee9e9a908d760e41e7687c56a5c`），产物中可检索到 `assistantId`。
 - **真机走查**（Playwright 驱动已部署实例，真实后端 + flow #1 真实数据）：助手模式流程顶部出现「报告」按钮，菜单为 打开网页视图/复制到剪贴板/下载 MD/下载 PDF；网页视图标题层级为 H1 流程 → H2 消息 → H3/H4 正文，DOM 中确认 `**交互助手**` 行已渲染；MD 导出 126,513 字符、PDF 704,511 字节，PDF 结构复核为 100 页 / 7,294 处文字绘制 / 6 个内嵌字体子集（排除「空白 PDF 换个后缀」的情况）。
-- 说明：`frontend/e2e/specs/**` 里的按钮名仍是英文（`Report`、`Download MD` 等），与现在的全中文文案表不一致，mocked e2e 套件因此不能直接用作本次回归手段（本次改用真实部署走查）。该套件的英文断言属于早前中文化批次的遗留，本次未修。
+- 说明：`frontend/e2e/specs/**` 里的按钮名当时仍是英文（`Report`、`Download MD` 等），与中文化后的界面不一致，mocked e2e 套件因此不能直接用作回归手段（本次改用真实部署走查）。该遗留已列入「P0/P0A 验收补齐」批次修复，见下节。
 
 ### P0/P0A 验收补齐：受理时延基线、故障注入、全站走查（2026-09-14 晚）
 
@@ -199,6 +199,7 @@
 用 Playwright 驱动已部署实例，登录后逐路由走查 27 条路由（含流程详情 9 个页签、报告页、设置各页），每页检查：中文截断/挤压、文档横向溢出、axe（wcag2a/2aa/21a/21aa/22aa，critical+serious）、控制台与页面错误，并截图存档。
 
 - 结果：**0 处截断、0 处横向溢出、0 个控制台/页面错误**；登录页在**未登录上下文**单独复扫（走查时会因已登录被重定向到 /flows/new），同样干净。
+- 响应式复核：桌面 1440×900 之外，另在 390×844（手机）、768×800、1280×800 三个断点扫 10 条最容易挤的路径（任务列表、仪表盘、流程详情与其 Dashboard/Files 页签、报告页、模型服务详情、模板新建、资源、知识库），**同样 0 处截断、0 处横向溢出**——中文变长没有挤坏布局。
 - 修复了 4 个真实无障碍缺陷（均为 axe critical/serious，且未被现有豁免覆盖）：
   1. `/templates/new`：11 个预设折叠按钮只有图标，无无障碍名（`button-name`）→ 加 `aria-label`（新增文案词条 `Show details for {name}`）。
   2. `/settings/providers/:id` 与 `/new`：13 个智能体折叠标题把「测试」按钮嵌在折叠按钮内部（`nested-interactive`）→ 给共享 `AccordionTrigger` 增加 `actions` 插槽，测试按钮移到标题行内、折叠按钮之外的真实 `<button>`（原先用 `span role="button"` 绕开无效嵌套，现一并去掉）。截图复核布局仍为「名称 …… ⌄ [测试]」。
@@ -207,6 +208,25 @@
 - 剩余项（**已知债务，本次未修**）：`aria-valid-attr-value` 出现在 `/dashboard` 与 `/flows/new` 的模式切换上——根因是把 `Tabs` 当分段选择器用却不渲染 `TabsContent`，`aria-controls` 指向不存在的元素；`/dashboard` 早已在 `e2e/routes.ts` 里豁免，`/flows/new` 同源同因，修法是改用单选组（radiogroup）或补上内容区；报告页的 `link-name` 来自智能体抓取的网页正文里两个空链接，属于内容而非界面控件；流程详情的 `color-contrast` 与 `scrollable-region-focusable` 已在既有豁免清单里。
 
 验证：`eslint --max-warnings 0`、`tsc -b`、生产构建通过；前端全量 `vitest` **1399 通过 / 16 跳过 / 0 失败**；镜像重建并部署（容器 16:12:07，构建过程内含 `go test -race ./pkg/controller`，新增的时延测试在其中通过），`http://localhost:8443` 返回 200，容器内 `index.html` 与本地 `dist` 一致（md5 `718172aeda642b6a4551f7ff123e9e3b`）；修复后用 axe 复扫三条路由均为 0 违规。
+
+### mock e2e 回归门禁修复（2026-09-14 晚）
+
+`frontend/e2e/specs/**` 的断言写于中文化之前，界面改成 `uiText()` 之后整套 **mocked e2e 已无法作为门禁**（按钮名 `Report`/`Download MD` 等都已不存在）。本批把它修回可用状态：
+
+- **机械部分**：写了一个 codemod，把 29 个 spec 里 229 处「标签/文本字面量」在**确认是文案表词条**的前提下改写成 `uiText('...')`（只匹配 `getByRole(..., { name: 'X' })` 与 `getByText|getByLabel|getByPlaceholder|getByTitle|getByAltText('X')` 两种形态，X 必须是既有词条，因此夹具数据如 `E2E Alpha` 不会被误包）。首轮 85 通过 / 97 失败。
+- **判断部分**（不是机械替换能解决的，逐条修）：页签名数组与 `hasText` 过滤也要经文案表；中文标签更短会与别的控件**子串撞名**（`登录` 同时命中两个 OAuth 按钮），改为 `exact: true` 或缩小作用域；富文本编辑器的无障碍名、删除确认标题（`删除{对象}`）、图表中文日期轴、每行复选框的 `Select {name}` 等按实际渲染取值。
+- **顺带发现：测试数据没跟上产品改动**（不是断言过期）——`650a0b8`（`FlowDocument` 改 `cache-and-network`）让重挂载重新拉取，cassette 只回了 3 条种子消息、丢了流式帧；`360f7c7`（列表加 `refetchQueries` + `pollInterval: 5000`）让陈旧列表覆盖订阅增量，已结束的流程又变回运行中。两处都改**夹具**（按 cassette 既有的「带标记的答案优先」机制加一条），没有放松断言。
+- **两处刻意不放松的语义改动**：① 仪表盘周期切换原先断言「周视角看不到 Jan 15」，`fillPeriodDays` 之后月窗口包含周窗口，该断言已不可能成立，改为断言坐标轴确实扩展到 12 月（周窗口永远显示不出的标签）；② 生命周期 toast 由英文词条改为断言应用真正渲染的中文（原因见下条产品缺陷）。
+- **顺带修掉它查出的 3 处产品缺陷（可见英文/绕过文案表）**：
+  1. `flows-provider.tsx` 的「删除/结束已受理」两个 toast 直接写中文字面量、绕过文案表（`'Flow deleted successfully'`/`'Flow finished successfully'` 两个词条成了孤儿，且词条值与真实语义不符）→ 把词条值更新为准确文案并改回 `uiText(...)`，渲染文本不变。
+  2. 资源复制/移动对话框与文件管理器的「复制」「移动」「复制到…」「移动到…」四处**裸英文字面量**（中文界面里显示英文）→ 全部走文案表，新增 `Copy to…`/`Move to…` 词条；同类问题还有流程文件「另存为资源」对话框的 `primaryLabel="Save"`。
+  3. `table-copy-hygiene.unit.test.ts` 新增 `primaryLabel="…"` 规则并加了 `file-manager-actions.test.ts`（默认标签必须是文案表值），把这一类绕过守住。
+- **抗抖动**：全量并行下 `@cross` 套件等待「流程页终端就绪」（`.xterm`）用的默认 5 秒超时偶发失败（16 次里 1 次），改为统一的 `ROUTE_READY_TIMEOUT = 15s`（等待就绪不是行为断言）；单跑该 spec 44/44 通过，确认不是真实回归。
+- 新增**助手模式报告**的 e2e 用例（本次功能改动的契约）：`e2e/specs/flows/report-assistant.spec.ts` 4 条——无任务但有会话时出现「报告」菜单、独立报告页渲染会话、下载 MD 含会话且不含「暂无任务」空态、PDF 路由带 `assistantId`；另加 cassette 单测验证夹具覆盖报告页所需的两个查询。
+
+验证：`pnpm.cmd exec playwright test -c e2e/playwright.config.ts` → **186 通过 / 0 失败**（3.7 分钟，含配置自己 `pnpm run build` 的生产构建）；`tsc -b`、`eslint --max-warnings 0` 通过；前端全量 `vitest` **1406 通过 / 16 跳过 / 0 失败**。
+
+仍留在门禁里的**已知豁免**（未新增、未放宽）：文件管理器行内复选框/展开键的 `target-size`（密度决策）、消息时间与 ID 的 `color-contrast`、仪表盘与新建流程页把 `Tabs` 当分段选择器导致的 `aria-valid-attr-value`、报告页正文里智能体抓取网页带来的空链接 `link-name`。这几项都记在 `e2e/routes.ts` 的豁免清单或上面的「剩余项」里。
 
 
 ## 扫描口径说明

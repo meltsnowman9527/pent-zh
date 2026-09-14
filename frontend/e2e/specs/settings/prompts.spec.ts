@@ -1,4 +1,5 @@
 import { PromptType } from '@/graphql/types';
+import { uiText } from '@/locales/zh-CN';
 
 import { expect, test } from '../../fixtures/test.ts';
 import { expectCleanPage } from '../../helpers/errors.ts';
@@ -10,8 +11,8 @@ test.describe('settings prompts', { tag: '@coverage' }, () => {
     test('renders agent and tool tables and expands an agent row to its templates', async ({ page, pageErrorLog }) => {
         await page.goto('/settings/prompts');
 
-        await expect(page.getByRole('heading', { name: 'Agent Prompts' })).toBeVisible();
-        await expect(page.getByRole('heading', { name: 'Tool Prompts' })).toBeVisible();
+        await expect(page.getByRole('heading', { name: uiText('Agent Prompts') })).toBeVisible();
+        await expect(page.getByRole('heading', { name: uiText('Tool Prompts') })).toBeVisible();
 
         const pentesterRow = page.getByRole('row', { name: /Pentester/ });
 
@@ -20,8 +21,8 @@ test.describe('settings prompts', { tag: '@coverage' }, () => {
 
         await pentesterRow.click();
 
-        await expect(page.getByRole('heading', { name: 'System Prompt' })).toBeVisible();
-        await expect(page.getByRole('heading', { name: 'Human Prompt' })).toBeVisible();
+        await expect(page.getByRole('heading', { name: uiText('System Prompt') })).toBeVisible();
+        await expect(page.getByRole('heading', { name: uiText('Human Prompt') })).toBeVisible();
         await expect(page.getByText(promptTemplate(PromptType.Pentester))).toBeVisible();
         await expect(page.getByText(promptTemplate(PromptType.QuestionPentester))).toBeVisible();
 

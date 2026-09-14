@@ -1,5 +1,7 @@
 import type { Page } from '@playwright/test';
 
+import { uiText } from '@/locales/zh-CN';
+
 import { expect, test } from '../../fixtures/test.ts';
 import { expectCleanPage } from '../../helpers/errors.ts';
 import { RICH_TEMPLATE_TEXT, TEMPLATE_DETAIL, templateDetailCassette } from '../../mocks/cassettes/templates.ts';
@@ -13,27 +15,29 @@ test.describe('template detail', { tag: '@coverage' }, () => {
         }),
     });
 
-    const EDITOR = 'Template content';
+    // The rich editor is addressed by its localized aria-label (`Template content` is the copy key).
+    const EDITOR = uiText('Template content');
 
     // The raw/rich switch lives inside the actions menu, which stays open on select.
     const switchToRaw = async (page: Page) => {
-        await page.getByRole('button', { name: 'Template actions' }).click();
-        await page.getByLabel('Raw source').click();
+        await page.getByRole('button', { name: uiText('Template actions') }).click();
+        await page.getByLabel(uiText('Raw source')).click();
         await page.keyboard.press('Escape');
     };
 
     test('keeps the pager left of save and the actions menu', async ({ page }) => {
         await page.goto(`/templates/${TEMPLATE_DETAIL.id}`);
-        await expect(page.getByRole('button', { name: 'Template actions' })).toBeVisible();
+        await expect(page.getByRole('button', { name: uiText('Template actions') })).toBeVisible();
 
         const labels = await page
             .locator('header button')
             .evaluateAll((buttons) => buttons.map((button) => button.getAttribute('aria-label') ?? button.textContent));
-        const positionOf = (label: string) => labels.findIndex((candidate) => (candidate ?? '').includes(label));
+        const positionOf = (key: Parameters<typeof uiText>[0]) =>
+            labels.findIndex((candidate) => (candidate ?? '').includes(uiText(key)));
 
         // findIndex returns -1 for an absent label, and -1 < any real index, so the ordering below
         // passes vacuously when a button is missing. Require presence first.
-        for (const label of ['Save', 'Previous', 'Next', 'Template actions']) {
+        for (const label of ['Save', 'Previous', 'Next', 'Template actions'] as const) {
             expect(positionOf(label), `header is missing the "${label}" button`).toBeGreaterThanOrEqual(0);
         }
 
@@ -100,7 +104,7 @@ test.describe('template detail', { tag: '@coverage' }, () => {
                 candidate.method() === 'POST' && candidate.postDataJSON()?.operationName === 'updateFlowTemplate',
         );
 
-        await page.getByRole('button', { exact: true, name: 'Save' }).click();
+        await page.getByRole('button', { exact: true, name: uiText('Save') }).click();
 
         const { variables } = (await request).postDataJSON();
 
@@ -124,8 +128,8 @@ test.describe('template detail', { tag: '@coverage' }, () => {
         test('shows an in-page error with Retry, not "not found"', async ({ page }) => {
             await page.goto(`/templates/${TEMPLATE_DETAIL.id}`);
 
-            await expect(page.getByRole('button', { name: 'Try again' })).toBeVisible();
-            await expect(page.getByText('Template not found')).toBeHidden();
+            await expect(page.getByRole('button', { name: uiText('Try again') })).toBeVisible();
+            await expect(page.getByText(uiText('Template not found'))).toBeHidden();
             await expect(page).toHaveURL(new RegExp(`/templates/${TEMPLATE_DETAIL.id}$`));
         });
     });

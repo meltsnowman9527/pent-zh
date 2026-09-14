@@ -1,5 +1,7 @@
 import type { Page } from '@playwright/test';
 
+import { uiText } from '@/locales/zh-CN';
+
 import { expect, test } from '../../fixtures/test.ts';
 import { expectCleanPage } from '../../helpers/errors.ts';
 import { MESSAGE_ID_SELECTOR } from '../../helpers/subscriptions.ts';
@@ -30,7 +32,7 @@ test.describe('themes', { tag: '@cross' }, () => {
         await expect(page.locator('html')).toHaveClass(/light/);
 
         await page.getByRole('button', { name: /admin@pentagi\.com/ }).click();
-        await page.getByRole('tab', { name: 'Dark theme' }).click();
+        await page.getByRole('tab', { name: uiText('Dark theme') }).click();
         await expect(page.locator('html')).toHaveClass(/dark/);
         expect(await storedTheme(page), 'the pick is written, not only applied to the live document').toBe('dark');
 
@@ -38,7 +40,7 @@ test.describe('themes', { tag: '@cross' }, () => {
         await expect(page.locator('html'), 'the reloaded page starts dark').toHaveClass(/dark/);
 
         await page.getByRole('button', { name: /admin@pentagi\.com/ }).click();
-        await page.getByRole('tab', { name: 'Light theme' }).click();
+        await page.getByRole('tab', { name: uiText('Light theme') }).click();
         await expect(page.locator('html')).toHaveClass(/light/);
         expect(await storedTheme(page)).toBe('light');
 

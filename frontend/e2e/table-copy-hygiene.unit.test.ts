@@ -12,6 +12,7 @@ import { describe, expect, it } from 'vitest';
  *   - `entityName` is interpolated into empty-state sentences
  *   - `filterPlaceholder` is the search box placeholder
  *   - `sheetTitle` is rendered as the detail-navigation sheet heading
+ *   - `primaryLabel` is the submit button of the resources copy/move dialogs
  *
  * `columnMenuLabel` also has a silent failure mode: omit it and the menu falls
  * back to the raw column id ("updatedAt", "provider").
@@ -22,6 +23,7 @@ const RULES: { hint: string; pattern: RegExp }[] = [
     { hint: 'wrap it in uiText(...)', pattern: /columnMenuLabel:\s*'(?!')/ },
     { hint: 'wrap it in uiText(...)', pattern: /entityName:\s*'(?!')/ },
     { hint: 'wrap it in uiText(...)', pattern: /filterPlaceholder="/ },
+    { hint: 'wrap it in uiText(...)', pattern: /primaryLabel="/ },
     { hint: 'wrap it in uiText(...)', pattern: /sheetTitle="/ },
 ];
 

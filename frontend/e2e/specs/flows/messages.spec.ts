@@ -1,3 +1,5 @@
+import { uiText } from '@/locales/zh-CN';
+
 import { expect, test } from '../../fixtures/test.ts';
 import { expectCleanPage } from '../../helpers/errors.ts';
 import { MESSAGE_ID_SELECTOR } from '../../helpers/subscriptions.ts';
@@ -39,22 +41,23 @@ test.describe('flow message rendering', { tag: '@flows' }, () => {
         await page.goto('/flows/5?tab=automation');
         await expect(page.locator(MESSAGE_ID_SELECTOR)).toHaveCount(4);
 
-        const thinkingToggle = page.getByText('Show thinking');
+        const thinkingToggle = page.getByText(uiText('Show thinking'));
 
         await expect(thinkingToggle).toBeVisible();
         // Collapsed first, so an always-expanded regression fails instead of passing.
         await expect(page.getByText('internal reasoning about the plan')).toBeHidden();
         await thinkingToggle.click();
-        await expect(page.getByText('Hide thinking')).toBeVisible();
+        await expect(page.getByText(uiText('Hide thinking'))).toBeVisible();
         await expect(page.getByText('internal reasoning about the plan')).toBeVisible();
 
+        // The report's `# Report` heading is cassette markdown, not copy: it stays English.
         await expect(page.getByRole('heading', { name: 'Report' })).toBeVisible();
-        await expect(page.getByText('Hide details').first()).toBeVisible();
+        await expect(page.getByText(uiText('Hide details')).first()).toBeVisible();
 
         // Only a report auto-expands, so the terminal message starts collapsed and its xterm is
         // not mounted — the panel's is the only one on screen until the toggle is used.
         await expect(page.locator('.xterm')).toHaveCount(1);
-        await page.getByText('Show details').click();
+        await page.getByText(uiText('Show details')).click();
 
         await expect(page.locator('.xterm')).toHaveCount(2);
         await expect(async () => {

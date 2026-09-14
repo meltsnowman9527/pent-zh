@@ -1,6 +1,6 @@
 import { expect, test } from '../../fixtures/test.ts';
 import { expectCleanPage } from '../../helpers/errors.ts';
-import { ROUTE_MANIFEST } from '../../routes.ts';
+import { ROUTE_MANIFEST, ROUTE_READY_TIMEOUT } from '../../routes.ts';
 
 test.describe('route sweep', { tag: '@cross' }, () => {
     for (const entry of ROUTE_MANIFEST) {
@@ -10,7 +10,7 @@ test.describe('route sweep', { tag: '@cross' }, () => {
             test('renders with a clean page', async ({ page, pageErrorLog }) => {
                 await page.goto(entry.path);
 
-                await expect(entry.ready(page)).toBeVisible();
+                await expect(entry.ready(page)).toBeVisible({ timeout: ROUTE_READY_TIMEOUT });
                 expectCleanPage(pageErrorLog);
             });
         });

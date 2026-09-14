@@ -3,6 +3,7 @@ import type { ResultOf } from '@graphql-typed-document-node/core';
 import type { CreateFlowDocument } from '@/graphql/types';
 
 import { StatusType } from '@/graphql/types';
+import { uiText } from '@/locales/zh-CN';
 
 import { expect, test } from '../../fixtures/test.ts';
 import { expectCleanPage } from '../../helpers/errors.ts';
@@ -39,11 +40,11 @@ test.describe('flow create', { tag: ['@flows', '@smoke'] }, () => {
         await page.goto('/flows/new');
 
         await expect(page.getByText(PROVIDER.name)).toBeVisible();
-        await page.getByPlaceholder(/Describe what you would like PentAGI to test/).fill('Say hello');
-        await page.getByRole('button', { name: 'Submit' }).click();
+        await page.getByPlaceholder(uiText('Describe what you would like PentAGI to test...')).fill('Say hello');
+        await page.getByRole('button', { name: uiText('Submit') }).click();
 
         await expect(page).toHaveURL(/\/flows\/7/);
-        await expect(page.locator('header').getByRole('button', { name: 'Toggle favorite' })).toBeEnabled();
+        await expect(page.locator('header').getByRole('button', { name: uiText('Toggle favorite') })).toBeEnabled();
         await expect(page.locator('header').getByText('Say Hello Flow')).toBeVisible();
         expectCleanPage(pageErrorLog);
     });
