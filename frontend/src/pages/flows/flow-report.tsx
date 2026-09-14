@@ -4,9 +4,9 @@ import { useParams, useSearchParams } from 'react-router-dom';
 
 import Logo from '@/components/icons/logo';
 import Markdown from '@/components/shared/markdown';
-import { FlowReportDocument } from '@/graphql/types';
+import { AssistantLogsDocument, FlowReportDocument } from '@/graphql/types';
 import { Log } from '@/lib/log';
-import { generateFileName, generatePDFFromMarkdown, generateReport } from '@/lib/report';
+import { generateFileName, generateFlowReport, generatePDFFromMarkdown } from '@/lib/report';
 import { uiText } from '@/locales/zh-CN';
 
 type PdfPhase = 'done' | 'error' | 'idle';
@@ -17,6 +17,7 @@ function FlowReport() {
     const [searchParams] = useSearchParams();
     const download = searchParams.has('download');
     const silent = searchParams.has('silent');
+    const assistantIdParam = searchParams.get('assistantId');
 
     const [pdfPhase, setPdfPhase] = useState<PdfPhase>('idle');
     const [pdfError, setPdfError] = useState<null | string>(null);
@@ -36,12 +37,43 @@ function FlowReport() {
     );
 
     // Under `errorPolicy:'all'` a partial error arrives alongside a flow that loaded fine.
-    const dataReady = !loading && !!data?.flow;
+    const flowReady = !loading && !!data?.flow;
+    const taskCount = (data?.tasks ?? []).length;
 
-    const reportContent = useMemo(
-        () => (dataReady ? generateReport(data.tasks || [], data.flow!) : ''),
-        [dataReady, data],
+    // Task reports are the automation-mode shape; a flow without tasks is an assistant
+    // conversation, whose transcript lives in the assistant logs.
+    const needsAssistantLogs = flowReady && taskCount === 0;
+
+    // The API serialises `ID` as a JSON number while this page's own assistant id comes
+    // from the URL as a string, so both sides are normalised before they meet.
+    const firstAssistantId = data?.assistants?.[0]?.id;
+    const reportAssistantId =
+        assistantIdParam ?? (firstAssistantId === null || firstAssistantId === undefined ? null : String(firstAssistantId));
+
+    const { data: assistantLogsData, loading: isAssistantLogsLoading } = useQuery(
+        AssistantLogsDocument,
+        needsAssistantLogs && reportAssistantId
+            ? { variables: { assistantId: reportAssistantId, flowId: flowId ?? '' } }
+            : skipToken,
     );
+
+    // Generating the PDF before the transcript arrives would export an empty report.
+    const dataReady = flowReady && !(needsAssistantLogs && isAssistantLogsLoading);
+
+    const reportContent = useMemo(() => {
+        const flow = data?.flow;
+
+        if (!dataReady || !flow) {
+            return '';
+        }
+
+        return generateFlowReport({
+            assistant: data?.assistants?.find((item) => String(item.id) === reportAssistantId),
+            assistantLogs: assistantLogsData?.assistantLogs,
+            flow,
+            tasks: data?.tasks,
+        });
+    }, [assistantLogsData, data, dataReady, reportAssistantId]);
 
     useEffect(() => {
         pdfTriggered.current = false;
@@ -75,7 +107,7 @@ function FlowReport() {
     let state: ReportState;
     let errorMessage: null | string = null;
 
-    if (loading) {
+    if (loading || (needsAssistantLogs && isAssistantLogsLoading)) {
         state = 'loading';
     } else if (!data?.flow) {
         state = 'error';

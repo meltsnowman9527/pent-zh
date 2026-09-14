@@ -561,6 +561,7 @@ const messages = {
     Medium: '中',
     'Member since {date}': '注册于 {date}',
     'Message cannot be empty': '任务描述不能为空',
+    Messages: '消息数',
     'Min Length': '最小长度',
     'Min length must not exceed max length': '最小长度不能大于最大长度',
     Model: '模型',

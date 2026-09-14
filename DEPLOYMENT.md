@@ -22,10 +22,9 @@
 
 - `.env` 中 `PENTAGI_IMAGE=pentagi-local:latest`，本地镜像由 `Dockerfile.local` 从当前源码构建，构建过程包含 `go test -race ./pkg/controller`。
 - 入口为 HTTP：`.env` 中 `SERVER_USE_SSL=false`、`SERVER_PORT=8443`，`PUBLIC_URL` 与 `CORS_ORIGINS` 均为 `http://localhost:8443`；`PENTAGI_LISTEN_IP=127.0.0.1` 只监听本机。登录 Cookie 的 `Secure` 标志取自 `c.Request.TLS != nil`，HTTP 下自动省略。
-- `pentagi` 应用容器最近一次重建于 2026-09-14 14:40:18（提示词模板预设汉化、知识库内容语言跟随流程语言、详情导航标题汉化），运行 `pentagi-local:latest`；`pgvector`、`scraper`、`pgexporter` 仍为原配套容器，原数据库卷未替换。
-- 容器内 `/opt/pentagi/fe/index.html` 与本地 `frontend/dist/index.html` 校验值一致（md5 `9314d60119c2a820645178f9571a473f`），说明运行界面就是当前源码的构建产物。
-- 容器内 `/opt/pentagi/fe/index.html` 与本地 `frontend/dist/index.html` 校验值一致（md5 `0191a547055ec99d2bb7dac761a31a29`），说明运行界面就是当前源码的构建产物。
-- 任务数据已于 2026-09-14 按用户要求清空（flows 及其全部子表与向量记忆均为 0 行），账户与模型配置保留；删除前生成的 `build/pentagidb-backup-20260914-114555.sql` 已按用户要求删除，本次清库不可回退。`flows_id_seq` 也已按用户要求 `RESTART WITH 1`，下一个新建流程编号为 1。
+- `pentagi` 应用容器最近一次重建于 2026-09-14 15:36:36（交互助手模式导出报告、报告页助手标题修复、导出文件名保留中文），运行 `pentagi-local:latest`；`pgvector`、`scraper`、`pgexporter` 仍为原配套容器，原数据库卷未替换。
+- 容器内 `/opt/pentagi/fe/index.html` 与本地 `frontend/dist/index.html` 校验值一致（md5 `1b791ee9e9a908d760e41e7687c56a5c`），说明运行界面就是当前源码的构建产物。
+- 任务数据已于 2026-09-14 按用户要求清空（flows 及其全部子表与向量记忆均为 0 行），账户与模型配置保留；删除前生成的 `build/pentagidb-backup-20260914-114555.sql` 已按用户要求删除，本次清库不可回退。`flows_id_seq` 也已按用户要求 `RESTART WITH 1`。清空后用户新建了流程 #1（交互助手模式：1 个助手、219 条助手消息、0 个任务），其向量库条目（210 条英文记忆）已按用户要求单独删除，流程记录本身保留，可在任务流程列表直接打开查看/导出报告。
 - http://localhost:8443 返回 200，HTTPS 不再监听；数据库 `pentagidb` 中保留原有 provider 配置与历史任务。
 
 ## 复核方式

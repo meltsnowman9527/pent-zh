@@ -523,7 +523,7 @@ export const livePanelsCassette = (): Cassette =>
         },
     });
 
-const flowReportData: ResultOf<typeof FlowReportDocument> = { flow: FLOW_A, tasks: [TABS_TASK] };
+const flowReportData: ResultOf<typeof FlowReportDocument> = { assistants: [], flow: FLOW_A, tasks: [TABS_TASK] };
 
 /** The Report menu only appears when the flow query returns tasks, so this overrides `flow` too. */
 export const flowReportCassette = (): Cassette =>

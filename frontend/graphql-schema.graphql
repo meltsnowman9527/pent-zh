@@ -885,6 +885,9 @@ query flowReport($id: ID!) {
     flow(flowId: $id) {
         ...flowFragment
     }
+    assistants(flowId: $id) {
+        ...assistantFragment
+    }
     tasks(flowId: $id) {
         ...taskFragment
     }

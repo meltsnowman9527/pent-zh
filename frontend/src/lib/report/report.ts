@@ -1,8 +1,13 @@
 import GithubSlugger from 'github-slugger';
 
-import type { FlowFragmentFragment, TaskFragmentFragment } from '@/graphql/types';
+import type {
+    AssistantFragmentFragment,
+    AssistantLogFragmentFragment,
+    FlowFragmentFragment,
+    TaskFragmentFragment,
+} from '@/graphql/types';
 
-import { StatusType } from '@/graphql/types';
+import { MessageLogType, ResultFormat, StatusType } from '@/graphql/types';
 import { Log } from '@/lib/log';
 import { uiText } from '@/locales/zh-CN';
 
@@ -34,6 +39,49 @@ const getStatusEmoji = (status: StatusType): string => {
     }
 };
 
+// Emoji only survive in the markdown export — the PDF renderer swaps the mapped
+// ones for text tags (see emojiMap in report-pdf.tsx).
+const assistantLogEmojis: Record<MessageLogType, string> = {
+    [MessageLogType.Advice]: '💡',
+    [MessageLogType.Answer]: '✅',
+    [MessageLogType.Ask]: '❓',
+    [MessageLogType.Browser]: '🌐',
+    [MessageLogType.Done]: '✅',
+    [MessageLogType.File]: '📁',
+    [MessageLogType.Input]: '👤',
+    [MessageLogType.Report]: '📊',
+    [MessageLogType.Search]: '🔍',
+    [MessageLogType.Terminal]: '🔧',
+    [MessageLogType.Thoughts]: '💡',
+};
+
+// Same copy-table keys the message list uses for its type tooltips, so a transcript
+// exported here and the one on screen name the message types identically.
+const assistantLogLabels = {
+    [MessageLogType.Advice]: 'Advice',
+    [MessageLogType.Answer]: 'Answer',
+    [MessageLogType.Ask]: 'Ask',
+    [MessageLogType.Browser]: 'Browser',
+    [MessageLogType.Done]: 'Done',
+    [MessageLogType.File]: 'file',
+    [MessageLogType.Input]: 'Input',
+    [MessageLogType.Report]: 'Report',
+    [MessageLogType.Search]: 'Search',
+    [MessageLogType.Terminal]: 'Terminal',
+    [MessageLogType.Thoughts]: 'Thoughts',
+} as const satisfies Record<MessageLogType, string>;
+
+/**
+ * Wraps text in a fence long enough to survive backticks inside the payload — command
+ * output routinely contains ``` and would otherwise end the block early.
+ */
+const toFencedBlock = (text: string, language: string): string => {
+    const longestRun = Math.max(0, ...(text.match(/`+/g) ?? []).map((run) => run.length));
+    const fence = '`'.repeat(Math.max(3, longestRun + 1));
+
+    return `${fence}${language}\n${text}\n${fence}`;
+};
+
 const shiftMarkdownHeaders = (text: string, shiftBy: number): string => {
     return text.replaceAll(/^(#{1,6})\s+(.+)$/gm, (match, hashes, content) => {
         const currentLevel = hashes.length;
@@ -44,11 +92,61 @@ const shiftMarkdownHeaders = (text: string, shiftBy: number): string => {
     });
 };
 
+/**
+ * Shifts markdown headings down so an embedded document nests under the transcript
+ * section instead of competing with it. Fenced code blocks are left alone — a `#`
+ * at the start of a shell line is a comment, not a heading.
+ */
+const shiftMarkdownHeadings = (text: string, shiftBy: number): string => {
+    let fenceChar: null | string = null;
+
+    return text
+        .split('\n')
+        .map((line) => {
+            const fenceMatch = /^\s*(`{3,}|~{3,})/.exec(line);
+
+            if (fenceMatch) {
+                const markerChar = fenceMatch[1]?.charAt(0) ?? '`';
+
+                if (fenceChar === null) {
+                    fenceChar = markerChar;
+                } else if (fenceChar === markerChar) {
+                    fenceChar = null;
+                }
+
+                return line;
+            }
+
+            if (fenceChar !== null) {
+                return line;
+            }
+
+            const headingMatch = /^(#{1,6})\s+(.+)$/.exec(line);
+            const hashes = headingMatch?.[1];
+
+            if (!hashes) {
+                return line;
+            }
+
+            return `${'#'.repeat(Math.min(hashes.length + shiftBy, 6))} ${headingMatch?.[2] ?? ''}`;
+        })
+        .join('\n');
+};
+
 const createAnchor = (text: string): string => {
     const slugger = new GithubSlugger();
 
     return slugger.slug(text);
 };
+
+/**
+ * Terminal captures keep their ANSI control sequences, which a text export renders as
+ * literal junk (`[1m`, `[0m`). CSI first — `ESC[` would otherwise match the two-char rule.
+ */
+/* eslint-disable no-control-regex -- the ESC and BEL control bytes are exactly what must be matched */
+const stripAnsiEscapes = (text: string): string =>
+    text.replaceAll(/\u001B(?:\[[0-?]*[ -/]*[@-~]|\][^\u0007\u001B]*(?:\u0007|\u001B\\)|[@-Z\\-_])/g, '');
+/* eslint-enable no-control-regex */
 
 const generateTableOfContents = (tasks: TaskFragmentFragment[], flow?: FlowFragmentFragment | null): string => {
     let toc = '';
@@ -143,10 +241,94 @@ export const generateReport = (tasks: TaskFragmentFragment[], flow?: FlowFragmen
     return report.trim();
 };
 
+const renderAssistantLogSection = (log: AssistantLogFragmentFragment, index: number): string => {
+    const emoji = assistantLogEmojis[log.type] ?? '📝';
+    const label = assistantLogLabels[log.type] ?? assistantLogLabels[MessageLogType.Thoughts];
+
+    let section = `## ${index + 1}. ${emoji} ${uiText(label)}\n\n`;
+
+    const message = log.message?.trim();
+
+    if (message) {
+        // Messages carry their own document structure; nest it under this section.
+        section += `${shiftMarkdownHeadings(message, 2)}\n\n`;
+    }
+
+    const result = log.result?.trim();
+
+    if (result) {
+        const cleaned = stripAnsiEscapes(result);
+
+        // Terminal output is fenced so the report keeps its line breaks and does not
+        // interpret raw command output as markdown.
+        section +=
+            log.resultFormat === ResultFormat.Terminal
+                ? `${toFencedBlock(cleaned, 'text')}\n\n`
+                : `${shiftMarkdownHeadings(cleaned, 2)}\n\n`;
+    }
+
+    return section.trimEnd();
+};
+
+/**
+ * Assistant-mode flows run a conversation instead of tasks, so they have no task
+ * report to assemble. The transcript itself is the report: every message the
+ * selected assistant produced, in chronological order, with tool output kept.
+ *
+ * Message `thinking` is deliberately omitted — it is internal reasoning, it is the
+ * bulk of the stored bytes, and the UI keeps it collapsed behind "Show thinking".
+ * Use the copy button on an individual message when the reasoning is needed.
+ */
+export const generateAssistantReport = (
+    flow: FlowFragmentFragment,
+    assistant?: AssistantFragmentFragment | null,
+    logs?: AssistantLogFragmentFragment[] | null,
+): string => {
+    const flowEmoji = getStatusEmoji(flow.status);
+    let report = `# ${flowEmoji} ${flow.id}. ${flow.title}\n\n`;
+
+    if (assistant) {
+        report += `**${uiText('Assistant')}**: ${assistant.title}\n\n`;
+    }
+
+    const sortedLogs = [...(logs ?? [])].sort((a, b) => +a.id - +b.id);
+
+    if (sortedLogs.length === 0) {
+        return `${report}${uiText('No messages found for this assistant')}`;
+    }
+
+    report += `**${uiText('Messages')}**: ${sortedLogs.length}\n\n---\n\n`;
+    report += sortedLogs.map((log, index) => renderAssistantLogSection(log, index)).join('\n\n---\n\n');
+
+    return report.trim();
+};
+
+interface FlowReportInput {
+    assistant?: AssistantFragmentFragment | null;
+    assistantLogs?: AssistantLogFragmentFragment[] | null;
+    flow: FlowFragmentFragment;
+    tasks?: null | TaskFragmentFragment[];
+}
+
+/**
+ * Picks the report shape the flow actually has: task reports for automation flows
+ * (task input/result + subtask results) and conversation transcripts for
+ * assistant-mode flows.
+ */
+export const generateFlowReport = ({ assistant, assistantLogs, flow, tasks }: FlowReportInput): string => {
+    const taskList = tasks ?? [];
+
+    return taskList.length > 0
+        ? generateReport(taskList, flow)
+        : generateAssistantReport(flow, assistant, assistantLogs);
+};
+
 export const generateFileName = (flow: FlowFragmentFragment): string => {
     const flowId = flow.id;
     const flowTitle = flow.title
-        .replaceAll(/[^\w\s.-]/g, '_')
+        // `\w` is ASCII-only, which turned a Chinese title into a run of underscores;
+        // Unicode letters and digits keep the downloaded file recognisable.
+        .replaceAll(/[^\p{L}\p{N}\s.-]/gu, '_')
         .replaceAll(/[\s\u2000-\u200B]+/g, '_')
         .toLowerCase()
         .slice(0, 150)

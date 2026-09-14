@@ -873,7 +873,11 @@ export type FlowReportQueryVariables = Exact<{
     id: string | number;
 }>;
 
-export type FlowReportQuery = { flow: FlowFragmentFragment; tasks: Array<TaskFragmentFragment> | null };
+export type FlowReportQuery = {
+    flow: FlowFragmentFragment;
+    assistants: Array<AssistantFragmentFragment> | null;
+    tasks: Array<TaskFragmentFragment> | null;
+};
 
 export type UsageStatsTotalQueryVariables = Exact<{ [key: string]: never }>;
 
@@ -5925,6 +5929,23 @@ export const FlowReportDocument = {
                     },
                     {
                         kind: 'Field',
+                        name: { kind: 'Name', value: 'assistants' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'flowId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'id' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'assistantFragment' } },
+                            ],
+                        },
+                    },
+                    {
+                        kind: 'Field',
                         name: { kind: 'Name', value: 'tasks' },
                         arguments: [
                             {
@@ -6033,6 +6054,31 @@ export const FlowReportDocument = {
                     { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'deletedAt' } },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'assistantFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'Assistant' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'title' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'status' } },
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'provider' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [{ kind: 'FragmentSpread', name: { kind: 'Name', value: 'providerFragment' } }],
+                        },
+                    },
+                    { kind: 'Field', name: { kind: 'Name', value: 'flowId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'useAgents' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
                 ],
             },
         },

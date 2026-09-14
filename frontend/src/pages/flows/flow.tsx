@@ -52,7 +52,7 @@ import { useBreakpoint } from '@/hooks/use-breakpoint';
 import { useFlowTabDetection } from '@/hooks/use-flow-tab-detection';
 import { localizeUiErrorText } from '@/lib/errors';
 import { Log } from '@/lib/log';
-import { copyToClipboard, downloadTextFile, generateFileName, generateReport } from '@/lib/report';
+import { copyToClipboard, downloadTextFile, generateFileName, generateFlowReport } from '@/lib/report';
 import { routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
 import { formatName } from '@/lib/utils/format';
@@ -83,7 +83,15 @@ function Flow() {
     const { isDesktop, isMobile } = useBreakpoint();
     const navigate = useNavigate();
 
-    const { flowData, flowId, flowLoadError, isFlowMissing, isLoading: isFlowLoading, refetchFlow } = useFlow();
+    const {
+        assistantLogs,
+        flowData,
+        flowId,
+        flowLoadError,
+        isFlowMissing,
+        isLoading: isFlowLoading,
+        refetchFlow,
+    } = useFlow();
     const { deleteFlow, finishFlow, flows } = useFlows();
     const { isFavoriteFlow, toggleFavoriteFlow } = useFavorites();
 
@@ -274,7 +282,7 @@ function Flow() {
                     </Breadcrumb>
                 </AppHeaderContent>
                 <AppHeaderActions>
-                    {!!(flowData?.tasks ?? [])?.length && <FlowReportDropdown />}
+                    {!!((flowData?.tasks ?? []).length || assistantLogs.length) && <FlowReportDropdown />}
                     {!isMobile && (
                         <DetailNavigationToolbar<FlowItem>
                             controller={flowNav}
@@ -455,18 +463,25 @@ function Flow() {
 }
 
 function FlowReportDropdown() {
-    const { flowData, flowId } = useFlow();
+    const { assistantLogs, assistants, flowData, flowId, selectedAssistantId } = useFlow();
     const flow = flowData?.flow;
     const tasks = flowData?.tasks ?? [];
+    const assistant = assistants.find((item) => String(item.id) === String(selectedAssistantId)) ?? null;
 
     const isReportDisabled = !flow || !flowId;
+
+    // The standalone report page rebuilds the same content from the URL, so an
+    // assistant transcript has to carry the assistant it belongs to.
+    const assistantQuery = (tasks?.length ?? 0) === 0 && selectedAssistantId ? `assistantId=${selectedAssistantId}` : '';
+
+    const buildReportContent = () => generateFlowReport({ assistant, assistantLogs, flow: flow!, tasks });
 
     const handleCopyToClipboard = async () => {
         if (isReportDisabled) {
             return;
         }
 
-        const reportContent = generateReport(tasks, flow);
+        const reportContent = buildReportContent();
         const success = await copyToClipboard(reportContent);
 
         if (success) {
@@ -483,7 +498,7 @@ function FlowReportDropdown() {
         }
 
         try {
-            const reportContent = generateReport(tasks, flow);
+            const reportContent = buildReportContent();
 
             const baseFileName = generateFileName(flow);
             const fileName = `${baseFileName}.md`;
@@ -499,7 +514,8 @@ function FlowReportDropdown() {
             return;
         }
 
-        const url = `${routes.flowReport(flowId)}?download=true&silent=true`;
+        const params = ['download=true', 'silent=true', assistantQuery].filter(Boolean).join('&');
+        const url = `${routes.flowReport(flowId)}?${params}`;
         window.open(url, '_blank');
     };
 
@@ -508,7 +524,7 @@ function FlowReportDropdown() {
             return;
         }
 
-        const url = routes.flowReport(flowId);
+        const url = assistantQuery ? `${routes.flowReport(flowId)}?${assistantQuery}` : routes.flowReport(flowId);
         window.open(url, '_blank');
     };
 
