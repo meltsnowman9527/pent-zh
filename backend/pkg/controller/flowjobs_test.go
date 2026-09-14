@@ -110,7 +110,7 @@ func (s *fakeFlowJobStore) GetActiveFlowJob(_ context.Context, arg database.GetA
 	return s.jobs[id], nil
 }
 
-func (s *fakeFlowJobStore) DeleteFlowMemoryDocuments(context.Context, sql.NullString) error {
+func (s *fakeFlowJobStore) DeleteFlowDocuments(context.Context, sql.NullString) error {
 	return nil
 }
 

@@ -597,8 +597,11 @@ func (r *flowJobRunner) executeDelete(ctx context.Context, job database.FlowJob,
 	if _, err := r.fc.db.DeleteFlow(ctx, flow.ID); err != nil {
 		return err
 	}
-	if err := r.fc.db.DeleteFlowMemoryDocuments(ctx, database.StringToNullString(fmt.Sprint(flow.ID))); err != nil {
-		rec.logger.WithError(err).Warn("failed to remove deleted flow memory")
+	// Vector documents the flow produced: long-term memory plus the knowledge
+	// entries its agents stored. Best effort — the flow row is already gone and
+	// an orphaned document must not block the delete.
+	if err := r.fc.db.DeleteFlowDocuments(ctx, database.StringToNullString(fmt.Sprint(flow.ID))); err != nil {
+		rec.logger.WithError(err).Warn("failed to remove deleted flow documents")
 	}
 	r.fc.subs.NewFlowPublisher(flow.UserID, flow.ID).FlowDeleted(ctx, flow, containers)
 	return nil

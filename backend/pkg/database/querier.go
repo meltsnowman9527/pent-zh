@@ -45,11 +45,14 @@ type Querier interface {
 	DeleteFinishedFlowJobsOlderThan(ctx context.Context, updatedAt time.Time) error
 	DeleteFlow(ctx context.Context, id int64) (Flow, error)
 	DeleteFlowAssistantLog(ctx context.Context, id int64) error
-	// Delete all memory-type documents for a specific flow.
-	// Called on flow deletion to free long-term memory that will never be re-used.
+	// Delete every vector document a flow produced: its long-term memory rows plus
+	// the knowledge entries (answer/guide/code/...) its agents stored. Both carry
+	// the flow id in cmetadata, so one statement covers them.
+	// Documents created by hand in the knowledge base carry no flow_id and are
+	// left alone. Called on flow deletion so a deleted flow leaves nothing behind.
 	// flow_id is the decimal text representation of the flow ID (e.g. "55"), matching the
 	// text result of (cmetadata ->> 'flow_id') which uses JSON ->> extraction.
-	DeleteFlowMemoryDocuments(ctx context.Context, flowID sql.NullString) error
+	DeleteFlowDocuments(ctx context.Context, flowID sql.NullString) error
 	DeleteFlowTemplate(ctx context.Context, arg DeleteFlowTemplateParams) error
 	// Delete a knowledge document by UUID (admin — no user_id check).
 	DeleteKnowledgeDocument(ctx context.Context, uuid sql.NullString) error

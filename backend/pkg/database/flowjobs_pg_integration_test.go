@@ -349,6 +349,75 @@ func TestFlowJobsAgainstRealPostgres(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, live, stillThere.ID)
 	})
+
+	t.Run("a flow's documents go with the flow, hand-made knowledge stays", func(t *testing.T) {
+		// Deleting a flow used to clear only doc_type='memory', so the knowledge
+		// entries (answer/guide/code) its agents stored stayed in the vector store
+		// and kept showing up in the knowledge list.
+		collectionID := ensureLangchainCollection(t, db)
+
+		doomed := hardDeleteFlow(t, q, db, userID)
+		_, err := q.DeleteFlow(ctx, doomed)
+		require.NoError(t, err)
+
+		flowDoc := insertVectorDocument(
+			t, db, collectionID,
+			fmt.Sprintf(`{"doc_type":"answer","flow_id":"%d","user_id":"%d"}`, doomed, userID),
+		)
+		manualDoc := insertVectorDocument(t, db, collectionID, fmt.Sprintf(`{"doc_type":"guide","user_id":"%d"}`, userID))
+
+		require.NoError(t, q.DeleteFlowDocuments(ctx, database.StringToNullString(fmt.Sprint(doomed))))
+
+		require.False(t, documentExists(t, db, flowDoc), "the flow's knowledge document is removed")
+		require.True(t, documentExists(t, db, manualDoc), "a document without flow_id is not touched")
+
+		_, err = db.ExecContext(ctx, `DELETE FROM langchain_pg_embedding WHERE uuid = $1::uuid`, manualDoc)
+		require.NoError(t, err)
+	})
+}
+
+func ensureLangchainCollection(t *testing.T, db *sql.DB) string {
+	t.Helper()
+
+	var id string
+	err := db.QueryRow(`SELECT uuid::text FROM langchain_pg_collection WHERE name = 'langchain'`).Scan(&id)
+	if err == nil {
+		return id
+	}
+	require.ErrorIs(t, err, sql.ErrNoRows, "unexpected error looking up the langchain collection")
+
+	err = db.QueryRow(
+		`INSERT INTO langchain_pg_collection (name, uuid) VALUES ('langchain', gen_random_uuid()) RETURNING uuid::text`,
+	).Scan(&id)
+	require.NoError(t, err)
+
+	return id
+}
+
+func insertVectorDocument(t *testing.T, db *sql.DB, collectionID, metadata string) string {
+	t.Helper()
+
+	var id string
+	err := db.QueryRow(
+		`INSERT INTO langchain_pg_embedding (uuid, document, cmetadata, collection_id)
+		 VALUES (gen_random_uuid(), 'verify document', $1::json, $2::uuid) RETURNING uuid::text`,
+		metadata, collectionID,
+	).Scan(&id)
+	require.NoError(t, err)
+
+	return id
+}
+
+func documentExists(t *testing.T, db *sql.DB, id string) bool {
+	t.Helper()
+
+	var exists bool
+	err := db.QueryRow(
+		`SELECT EXISTS (SELECT 1 FROM langchain_pg_embedding WHERE uuid = $1::uuid)`, id,
+	).Scan(&exists)
+	require.NoError(t, err)
+
+	return exists
 }
 
 func containsFlow(flows []database.Flow, id int64) bool {

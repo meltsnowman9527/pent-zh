@@ -301,7 +301,15 @@ func (r *mutationResolver) PurgeFlow(ctx context.Context, flowID int64) (model.R
 		return model.ResultTypeError, err
 	}
 
-	// The row and every child record are gone; tell other open tabs to drop it.
+	// The row and every child record are gone. Documents are removed after the
+	// purge succeeded so a refused purge (live flow, someone else's flow) never
+	// touches the vector store; this also clears rows left behind by a delete
+	// that predates the flow-document cleanup.
+	if err := r.DB.DeleteFlowDocuments(ctx, database.StringToNullString(fmt.Sprint(flow.ID))); err != nil {
+		r.Logger.WithError(err).Warn("failed to remove documents of the purged flow")
+	}
+
+	// Tell other open tabs to drop it.
 	r.Subscriptions.NewFlowPublisher(flow.UserID, flow.ID).FlowDeleted(ctx, flow, nil)
 
 	return model.ResultTypeSuccess, nil

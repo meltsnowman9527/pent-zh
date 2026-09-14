@@ -143,14 +143,16 @@ WHERE c.name = 'langchain'
 ORDER BY e.embedding <=> sqlc.arg(embedding)::vector
 LIMIT sqlc.arg(lim)::int;
 
--- name: DeleteFlowMemoryDocuments :exec
--- Delete all memory-type documents for a specific flow.
--- Called on flow deletion to free long-term memory that will never be re-used.
+-- name: DeleteFlowDocuments :exec
+-- Delete every vector document a flow produced: its long-term memory rows plus
+-- the knowledge entries (answer/guide/code/...) its agents stored. Both carry
+-- the flow id in cmetadata, so one statement covers them.
+-- Documents created by hand in the knowledge base carry no flow_id and are
+-- left alone. Called on flow deletion so a deleted flow leaves nothing behind.
 -- flow_id is the decimal text representation of the flow ID (e.g. "55"), matching the
 -- text result of (cmetadata ->> 'flow_id') which uses JSON ->> extraction.
 DELETE FROM langchain_pg_embedding
 WHERE collection_id = (SELECT uuid FROM langchain_pg_collection WHERE name = 'langchain')
-  AND COALESCE(cmetadata ->> 'doc_type', '') = 'memory'
   AND (cmetadata ->> 'flow_id') = sqlc.arg(flow_id);
 
 -- name: InsertKnowledgeDocument :one

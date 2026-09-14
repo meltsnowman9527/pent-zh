@@ -14,19 +14,21 @@ import (
 	"github.com/sqlc-dev/pqtype"
 )
 
-const deleteFlowMemoryDocuments = `-- name: DeleteFlowMemoryDocuments :exec
+const deleteFlowDocuments = `-- name: DeleteFlowDocuments :exec
 DELETE FROM langchain_pg_embedding
 WHERE collection_id = (SELECT uuid FROM langchain_pg_collection WHERE name = 'langchain')
-  AND COALESCE(cmetadata ->> 'doc_type', '') = 'memory'
   AND (cmetadata ->> 'flow_id') = $1
 `
 
-// Delete all memory-type documents for a specific flow.
-// Called on flow deletion to free long-term memory that will never be re-used.
+// Delete every vector document a flow produced: its long-term memory rows plus
+// the knowledge entries (answer/guide/code/...) its agents stored. Both carry
+// the flow id in cmetadata, so one statement covers them.
+// Documents created by hand in the knowledge base carry no flow_id and are
+// left alone. Called on flow deletion so a deleted flow leaves nothing behind.
 // flow_id is the decimal text representation of the flow ID (e.g. "55"), matching the
 // text result of (cmetadata ->> 'flow_id') which uses JSON ->> extraction.
-func (q *Queries) DeleteFlowMemoryDocuments(ctx context.Context, flowID sql.NullString) error {
-	_, err := q.db.ExecContext(ctx, deleteFlowMemoryDocuments, flowID)
+func (q *Queries) DeleteFlowDocuments(ctx context.Context, flowID sql.NullString) error {
+	_, err := q.db.ExecContext(ctx, deleteFlowDocuments, flowID)
 	return err
 }
 

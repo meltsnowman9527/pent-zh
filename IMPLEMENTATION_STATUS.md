@@ -108,6 +108,8 @@
   4. 保留：`users`(1)、`providers`(1)、`user_preferences`(1) 等账户与模型服务配置未受影响；`favoriteFlows` 为空，无需清理。
   5. 接口复核：`flows`、`deletedFlows`、`usageStatsByPeriod` 均返回空数组。
 - **编号复位为 1**：清库后确认「删除数据不会重置自增序列」（PostgreSQL 的 `flows_id_seq` 只增不减，此前又因测试被复位到 4）。用户要求真正的全新开始，故按应用自身路径删除测试期间创建的唯一流程 #4（交互助手模式，先 `deleteFlow` 清理容器再 `purgeFlow` 删行），随后 `ALTER SEQUENCE flows_id_seq RESTART WITH 1`。复核：flows / assistants / containers / tasks / msglogs 均为 0，向量记忆 0 条，无遗留任务容器，下一个新建流程为 **ID 1**。账户（users=1）、模型服务（providers=1）、用户偏好均保留。
+- **修复「删除流程不清理知识文档」**：清点全库时发现 `langchain_pg_embedding` 还留着 3 条属于已删除流程 #3 的知识文档（`doc_type` 为 answer/guide/code）。根因是删除流程只调 `DeleteFlowMemoryDocuments`（条件为 `doc_type='memory'`），而知识库列表的条件是 `doc_type NOT IN ('memory')`，所以这些文档仍会出现在知识库页面。已把该查询改为 `DeleteFlowDocuments`（按 `cmetadata->>'flow_id'` 删除该流程的**全部**向量文档，长期记忆与知识条目一并清理；手工在知识库创建、没有 `flow_id` 的文档不受影响），删除作业与彻底删除流程都会调用它。同时删除了那 3 条残留（`langchain_pg_embedding` 现为 0 行）。
+  - 验证：真库集成测试新增 1 个用例（带 `flow_id` 的文档被删、没有 `flow_id` 的手工文档保留）→ `TestFlowJobsAgainstRealPostgres` 共 **20 个子测试**通过；后端 `go test -race` 全绿；`backend/docs/database.md` 已同步说明。
 
 ## 扫描口径说明
 
