@@ -1075,6 +1075,12 @@ export type RestoreFlowMutationVariables = Exact<{
 
 export type RestoreFlowMutation = { restoreFlow: ResultType };
 
+export type PurgeFlowMutationVariables = Exact<{
+    flowId: string | number;
+}>;
+
+export type PurgeFlowMutation = { purgeFlow: ResultType };
+
 export type PutUserInputMutationVariables = Exact<{
     flowId: string | number;
     input: string;
@@ -8066,6 +8072,39 @@ export const RestoreFlowDocument = {
         },
     ],
 } as unknown as DocumentNode<RestoreFlowMutation, RestoreFlowMutationVariables>;
+export const PurgeFlowDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'mutation',
+            name: { kind: 'Name', value: 'purgeFlow' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'purgeFlow' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'flowId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<PurgeFlowMutation, PurgeFlowMutationVariables>;
 export const PutUserInputDocument = {
     kind: 'Document',
     definitions: [

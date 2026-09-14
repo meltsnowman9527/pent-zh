@@ -268,6 +268,11 @@ type Querier interface {
 	ListPendingFlowJobs(ctx context.Context, dollar_1 int64) ([]FlowJob, error)
 	// List all non-memory knowledge documents owned by a specific user (user-scoped view).
 	ListUserKnowledgeDocuments(ctx context.Context, userID sql.NullString) ([]ListUserKnowledgeDocumentsRow, error)
+	// Hard delete, only from the recycle bin. Every child table references
+	// flows(id) ON DELETE CASCADE, so the flow's tasks, tool calls, logs,
+	// screenshots, containers and job history go with it and cannot come back.
+	PurgeFlow(ctx context.Context, id int64) (Flow, error)
+	PurgeUserFlow(ctx context.Context, arg PurgeUserFlowParams) (Flow, error)
 	// A job left running belongs to a process that died. It goes back to the queue
 	// (keeping its attempts count) so start-up can retry or fail it explicitly
 	// rather than leaving it "running" forever.

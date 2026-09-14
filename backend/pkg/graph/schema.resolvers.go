@@ -270,6 +270,43 @@ func (r *mutationResolver) RestoreFlow(ctx context.Context, flowID int64) (model
 	return model.ResultTypeSuccess, nil
 }
 
+// PurgeFlow is the resolver for the purgeFlow field.
+func (r *mutationResolver) PurgeFlow(ctx context.Context, flowID int64) (model.ResultType, error) {
+	// Same shape as RestoreFlow: a flow in the recycle bin is invisible to
+	// GetFlow, so the ownership check lives in the DELETE itself.
+	uid, admin, err := validatePermission(ctx, "flows.delete")
+	if err != nil {
+		return model.ResultTypeError, err
+	}
+
+	r.Logger.WithFields(logrus.Fields{
+		"uid":  uid,
+		"flow": flowID,
+	}).Debug("purge flow")
+
+	var flow database.Flow
+	if admin {
+		flow, err = r.DB.PurgeFlow(ctx, flowID)
+	} else {
+		flow, err = r.DB.PurgeUserFlow(ctx, database.PurgeUserFlowParams{
+			ID:     flowID,
+			UserID: uid,
+		})
+	}
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return model.ResultTypeError, fmt.Errorf("flow %d is not in the recycle bin", flowID)
+		}
+
+		return model.ResultTypeError, err
+	}
+
+	// The row and every child record are gone; tell other open tabs to drop it.
+	r.Subscriptions.NewFlowPublisher(flow.UserID, flow.ID).FlowDeleted(ctx, flow, nil)
+
+	return model.ResultTypeSuccess, nil
+}
+
 // RenameFlow is the resolver for the renameFlow field.
 func (r *mutationResolver) RenameFlow(ctx context.Context, flowID int64, title string) (model.ResultType, error) {
 	uid, err := validatePermissionWithFlowID(ctx, "flows.edit", flowID, r.DB)

@@ -567,6 +567,70 @@ func (q *Queries) GetUserTotalFlowsStats(ctx context.Context, userID int64) (Get
 	return i, err
 }
 
+const purgeFlow = `-- name: PurgeFlow :one
+DELETE FROM flows
+WHERE id = $1 AND deleted_at IS NOT NULL
+RETURNING id, status, title, model, model_provider_name, language, functions, user_id, created_at, updated_at, deleted_at, trace_id, model_provider_type, tool_call_id_template
+`
+
+// Hard delete, only from the recycle bin. Every child table references
+// flows(id) ON DELETE CASCADE, so the flow's tasks, tool calls, logs,
+// screenshots, containers and job history go with it and cannot come back.
+func (q *Queries) PurgeFlow(ctx context.Context, id int64) (Flow, error) {
+	row := q.db.QueryRowContext(ctx, purgeFlow, id)
+	var i Flow
+	err := row.Scan(
+		&i.ID,
+		&i.Status,
+		&i.Title,
+		&i.Model,
+		&i.ModelProviderName,
+		&i.Language,
+		&i.Functions,
+		&i.UserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.TraceID,
+		&i.ModelProviderType,
+		&i.ToolCallIDTemplate,
+	)
+	return i, err
+}
+
+const purgeUserFlow = `-- name: PurgeUserFlow :one
+DELETE FROM flows
+WHERE id = $1 AND user_id = $2 AND deleted_at IS NOT NULL
+RETURNING id, status, title, model, model_provider_name, language, functions, user_id, created_at, updated_at, deleted_at, trace_id, model_provider_type, tool_call_id_template
+`
+
+type PurgeUserFlowParams struct {
+	ID     int64 `json:"id"`
+	UserID int64 `json:"user_id"`
+}
+
+func (q *Queries) PurgeUserFlow(ctx context.Context, arg PurgeUserFlowParams) (Flow, error) {
+	row := q.db.QueryRowContext(ctx, purgeUserFlow, arg.ID, arg.UserID)
+	var i Flow
+	err := row.Scan(
+		&i.ID,
+		&i.Status,
+		&i.Title,
+		&i.Model,
+		&i.ModelProviderName,
+		&i.Language,
+		&i.Functions,
+		&i.UserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.TraceID,
+		&i.ModelProviderType,
+		&i.ToolCallIDTemplate,
+	)
+	return i, err
+}
+
 const restoreFlow = `-- name: RestoreFlow :one
 UPDATE flows
 SET deleted_at = NULL

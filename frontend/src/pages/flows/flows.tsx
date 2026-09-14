@@ -166,7 +166,7 @@ const statusCellColumn: ColumnDef<Flow> = {
 function Flows() {
     const navigate = useNavigate();
     const location = useLocation();
-    const { deleteFlow, finishFlow, flows, flowsError, isLoading, refetch, restoreFlow } = useFlows();
+    const { deleteFlow, finishFlow, flows, flowsError, isLoading, purgeFlow, refetch, restoreFlow } = useFlows();
     const { isFavoriteFlow, toggleFavoriteFlow } = useFavorites();
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [deletingFlow, setDeletingFlow] = useState<Flow | null>(null);
@@ -182,6 +182,8 @@ function Flows() {
     const [showDeleted, setShowDeleted] = useState(false);
     const [isRestoreDialogOpen, setIsRestoreDialogOpen] = useState(false);
     const [restoringFlow, setRestoringFlow] = useState<Flow | null>(null);
+    const [isPurgeDialogOpen, setIsPurgeDialogOpen] = useState(false);
+    const [purgingFlow, setPurgingFlow] = useState<Flow | null>(null);
     const { data: deletedFlowsData, loading: isDeletedLoading } = useQuery(DeletedFlowsDocument, {
         pollInterval: 5000,
         skip: !showDeleted,
@@ -196,6 +198,11 @@ function Flows() {
         setIsRestoreDialogOpen(true);
     }, []);
 
+    const handleFlowPurgeDialogOpen = useCallback((flow: Flow) => {
+        setPurgingFlow(flow);
+        setIsPurgeDialogOpen(true);
+    }, []);
+
     const handleFlowRestore = async () => {
         if (!restoringFlow) {
             return;
@@ -205,6 +212,18 @@ function Flows() {
 
         if (success) {
             setRestoringFlow(null);
+        }
+    };
+
+    const handleFlowPurge = async () => {
+        if (!purgingFlow) {
+            return;
+        }
+
+        const success = await purgeFlow(purgingFlow);
+
+        if (success) {
+            setPurgingFlow(null);
         }
     };
 
@@ -677,7 +696,7 @@ function Flows() {
             },
             {
                 cell: ({ row }) => (
-                    <div className="flex items-center justify-end">
+                    <div className="flex items-center justify-end gap-2">
                         <Button
                             onClick={(event) => {
                                 event.stopPropagation();
@@ -689,18 +708,29 @@ function Flows() {
                             <ArchiveRestore />
                             {uiText('Restore')}
                         </Button>
+                        <Button
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                handleFlowPurgeDialogOpen(row.original);
+                            }}
+                            size="sm"
+                            variant="outline"
+                        >
+                            <Trash />
+                            {uiText('Delete permanently')}
+                        </Button>
                     </div>
                 ),
                 enableHiding: false,
                 header: () => null,
                 id: 'restore',
-                maxSize: 120,
+                maxSize: 260,
                 meta: { preventRowClick: true },
-                minSize: 100,
-                size: 110,
+                minSize: 220,
+                size: 240,
             },
         ],
-        [handleFlowRestoreDialogOpen],
+        [handleFlowPurgeDialogOpen, handleFlowRestoreDialogOpen],
     );
 
     const renderRowContextMenu = useCallback(
@@ -921,6 +951,21 @@ function Flows() {
                     itemName={restoringFlow?.title}
                     itemType={uiText('flow')}
                     title={uiText('Restore {name}', { name: restoringFlow?.title ?? '' })}
+                />
+
+                <ConfirmationDialog
+                    cancelText={uiText('Cancel')}
+                    confirmPhrase={purgingFlow?.title ?? ''}
+                    confirmText={uiText('Delete permanently')}
+                    description={uiText(
+                        'The flow and every record that belongs to it — tasks, tool calls, logs, screenshots and job history — are deleted from the database. This cannot be undone.',
+                    )}
+                    handleConfirm={handleFlowPurge}
+                    handleOpenChange={setIsPurgeDialogOpen}
+                    isOpen={isPurgeDialogOpen}
+                    itemName={purgingFlow?.title}
+                    itemType={uiText('flow')}
+                    title={uiText('Delete permanently {name}', { name: purgingFlow?.title ?? '' })}
                 />
             </div>
         </>

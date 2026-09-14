@@ -1097,6 +1097,10 @@ mutation restoreFlow($flowId: ID!) {
     restoreFlow(flowId: $flowId)
 }
 
+mutation purgeFlow($flowId: ID!) {
+    purgeFlow(flowId: $flowId)
+}
+
 mutation putUserInput($flowId: ID!, $input: String!, $modelProvider: String, $resourceIds: [ID!]) {
     putUserInput(flowId: $flowId, input: $input, modelProvider: $modelProvider, resourceIds: $resourceIds)
 }

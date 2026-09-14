@@ -102,6 +102,19 @@ SET deleted_at = NULL
 WHERE id = $1 AND user_id = $2 AND deleted_at IS NOT NULL
 RETURNING *;
 
+-- name: PurgeFlow :one
+-- Hard delete, only from the recycle bin. Every child table references
+-- flows(id) ON DELETE CASCADE, so the flow's tasks, tool calls, logs,
+-- screenshots, containers and job history go with it and cannot come back.
+DELETE FROM flows
+WHERE id = $1 AND deleted_at IS NOT NULL
+RETURNING *;
+
+-- name: PurgeUserFlow :one
+DELETE FROM flows
+WHERE id = $1 AND user_id = $2 AND deleted_at IS NOT NULL
+RETURNING *;
+
 -- name: GetDeletedFlows :many
 SELECT
   f.*

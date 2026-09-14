@@ -15,6 +15,7 @@ import {
     FlowDeletedDocument,
     FlowsDocument,
     FlowUpdatedDocument,
+    PurgeFlowDocument,
     RestoreFlowDocument,
 } from '@/graphql/types';
 import { localizeUiErrorText } from '@/lib/errors';
@@ -32,6 +33,7 @@ interface FlowsContextValue {
     flowsData: FlowsQuery | undefined;
     flowsError: Error | undefined;
     isLoading: boolean;
+    purgeFlow: (flow: Flow) => Promise<boolean>;
     refetch: () => unknown;
     restoreFlow: (flow: Flow) => Promise<boolean>;
 }
@@ -81,6 +83,7 @@ export function FlowsProvider({ children }: FlowsProviderProps) {
     const [deleteFlowMutation] = useMutation(DeleteFlowDocument);
     const [finishFlowMutation] = useMutation(FinishFlowDocument);
     const [restoreFlowMutation] = useMutation(RestoreFlowDocument);
+    const [purgeFlowMutation] = useMutation(PurgeFlowDocument);
 
     const createFlow = useCallback(
         async (values: FlowFormValues) => {
@@ -295,6 +298,49 @@ export function FlowsProvider({ children }: FlowsProviderProps) {
         [restoreFlowMutation],
     );
 
+    const purgeFlow = useCallback(
+        async (flow: Flow) => {
+            const { id: flowId, title } = flow;
+
+            if (!flowId) {
+                return false;
+            }
+
+            const flowDescription = `${title || uiText('Unknown')} (ID: ${flowId})`;
+
+            const loadingToastId = toast.loading(uiText('Deleting flow permanently...'), {
+                description: flowDescription,
+            });
+
+            try {
+                await purgeFlowMutation({
+                    refetchQueries: [DeletedFlowsDocument, FlowsDocument],
+                    variables: { flowId },
+                });
+
+                toast.success(uiText('Flow permanently deleted'), {
+                    description: flowDescription,
+                    id: loadingToastId,
+                });
+
+                return true;
+            } catch (error) {
+                const errorMessage =
+                    error instanceof Error
+                        ? localizeUiErrorText(error.message)
+                        : uiText('An error occurred while deleting flow permanently');
+                toast.error(errorMessage, {
+                    description: flowDescription,
+                    id: loadingToastId,
+                });
+                Log.error('Error deleting flow permanently:', error);
+
+                return false;
+            }
+        },
+        [purgeFlowMutation],
+    );
+
     const value = useMemo(
         () => ({
             createFlow,
@@ -305,6 +351,7 @@ export function FlowsProvider({ children }: FlowsProviderProps) {
             flowsData,
             flowsError,
             isLoading,
+            purgeFlow,
             refetch,
             restoreFlow,
         }),
@@ -317,6 +364,7 @@ export function FlowsProvider({ children }: FlowsProviderProps) {
             flowsData,
             flowsError,
             isLoading,
+            purgeFlow,
             refetch,
             restoreFlow,
         ],

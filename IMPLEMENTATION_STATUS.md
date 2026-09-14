@@ -90,6 +90,14 @@
 - 验证：真库集成测试新增 2 个用例（回收站列出软删除流程并可恢复、恢复正常流程与越权恢复都被拒绝），`TestFlowJobsAgainstRealPostgres` 共 17 个子测试全部通过；`go test -race` 覆盖 controller / services / graph / database / converter 全部通过。接口实测：插入一条合成软删除流程 → `deletedFlows` 列出（含 `deletedAt`）→ `restoreFlow` 返回 success → 回收站不再包含它、正常列表出现它 → 重复恢复返回 `flow N is not in the recycle bin` → 删除合成数据。用户自己的 1、2 号流程仍留在回收站，可自行恢复。
 - 边界：恢复只还原记录与历史（可查看、可导出报告），不会重建容器与向量记忆；`deleted_at` 由序列化的物理 `id` 无关，恢复后不会改变原有编号。
 
+### 彻底删除（2026-09-14 下午）
+
+回收站此前只能恢复、不能释放空间，本批补上不可逆的彻底删除：
+
+- 后端：sqlc 新增 `PurgeFlow` / `PurgeUserFlow`（`DELETE FROM flows WHERE id = $1 [AND user_id = $2] AND deleted_at IS NOT NULL RETURNING *`，同样由 sqlc 生成）。子表全部是 `ON DELETE CASCADE`（容器、任务、子任务、工具调用、消息链、消息日志、截图、助手、各类日志、作业记录共 13 处外键），所以一条 DELETE 就会连带清空，无需手写清理。GraphQL 新增 `purgeFlow` 变更，权限沿用 `flows.delete`，所有权校验同样内联在 DELETE 条件里；非回收站内的流程返回 `flow N is not in the recycle bin`。
+- 前端：`ConfirmationDialog` 增加可选的 `confirmPhrase`（输入指定文本才能点确认，用于不可撤销操作）。回收站每行在「恢复」旁增加「彻底删除」，确认框要求输入流程标题，并说明任务、工具调用、日志、截图与作业历史都会从数据库删除。
+- 验证：真库集成测试新增 2 个用例（彻底删除后行与作业历史都消失、越权与未删除流程都被拒）→ `TestFlowJobsAgainstRealPostgres` 共 19 个子测试通过；后端 `go test -race` 全绿；前端新增 `confirmation-dialog.test.tsx`（3 项：短语不匹配时确认按钮禁用、去空格后匹配、未配置短语时不出现输入框）。接口实测：合成一条在回收站、一条未删除 → 彻底删除未删除的被拒 → 回收站内的删除成功且库中行数为 0 → 清理合成数据。为不留下测试造成的编号空档，事后把 `flows_id_seq` 复位到 4（现有最大 id 为 3），下一个新建流程仍是 4。
+
 ## 扫描口径说明
 
 统计“还剩多少英文文案”时必须扫描 `frontend/src` 下的**全部**非测试 `.ts` 与 `.tsx`（只扫 `.tsx` 会漏掉路由标题注册表、API 层、上传校验与资源/文件操作 hook 里的用户可见文案），并把已出现的 `uiText(...)` 调用遮蔽后再匹配，不能跳过已接入文案表的文件：早期版本跳过这些文件，导致 `flow-files.tsx`、`flow-assistant-messages.tsx`、`flows.tsx` 等已接入文案表的文件里剩余的英文没有被统计，进度被高估。匹配要覆盖五类：JSX 文本节点（单行与多行）、常见属性值（含自定义属性）、字符串字面量、**反引号模板字面量**（toast 描述、无障碍名、确认句大量藏在这里），以及把选项名拼进 `aria-label` 的位置。另外两类第九批仍未覆盖，统计时不能省：一是被行内 `<code>` 切开的描述句，`>` 规则只能匹配紧跟标签后的第一段，`</code>` 之后的英文尾巴要单独搜索；二是徽标、下拉项里由数据驱动的显示标签（如令牌状态 `active`/`revoked`/`expired`），它们不是“大写单词开头的句子”，需要按“界面可能出现的英文单词”回查。匹配 `>` 时还要排除箭头函数与注释：前一字符是 `=` 或 `-` 的候选要剔除，否则 `() => ...` 与行内注释里的英文会淹没结果。加入新文案时，词条去重要同时检查 `'Key':` 与裸标识符 `Key:` 两种写法，否则会写出重复键，`tsc` 会以 TS1117 报错。

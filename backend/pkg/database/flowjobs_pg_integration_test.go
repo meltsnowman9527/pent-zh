@@ -309,6 +309,46 @@ func TestFlowJobsAgainstRealPostgres(t *testing.T) {
 		_, err = q.RestoreUserFlow(ctx, database.RestoreUserFlowParams{ID: own, UserID: userID})
 		require.ErrorIs(t, err, sql.ErrNoRows, "a flow that is not deleted cannot be restored twice")
 	})
+
+	t.Run("purging removes the row and cascades into its records", func(t *testing.T) {
+		doomed := hardDeleteFlow(t, q, db, userID)
+		job := createJob(t, q, doomed, userID, "delete")
+
+		_, err := q.DeleteFlow(ctx, doomed)
+		require.NoError(t, err)
+
+		purged, err := q.PurgeUserFlow(ctx, database.PurgeUserFlowParams{ID: doomed, UserID: userID})
+		require.NoError(t, err)
+		require.Equal(t, doomed, purged.ID)
+
+		_, err = q.GetFlowJob(ctx, job.ID)
+		require.ErrorIs(t, err, sql.ErrNoRows, "the flow's job history cascades away")
+
+		_, err = q.GetFlow(ctx, doomed)
+		require.ErrorIs(t, err, sql.ErrNoRows)
+
+		require.False(t, containsFlow(mustDeletedFlows(t, q, userID), doomed), "the bin no longer lists it")
+	})
+
+	t.Run("purging is scoped to the owner and refuses live flows", func(t *testing.T) {
+		other := insertUser(t, db)
+		foreign := hardDeleteFlow(t, q, db, other)
+
+		_, err := q.DeleteFlow(ctx, foreign)
+		require.NoError(t, err)
+
+		_, err = q.PurgeUserFlow(ctx, database.PurgeUserFlowParams{ID: foreign, UserID: userID})
+		require.ErrorIs(t, err, sql.ErrNoRows, "another user cannot purge the flow")
+		require.True(t, containsFlow(mustDeletedFlows(t, q, other), foreign), "the flow is still in the bin")
+
+		live := hardDeleteFlow(t, q, db, userID)
+		_, err = q.PurgeUserFlow(ctx, database.PurgeUserFlowParams{ID: live, UserID: userID})
+		require.ErrorIs(t, err, sql.ErrNoRows, "only a flow in the recycle bin can be purged")
+
+		stillThere, err := q.GetFlow(ctx, live)
+		require.NoError(t, err)
+		require.Equal(t, live, stillThere.ID)
+	})
 }
 
 func containsFlow(flows []database.Flow, id int64) bool {

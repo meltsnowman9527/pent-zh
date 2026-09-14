@@ -12,6 +12,8 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { cn } from '@/lib/utils';
 import { uiText } from '@/locales/zh-CN';
@@ -23,6 +25,11 @@ interface ConfirmationDialogProps {
     cancelText?: string;
     cancelVariant?: 'default' | 'destructive' | 'ghost' | 'outline' | 'secondary';
     confirmIcon?: ConfirmationDialogIconProps;
+    /**
+     * When set, the dialog asks for this exact text before the confirm button
+     * enables — for actions that cannot be undone.
+     */
+    confirmPhrase?: string;
     confirmText?: string;
     confirmVariant?: 'default' | 'destructive' | 'ghost' | 'outline' | 'secondary';
     description?: string;
@@ -40,6 +47,7 @@ function ConfirmationDialog({
     cancelText = uiText('Cancel'),
     cancelVariant = 'outline',
     confirmIcon = <Trash2 />,
+    confirmPhrase,
     confirmText = uiText('Confirm'),
     confirmVariant = 'destructive',
     description,
@@ -51,6 +59,20 @@ function ConfirmationDialog({
     title,
 }: ConfirmationDialogProps) {
     const [isProcessing, setIsProcessing] = useState(false);
+    const [typedPhrase, setTypedPhrase] = useState('');
+    const [wasOpen, setWasOpen] = useState(isOpen);
+
+    // Never carry a half-typed phrase into the next time the dialog opens.
+    // Adjusting state during render is the recommended way to react to a prop
+    // change; an effect would add a second commit and the lint rules forbid
+    // calling setState there.
+    if (wasOpen !== isOpen) {
+        setWasOpen(isOpen);
+        setTypedPhrase('');
+    }
+
+    const isPhraseMatched = !confirmPhrase || typedPhrase.trim() === confirmPhrase;
+    const phraseInputId = 'confirmation-phrase';
 
     // The default confirm verb is "no custom verb": a bare confirm gets the generic
     // title instead of one naming the object being acted on.
@@ -91,7 +113,7 @@ function ConfirmationDialog({
     };
 
     const handleConfirmClick = async () => {
-        if (isProcessing) {
+        if (isProcessing || !isPhraseMatched) {
             return;
         }
 
@@ -122,6 +144,21 @@ function ConfirmationDialog({
                     <DialogDescription>{defaultDescription}</DialogDescription>
                 </DialogHeader>
 
+                {confirmPhrase ? (
+                    <div className="grid gap-2">
+                        <Label htmlFor={phraseInputId}>
+                            {uiText('Type {phrase} to confirm', { phrase: confirmPhrase })}
+                        </Label>
+                        <Input
+                            autoComplete="off"
+                            disabled={isProcessing}
+                            id={phraseInputId}
+                            onChange={(event) => setTypedPhrase(event.target.value)}
+                            value={typedPhrase}
+                        />
+                    </div>
+                ) : null}
+
                 <DialogFooter>
                     <Button
                         disabled={isProcessing}
@@ -132,7 +169,7 @@ function ConfirmationDialog({
                         {cancelText}
                     </Button>
                     <Button
-                        disabled={isProcessing}
+                        disabled={isProcessing || !isPhraseMatched}
                         onClick={() => {
                             void handleConfirmClick();
                         }}

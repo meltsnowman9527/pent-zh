@@ -1081,6 +1081,10 @@ type Mutation {
   # Undo a delete: the flow returns to the list. Its container and vector
   # memory were removed by the delete job and are not restored.
   restoreFlow(flowId: ID!): ResultType!
+  # Remove a flow from the recycle bin for good. The row and every record that
+  # references it (tasks, tool calls, logs, screenshots, containers, jobs) are
+  # deleted from the database and cannot be restored.
+  purgeFlow(flowId: ID!): ResultType!
   renameFlow(flowId: ID!, title: String!): ResultType!
 
   # Assistant management
