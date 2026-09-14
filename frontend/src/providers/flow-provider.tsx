@@ -90,8 +90,14 @@ export function FlowProvider({ children }: FlowProviderProps) {
         refetch: refetchFlow,
     } = useQuery(FlowDocument, {
         errorPolicy: 'all',
-        fetchPolicy: 'cache-first',
-        nextFetchPolicy: 'cache-first',
+        // `FlowDocument` also carries the automation message log, and the detail
+        // page gets everything else from WebSocket subscriptions. With
+        // cache-first a warm cache made the page skip the request entirely on
+        // remount, so a reply produced while the user was on another page never
+        // showed up until a manual reload. cache-and-network renders the cached
+        // flow instantly and still refreshes it from the server on every mount.
+        fetchPolicy: 'cache-and-network',
+        nextFetchPolicy: 'cache-and-network',
         notifyOnNetworkStatusChange: true,
         skip: !flowId,
         variables: { id: flowId ?? '' },
@@ -109,8 +115,10 @@ export function FlowProvider({ children }: FlowProviderProps) {
     const isFlowMissing = deriveFlowMissing(flowData, flowError);
 
     const { data: assistantsData, loading: isAssistantsLoading } = useQuery(AssistantsDocument, {
-        fetchPolicy: 'cache-first',
-        nextFetchPolicy: 'cache-first',
+        // Same reason as FlowDocument: the assistant's status changes while the
+        // user is elsewhere, and subscriptions only cover the mounted page.
+        fetchPolicy: 'cache-and-network',
+        nextFetchPolicy: 'cache-and-network',
         skip: !flowId,
         variables: { flowId: flowId ?? '' },
     });
@@ -138,8 +146,10 @@ export function FlowProvider({ children }: FlowProviderProps) {
     }, [flowId, selectedAssistantIds, assistants]);
 
     const { data: assistantLogsData } = useQuery(AssistantLogsDocument, {
-        fetchPolicy: 'cache-first',
-        nextFetchPolicy: 'cache-first',
+        // Without this, coming back to the page after a reply arrived elsewhere
+        // showed the stale (often empty) cached conversation.
+        fetchPolicy: 'cache-and-network',
+        nextFetchPolicy: 'cache-and-network',
         skip: !flowId || !selectedAssistantId || selectedAssistantId === '',
         variables: { assistantId: selectedAssistantId ?? '', flowId: flowId ?? '' },
     });

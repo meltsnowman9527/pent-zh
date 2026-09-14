@@ -111,6 +111,14 @@
 - **修复「删除流程不清理知识文档」**：清点全库时发现 `langchain_pg_embedding` 还留着 3 条属于已删除流程 #3 的知识文档（`doc_type` 为 answer/guide/code）。根因是删除流程只调 `DeleteFlowMemoryDocuments`（条件为 `doc_type='memory'`），而知识库列表的条件是 `doc_type NOT IN ('memory')`，所以这些文档仍会出现在知识库页面。已把该查询改为 `DeleteFlowDocuments`（按 `cmetadata->>'flow_id'` 删除该流程的**全部**向量文档，长期记忆与知识条目一并清理；手工在知识库创建、没有 `flow_id` 的文档不受影响），删除作业与彻底删除流程都会调用它。同时删除了那 3 条残留（`langchain_pg_embedding` 现为 0 行）。
   - 验证：真库集成测试新增 1 个用例（带 `flow_id` 的文档被删、没有 `flow_id` 的手工文档保留）→ `TestFlowJobsAgainstRealPostgres` 共 **20 个子测试**通过；后端 `go test -race` 全绿；`backend/docs/database.md` 已同步说明。
 
+### 详情页切页回来不刷新（2026-09-14 晚）
+
+- 现象：创建交互助手后切到其他页面，助手其实**已经回复**（`assistantlogs` 有 input/answer 两条、`msgchains` 有 system/human/ai 一次完整往返、容器在跑、流程处于 `waiting` 等待用户确认），但回到任务流程详情页什么都看不到、状态也停在旧值，看起来像"卡死"。
+- 根因：详情页的三个查询 `FlowDocument` / `AssistantsDocument` / `AssistantLogsDocument` 都用 `cache-first` + `nextFetchPolicy: 'cache-first'`，消息与状态更新只依赖 14 个 WebSocket 订阅；而 `FlowProvider` 只包在流程详情路由上，切页即卸载并关闭订阅。于是**离开页面期间产生的数据不会进入 Apollo 缓存**，返回时 `cache-first` 命中旧缓存就不再发请求，界面停留在空/旧数据。列表页此前已用 `cache-and-network` + 5 秒轮询，详情页没有跟上。
+- 修复：三个查询改为 `fetchPolicy/nextFetchPolicy: 'cache-and-network'`——先用缓存秒开，同时向服务端取一次真值。`FlowDocument` 同时承载自动模式的消息记录，所以自动模式"消息不刷新"一并修复。
+- 验证：`pnpm test` 1383 通过 / 16 跳过 / 0 失败；`eslint`、`tsc -b`、生产构建通过；镜像重建并部署（容器 13:40:48），`http://localhost:8443` 返回 200，容器内 `index.html` 与本地 `dist` 一致（md5 `463529d3bfa22203f5e4041e0d5b5c0c`）。
+- 已知同类问题（本次未改）：侧边栏「最近任务流程」的 `SidebarFlowsProvider` 同样是 `cache-first`，而轮询在只包流程路由的 `FlowsProvider` 上，所以长时间停留在仪表盘等页面时侧边栏列表可能偏旧。
+
 ## 扫描口径说明
 
 统计“还剩多少英文文案”时必须扫描 `frontend/src` 下的**全部**非测试 `.ts` 与 `.tsx`（只扫 `.tsx` 会漏掉路由标题注册表、API 层、上传校验与资源/文件操作 hook 里的用户可见文案），并把已出现的 `uiText(...)` 调用遮蔽后再匹配，不能跳过已接入文案表的文件：早期版本跳过这些文件，导致 `flow-files.tsx`、`flow-assistant-messages.tsx`、`flows.tsx` 等已接入文案表的文件里剩余的英文没有被统计，进度被高估。匹配要覆盖五类：JSX 文本节点（单行与多行）、常见属性值（含自定义属性）、字符串字面量、**反引号模板字面量**（toast 描述、无障碍名、确认句大量藏在这里），以及把选项名拼进 `aria-label` 的位置。另外两类第九批仍未覆盖，统计时不能省：一是被行内 `<code>` 切开的描述句，`>` 规则只能匹配紧跟标签后的第一段，`</code>` 之后的英文尾巴要单独搜索；二是徽标、下拉项里由数据驱动的显示标签（如令牌状态 `active`/`revoked`/`expired`），它们不是“大写单词开头的句子”，需要按“界面可能出现的英文单词”回查。匹配 `>` 时还要排除箭头函数与注释：前一字符是 `=` 或 `-` 的候选要剔除，否则 `() => ...` 与行内注释里的英文会淹没结果。加入新文案时，词条去重要同时检查 `'Key':` 与裸标识符 `Key:` 两种写法，否则会写出重复键，`tsc` 会以 TS1117 报错。
