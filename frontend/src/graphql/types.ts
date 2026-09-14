@@ -879,6 +879,15 @@ export type FlowReportQuery = {
     tasks: Array<TaskFragmentFragment> | null;
 };
 
+export type GenerateAssistantReportMutationVariables = Exact<{
+    flowId: string | number;
+    assistantId: string | number;
+}>;
+
+export type GenerateAssistantReportMutation = {
+    generateAssistantReport: { id: string; markdown: string; model: string; createdAt: string; replaced: boolean };
+};
+
 export type UsageStatsTotalQueryVariables = Exact<{ [key: string]: never }>;
 
 export type UsageStatsTotalQuery = { usageStatsTotal: UsageStatsFragmentFragment };
@@ -6110,6 +6119,59 @@ export const FlowReportDocument = {
         },
     ],
 } as unknown as DocumentNode<FlowReportQuery, FlowReportQueryVariables>;
+export const GenerateAssistantReportDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'mutation',
+            name: { kind: 'Name', value: 'generateAssistantReport' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'assistantId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'generateAssistantReport' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'flowId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                            },
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'assistantId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'assistantId' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'markdown' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'model' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'replaced' } },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<GenerateAssistantReportMutation, GenerateAssistantReportMutationVariables>;
 export const UsageStatsTotalDocument = {
     kind: 'Document',
     definitions: [

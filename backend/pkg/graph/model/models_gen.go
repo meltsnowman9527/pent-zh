@@ -142,6 +142,14 @@ type AssistantLog struct {
 	CreatedAt    time.Time      `json:"createdAt"`
 }
 
+type AssistantReport struct {
+	ID        int64     `json:"id"`
+	Markdown  string    `json:"markdown"`
+	Model     string    `json:"model"`
+	CreatedAt time.Time `json:"createdAt"`
+	Replaced  bool      `json:"replaced"`
+}
+
 type CreateAPITokenInput struct {
 	Name *string `json:"name,omitempty"`
 	TTL  int     `json:"ttl"`

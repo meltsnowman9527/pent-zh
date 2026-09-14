@@ -893,6 +893,16 @@ query flowReport($id: ID!) {
     }
 }
 
+mutation generateAssistantReport($flowId: ID!, $assistantId: ID!) {
+    generateAssistantReport(flowId: $flowId, assistantId: $assistantId) {
+        id
+        markdown
+        model
+        createdAt
+        replaced
+    }
+}
+
 query usageStatsTotal {
     usageStatsTotal {
         ...usageStatsFragment

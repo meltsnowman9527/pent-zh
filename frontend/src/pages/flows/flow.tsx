@@ -12,6 +12,7 @@ import {
     NotepadText,
     Pause,
     PencilLine,
+    Sparkles,
     Star,
     Trash,
 } from 'lucide-react';
@@ -48,11 +49,12 @@ import { FlowJobStatus, isFlowJobPending } from '@/features/flows/flow-job-statu
 import FlowTabs from '@/features/flows/flow-tabs';
 import { useFlowDetailNavigation } from '@/features/flows/use-flow-detail-navigation';
 import { RenameFlowDocument, ResultType, StatusType } from '@/graphql/types';
+import { AssistantLogsDocument, GenerateAssistantReportDocument } from '@/graphql/types';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
 import { useFlowTabDetection } from '@/hooks/use-flow-tab-detection';
 import { localizeUiErrorText } from '@/lib/errors';
 import { Log } from '@/lib/log';
-import { copyToClipboard, downloadTextFile, generateFileName, generateFlowReport } from '@/lib/report';
+import { copyToClipboard, downloadTextFile, findAssistantReport, generateFileName, generateFlowReport } from '@/lib/report';
 import { routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
 import { formatName } from '@/lib/utils/format';
@@ -473,8 +475,38 @@ function FlowReportDropdown() {
     // The standalone report page rebuilds the same content from the URL, so an
     // assistant transcript has to carry the assistant it belongs to.
     const assistantQuery = (tasks?.length ?? 0) === 0 && selectedAssistantId ? `assistantId=${selectedAssistantId}` : '';
+    const isAssistantReport = (tasks?.length ?? 0) === 0 && !!selectedAssistantId;
+    const hasWrittenReport = !!findAssistantReport(assistantLogs);
+
+    const [generateReport, { loading: isGeneratingReport }] = useMutation(GenerateAssistantReportDocument, {
+        // The report lands as a `report` entry of the assistant log, which is what
+        // every export reads: refresh it so the menu below uses the new document.
+        awaitRefetchQueries: true,
+        refetchQueries: [AssistantLogsDocument],
+    });
 
     const buildReportContent = () => generateFlowReport({ assistant, assistantLogs, flow: flow!, tasks });
+
+    const handleGenerateReport = async () => {
+        if (!flowId || !selectedAssistantId) {
+            return;
+        }
+
+        try {
+            const { data } = await generateReport({
+                variables: { assistantId: selectedAssistantId, flowId },
+            });
+
+            if (data?.generateAssistantReport.markdown) {
+                toast.success(uiText('Analysis report generated'));
+            }
+        } catch (error) {
+            Log.error('Failed to generate analysis report:', error);
+            toast.error(uiText('Failed to generate analysis report'), {
+                description: localizeUiErrorText(error instanceof Error ? error.message : ''),
+            });
+        }
+    };
 
     const handleCopyToClipboard = async () => {
         if (isReportDisabled) {
@@ -541,6 +573,23 @@ function FlowReportDropdown() {
                 />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+                {isAssistantReport && (
+                    <>
+                        <DropdownMenuItem
+                            className="flex items-center gap-2"
+                            disabled={isGeneratingReport}
+                            onClick={() => void handleGenerateReport()}
+                        >
+                            {isGeneratingReport ? <Spinner /> : <Sparkles />}
+                            {isGeneratingReport
+                                ? uiText('Generating analysis report...')
+                                : hasWrittenReport
+                                  ? uiText('Regenerate analysis report')
+                                  : uiText('Generate analysis report')}
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                    </>
+                )}
                 <DropdownMenuItem
                     className="flex items-center gap-2"
                     disabled={isReportDisabled}

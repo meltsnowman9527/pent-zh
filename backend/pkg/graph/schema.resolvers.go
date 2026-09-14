@@ -26,6 +26,7 @@ import (
 	"pentagi/pkg/providers/pconfig"
 	"pentagi/pkg/providers/provider"
 	"pentagi/pkg/providers/qwen"
+	"pentagi/pkg/reports"
 	"pentagi/pkg/resources"
 	"pentagi/pkg/server/auth"
 	"pentagi/pkg/templates"
@@ -547,6 +548,27 @@ func (r *mutationResolver) DeleteAssistant(ctx context.Context, flowID int64, as
 	r.Subscriptions.NewFlowPublisher(fw.GetUserID(), flowID).AssistantDeleted(ctx, assistant)
 
 	return model.ResultTypeSuccess, nil
+}
+
+// GenerateAssistantReport is the resolver for the generateAssistantReport field.
+func (r *mutationResolver) GenerateAssistantReport(ctx context.Context, flowID int64, assistantID int64) (*model.AssistantReport, error) {
+	uid, err := validatePermissionWithFlowID(ctx, "assistants.edit", flowID, r.DB)
+	if err != nil {
+		return nil, err
+	}
+
+	report, err := reports.Generate(ctx, r.DB, r.ProvidersCtrl, r.Logger, uid, flowID, assistantID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &model.AssistantReport{
+		ID:        report.LogID,
+		Markdown:  report.Markdown,
+		Model:     report.Model,
+		CreatedAt: report.CreatedAt,
+		Replaced:  report.Replaced,
+	}, nil
 }
 
 // TestAgent is the resolver for the testAgent field.

@@ -584,6 +584,17 @@ type AgentTestResult {
   tests: [TestResult!]!
 }
 
+# The written report of one interactive assistant session. `markdown` is the
+# report body; the same text is stored as a `report` entry of the assistant log.
+type AssistantReport {
+  id: ID!
+  markdown: String!
+  model: String!
+  createdAt: Time!
+  # True when an earlier report for the same session was rewritten in place.
+  replaced: Boolean!
+}
+
 type ProviderTestResult {
   simple: AgentTestResult!
   simpleJson: AgentTestResult!
@@ -1092,6 +1103,10 @@ type Mutation {
   callAssistant(flowId: ID!, assistantId: ID!, input: String!, useAgents: Boolean!, resourceIds: [ID!]): ResultType!
   stopAssistant(flowId: ID!, assistantId: ID!): Assistant!
   deleteAssistant(flowId: ID!, assistantId: ID!): ResultType!
+  # Write (or rewrite) the structured report of an interactive assistant session.
+  # The report is stored as a `report` entry of that assistant's log, so the
+  # existing report exports pick it up without any further step.
+  generateAssistantReport(flowId: ID!, assistantId: ID!): AssistantReport!
 
   # Testing and validation
   testAgent(type: ProviderType!, agentType: AgentConfigType!, agent: AgentConfigInput!): AgentTestResult!

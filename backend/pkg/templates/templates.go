@@ -23,6 +23,9 @@ var promptTemplates embed.FS
 //go:embed graphiti/*.tmpl
 var graphitiTemplates embed.FS
 
+//go:embed reports/*.tmpl
+var reportTemplates embed.FS
+
 var ErrTemplateNotFound = errors.New("template not found")
 
 type PromptType string
@@ -745,6 +748,18 @@ func ReadGraphitiTemplate(name string) (string, error) {
 	templateBytes, err := graphitiTemplates.ReadFile(path.Join("graphiti", name))
 	if err != nil {
 		return "", fmt.Errorf("failed to read graphiti template %s: %w", name, err)
+	}
+	return string(templateBytes), nil
+}
+
+// ReadReportTemplate reads a report template by name. Report templates live
+// outside prompts/ on purpose: every file in prompts/ becomes a configurable
+// entry of the default PromptsMap, and a report writer must not be replaceable
+// by a user prompt override.
+func ReadReportTemplate(name string) (string, error) {
+	templateBytes, err := reportTemplates.ReadFile(path.Join("reports", name))
+	if err != nil {
+		return "", fmt.Errorf("failed to read report template %s: %w", name, err)
 	}
 	return string(templateBytes), nil
 }

@@ -1,6 +1,7 @@
 export {
     copyToClipboard,
     downloadTextFile,
+    findAssistantReport,
     generateAssistantReport,
     generateFileName,
     generateFlowReport,

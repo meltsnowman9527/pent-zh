@@ -9,6 +9,7 @@ import type {
 
 import { MessageLogType, ResultFormat, StatusType } from '@/graphql/types';
 import { Log } from '@/lib/log';
+import { formatDate } from '@/lib/utils/format';
 import { uiText } from '@/locales/zh-CN';
 
 const getStatusEmoji = (status: StatusType): string => {
@@ -271,13 +272,37 @@ const renderAssistantLogSection = (log: AssistantLogFragmentFragment, index: num
 };
 
 /**
+ * The structured report the backend writes for an interactive session, stored as
+ * the newest `report` entry of that session's log. The transcript alone is not a
+ * report — this entry is the document.
+ */
+export const findAssistantReport = (
+    logs?: AssistantLogFragmentFragment[] | null,
+): AssistantLogFragmentFragment | null => {
+    const reports = (logs ?? []).filter((log) => log.type === MessageLogType.Report && log.result?.trim() !== '');
+
+    return reports.at(-1) ?? null;
+};
+
+const renderAssistantTranscript = (logs: AssistantLogFragmentFragment[]): string =>
+    logs
+        .map((log, index) => ({ index, log }))
+        .filter(({ log }) => log.type !== MessageLogType.Report)
+        .map(({ index, log }) => renderAssistantLogSection(log, index))
+        .join('\n\n---\n\n');
+
+/**
  * Assistant-mode flows run a conversation instead of tasks, so they have no task
- * report to assemble. The transcript itself is the report: every message the
- * selected assistant produced, in chronological order, with tool output kept.
+ * report to assemble.
  *
- * Message `thinking` is deliberately omitted — it is internal reasoning, it is the
- * bulk of the stored bytes, and the UI keeps it collapsed behind "Show thinking".
- * Use the copy button on an individual message when the reasoning is needed.
+ * When the session has a written report (`findAssistantReport`), that report is
+ * the document and the transcript becomes its evidence appendix. Otherwise the
+ * transcript is all there is, and the export says so instead of pretending a log
+ * dump is a report.
+ *
+ * Message `thinking` is deliberately omitted from the transcript — it is internal
+ * reasoning, it is the bulk of the stored bytes, and the UI keeps it collapsed
+ * behind "Show thinking".
  */
 export const generateAssistantReport = (
     flow: FlowFragmentFragment,
@@ -285,20 +310,39 @@ export const generateAssistantReport = (
     logs?: AssistantLogFragmentFragment[] | null,
 ): string => {
     const flowEmoji = getStatusEmoji(flow.status);
+    const sortedLogs = [...(logs ?? [])].sort((a, b) => +a.id - +b.id);
+    const written = findAssistantReport(sortedLogs);
+    const transcriptEntries = sortedLogs.filter((log) => log.type !== MessageLogType.Report).length;
+
+    if (written) {
+        const meta = [
+            `**${uiText('Assistant')}**: ${assistant?.title ?? flow.title}`,
+            `**${uiText('Messages')}**: ${transcriptEntries}`,
+            `**${uiText('Generated at')}**: ${formatDate(new Date(written.createdAt))}`,
+        ].join('\n\n');
+
+        return [
+            written.result.trim(),
+            '---',
+            `## ${uiText('Appendix: session transcript')}`,
+            meta,
+            renderAssistantTranscript(sortedLogs),
+        ].join('\n\n').trim();
+    }
+
     let report = `# ${flowEmoji} ${flow.id}. ${flow.title}\n\n`;
 
     if (assistant) {
         report += `**${uiText('Assistant')}**: ${assistant.title}\n\n`;
     }
 
-    const sortedLogs = [...(logs ?? [])].sort((a, b) => +a.id - +b.id);
-
     if (sortedLogs.length === 0) {
         return `${report}${uiText('No messages found for this assistant')}`;
     }
 
+    report += `> ${uiText('No analysis report yet — generate one for a structured report.')}\n\n`;
     report += `**${uiText('Messages')}**: ${sortedLogs.length}\n\n---\n\n`;
-    report += sortedLogs.map((log, index) => renderAssistantLogSection(log, index)).join('\n\n---\n\n');
+    report += renderAssistantTranscript(sortedLogs);
 
     return report.trim();
 };

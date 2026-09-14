@@ -29,6 +29,40 @@ const buildLog = (overrides: Partial<AssistantLogFragmentFragment>): AssistantLo
     }) as AssistantLogFragmentFragment;
 
 describe('generateAssistantReport', () => {
+    it('uses the written report as the document and puts the transcript in the appendix', () => {
+        const report = generateAssistantReport(flow, assistant, [
+            buildLog({ id: '1', message: '第一条', type: MessageLogType.Input }),
+            buildLog({ id: '2', message: '分析过程', type: MessageLogType.Answer }),
+            buildLog({
+                id: '3',
+                message: '分析报告',
+                result: '# 网站安全测试计划 安全评估报告\n\n## 一、摘要\n发现了 X。',
+                type: MessageLogType.Report,
+            }),
+        ]);
+
+        // The written report is the document: it comes first, unmodified.
+        expect(report.startsWith('# 网站安全测试计划 安全评估报告')).toBe(true);
+        expect(report).toContain('## 一、摘要');
+
+        // The transcript follows as evidence, under its own heading.
+        expect(report).toContain(`## ${uiText('Appendix: session transcript')}`);
+        expect(report.indexOf('## 一、摘要')).toBeLessThan(report.indexOf(uiText('Appendix: session transcript')));
+        expect(report).toContain('分析过程');
+
+        // The report entry itself is not repeated as a transcript section.
+        expect(report).not.toContain(`## 3. 📊 ${uiText('Report')}`);
+    });
+
+    it('says a report has not been written instead of passing the log dump off as one', () => {
+        const report = generateAssistantReport(flow, assistant, [
+            buildLog({ id: '1', message: '第一条', type: MessageLogType.Input }),
+        ]);
+
+        expect(report).toContain(uiText('No analysis report yet — generate one for a structured report.'));
+        expect(report).toContain('# ✅ 1. 网站安全测试计划');
+    });
+
     it('lists the transcript in chronological order without thinking', () => {
         const report = generateAssistantReport(flow, assistant, [
             buildLog({ id: '2', message: '第二条', thinking: '内部推理', type: MessageLogType.Answer }),
@@ -44,6 +78,15 @@ describe('generateAssistantReport', () => {
         // Chronological, not insertion order.
         expect(report.indexOf('第一条')).toBeLessThan(report.indexOf('第二条'));
         expect(report).not.toContain('内部推理');
+    });
+
+    it('ignores an empty report entry so a failed generation cannot shadow a retry', () => {
+        const report = generateAssistantReport(flow, assistant, [
+            buildLog({ id: '1', message: '第一条', type: MessageLogType.Input }),
+            buildLog({ id: '2', message: '分析报告', result: '   ', type: MessageLogType.Report }),
+        ]);
+
+        expect(report).toContain(uiText('No analysis report yet — generate one for a structured report.'));
     });
 
     it('fences terminal output and keeps markdown results inline', () => {

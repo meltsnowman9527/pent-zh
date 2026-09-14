@@ -1,12 +1,18 @@
-import { skipToken, useQuery } from '@apollo/client/react';
+import { skipToken, useMutation, useQuery } from '@apollo/client/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
+import { toast } from 'sonner';
 
 import Logo from '@/components/icons/logo';
 import Markdown from '@/components/shared/markdown';
-import { AssistantLogsDocument, FlowReportDocument } from '@/graphql/types';
+import { AssistantLogsDocument, FlowReportDocument, GenerateAssistantReportDocument } from '@/graphql/types';
 import { Log } from '@/lib/log';
-import { generateFileName, generateFlowReport, generatePDFFromMarkdown } from '@/lib/report';
+import {
+    findAssistantReport,
+    generateFileName,
+    generateFlowReport,
+    generatePDFFromMarkdown,
+} from '@/lib/report';
 import { uiText } from '@/locales/zh-CN';
 
 type PdfPhase = 'done' | 'error' | 'idle';
@@ -50,12 +56,42 @@ function FlowReport() {
     const reportAssistantId =
         assistantIdParam ?? (firstAssistantId === null || firstAssistantId === undefined ? null : String(firstAssistantId));
 
-    const { data: assistantLogsData, loading: isAssistantLogsLoading } = useQuery(
+    const {
+        data: assistantLogsData,
+        loading: isAssistantLogsLoading,
+        refetch: refetchAssistantLogs,
+    } = useQuery(
         AssistantLogsDocument,
         needsAssistantLogs && reportAssistantId
             ? { variables: { assistantId: reportAssistantId, flowId: flowId ?? '' } }
             : skipToken,
     );
+
+    // The session's written report is what the exports must carry; without one the
+    // page offers to write it instead of pretending the transcript is a report.
+    const hasWrittenReport = !!findAssistantReport(assistantLogsData?.assistantLogs);
+
+    const [generateReport, { loading: isGeneratingReport }] = useMutation(GenerateAssistantReportDocument);
+
+    const handleGenerateReport = async () => {
+        if (!flowId || !reportAssistantId) {
+            return;
+        }
+
+        try {
+            const result = await generateReport({
+                variables: { assistantId: reportAssistantId, flowId },
+            });
+
+            if (result.data?.generateAssistantReport.markdown) {
+                await refetchAssistantLogs();
+                toast.success(uiText('Analysis report generated'));
+            }
+        } catch (error) {
+            Log.error('Failed to generate analysis report:', error);
+            toast.error(uiText('Failed to generate analysis report'));
+        }
+    };
 
     // Generating the PDF before the transcript arrives would export an empty report.
     const dataReady = flowReady && !(needsAssistantLogs && isAssistantLogsLoading);
@@ -170,6 +206,22 @@ function FlowReport() {
         <div className="min-h-screen bg-white dark:bg-gray-900">
             <div className="h-screen w-full overflow-auto p-8">
                 <div className="mx-auto max-w-4xl">
+                    {needsAssistantLogs && reportAssistantId && (
+                        <div className="mb-6 flex items-center justify-end gap-3 print:hidden">
+                            <button
+                                className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm transition-colors hover:bg-gray-50 disabled:opacity-50 dark:hover:bg-gray-800"
+                                disabled={isGeneratingReport}
+                                onClick={() => void handleGenerateReport()}
+                                type="button"
+                            >
+                                {isGeneratingReport
+                                    ? uiText('Generating analysis report...')
+                                    : hasWrittenReport
+                                      ? uiText('Regenerate analysis report')
+                                      : uiText('Generate analysis report')}
+                            </button>
+                        </div>
+                    )}
                     <div className="prose prose-slate dark:prose-invert max-w-none">
                         <Markdown>{reportContent}</Markdown>
                     </div>

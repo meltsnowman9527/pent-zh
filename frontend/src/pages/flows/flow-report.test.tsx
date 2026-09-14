@@ -12,6 +12,7 @@ const queryResults = vi.hoisted(() => ({
 // object is what tells the two queries apart here.
 vi.mock('@apollo/client/react', () => ({
     skipToken: Symbol('skipToken'),
+    useMutation: () => [vi.fn().mockResolvedValue({ data: undefined }), { loading: false }],
     useQuery: (_document: unknown, options?: { errorPolicy?: string }) =>
         options?.errorPolicy === 'all' ? queryResults.flow : queryResults.assistantLogs,
 }));
@@ -23,11 +24,15 @@ vi.mock('react-router-dom', () => ({
     useSearchParams: () => [searchParams.current],
 }));
 
+vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
+
 vi.mock('@/components/shared/markdown', () => ({
     default: ({ children }: { children: string }) => <div data-testid="markdown">{children}</div>,
 }));
 
 vi.mock('@/lib/report', () => ({
+    findAssistantReport: (logs?: Array<{ result?: string; type: string; }>) =>
+        (logs ?? []).filter((log) => log.type === 'report' && log.result).at(-1) ?? null,
     generateFileName: () => 'report',
     generateFlowReport: ({ assistant, assistantLogs, flow, tasks }: Record<string, unknown>) => {
         const taskList = (tasks ?? []) as unknown[];
