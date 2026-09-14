@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest';
  *   - `columnMenuLabel` labels the "columns" and "search in" dropdowns
  *   - `entityName` is interpolated into empty-state sentences
  *   - `filterPlaceholder` is the search box placeholder
+ *   - `sheetTitle` is rendered as the detail-navigation sheet heading
  *
  * `columnMenuLabel` also has a silent failure mode: omit it and the menu falls
  * back to the raw column id ("updatedAt", "provider").
@@ -21,6 +22,7 @@ const RULES: { hint: string; pattern: RegExp }[] = [
     { hint: 'wrap it in uiText(...)', pattern: /columnMenuLabel:\s*'(?!')/ },
     { hint: 'wrap it in uiText(...)', pattern: /entityName:\s*'(?!')/ },
     { hint: 'wrap it in uiText(...)', pattern: /filterPlaceholder="/ },
+    { hint: 'wrap it in uiText(...)', pattern: /sheetTitle="/ },
 ];
 
 const sourceFiles = (dir: string): string[] =>
@@ -43,7 +45,10 @@ const sourceFiles = (dir: string): string[] =>
     });
 
 describe('table copy hygiene', () => {
-    it('routes column labels, entity names and filter placeholders through uiText', () => {
+    // Reading every source file is fast in isolation (~40ms) but the full suite runs
+    // its files in parallel and starved this one past the 5s default; the budget is
+    // only there to catch a hang, not to measure the scan.
+    it('routes column labels, entity names, filter placeholders and sheet titles through uiText', () => {
         const violations: string[] = [];
 
         for (const file of sourceFiles(SRC)) {
@@ -61,5 +66,5 @@ describe('table copy hygiene', () => {
         }
 
         expect(violations).toEqual([]);
-    });
+    }, 30_000);
 });

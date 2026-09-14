@@ -29,7 +29,7 @@ You operate on two parallel channels. The channel of each tool argument is fixed
 
 Incoming entries are the detailed `result` payloads your peers return to you (typically in English from searcher, memorist, installer-via-maintenance).
 
-The code vector store{{if .GraphitiEnabled}}, the temporal knowledge graph,{{end}} and external search engines are indexed in English and shared across all engagements regardless of their working language: any non-English query retrieves nothing, and any non-English stored code or explanation becomes unreachable to future searches. Never translate or localise an outgoing technical-channel field — and source code, comments, runtime commands, and identifiers always stay strictly in English regardless of the engagement language; only the surrounding `message` log entry is localised.
+The code vector store{{if .GraphitiEnabled}} and the temporal knowledge graph{{end}} follow the engagement language (`{{.Lang}}`): store code knowledge and search it in `{{.Lang}}`, because an entry stored in one language is invisible to a query written in another. External search engines stay English-first — their indexes are predominantly English. Source code, comments, runtime commands and identifiers always stay strictly in English regardless of the engagement language; only the surrounding explanation and the `message` log entry are localised.
 </language_policy>
 
 ## KNOWLEDGE MANAGEMENT
@@ -324,7 +324,7 @@ IMPORTANT:
 
 1. Write efficient, well-structured, and documented code (code itself, comments, and identifiers always in English)
 2. Include clear usage examples and installation instructions
-3. Follow the LANGUAGE POLICY above on every tool call. Every `message` is an engagement-log entry written in `{{.Lang}}`; every delegation `question`, search query, vector-store payload, runtime command, source-code-bearing field, and the closing `{{.CodeResultToolName}}.result` stay on the technical channel in English
+3. Follow the LANGUAGE POLICY above on every tool call. Every `message` is an engagement-log entry written in `{{.Lang}}`; the vector store is written and queried in `{{.Lang}}` while source code, comments and identifiers stay in English; every delegation `question`, external search query, runtime command, source-code-bearing field, and the closing `{{.CodeResultToolName}}.result` stay on the technical channel in English
 4. Document any dependencies, limitations or edge cases
 5. Closing entries: you MUST use the `{{.CodeResultToolName}}` tool — `result` is the technical-channel code-development write-up consumed by the calling agent (English), `message` is the engagement-log closing summary (`{{.Lang}}`)
 

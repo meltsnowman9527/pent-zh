@@ -280,7 +280,7 @@ function Flow() {
                             controller={flowNav}
                             renderItem={renderFlowItem}
                             sheetIcon={<GitFork className="size-4" />}
-                            sheetTitle="Flows"
+                            sheetTitle={uiText('Flows')}
                         />
                     )}
                     {flowId && !isMobile && (
@@ -324,7 +324,7 @@ function Flow() {
                                         <div className="-my-1.5 -mr-2 ml-auto flex items-center">
                                             <DetailNavigationButtons<FlowItem>
                                                 controller={flowNav}
-                                                sheetTitle="Flows"
+                                                sheetTitle={uiText('Flows')}
                                                 size="sm"
                                             />
                                         </div>
@@ -400,7 +400,7 @@ function Flow() {
                     controller={flowNav}
                     renderItem={renderFlowItem}
                     sheetIcon={<GitFork className="size-4" />}
-                    sheetTitle="Flows"
+                    sheetTitle={uiText('Flows')}
                 />
             )}
             <div className="relative flex h-[calc(100dvh-3rem)] w-full max-w-full flex-1">

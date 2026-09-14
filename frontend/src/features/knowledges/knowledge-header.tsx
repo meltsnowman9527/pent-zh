@@ -201,7 +201,7 @@ export function KnowledgeHeader({
                             controller={knowledgeNav}
                             renderItem={renderKnowledgeItem}
                             sheetIcon={<LibraryBig className="size-4" />}
-                            sheetTitle="Knowledges"
+                            sheetTitle={uiText('Knowledges')}
                         />
                     )}
                     {canAnonymize && !isMobile && (
@@ -268,7 +268,7 @@ export function KnowledgeHeader({
                                         <div className="-my-1.5 -mr-2 ml-auto flex items-center">
                                             <DetailNavigationButtons<Knowledge>
                                                 controller={knowledgeNav}
-                                                sheetTitle="Knowledges"
+                                                sheetTitle={uiText('Knowledges')}
                                                 size="sm"
                                             />
                                         </div>
@@ -335,7 +335,7 @@ export function KnowledgeHeader({
                     controller={knowledgeNav}
                     renderItem={renderKnowledgeItem}
                     sheetIcon={<LibraryBig className="size-4" />}
-                    sheetTitle="Knowledges"
+                    sheetTitle={uiText('Knowledges')}
                 />
             )}
             <ConfirmationDialog

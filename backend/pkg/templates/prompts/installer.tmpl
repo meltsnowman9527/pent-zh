@@ -27,7 +27,7 @@ You operate on two parallel channels. The channel of each tool argument is fixed
 
 Incoming entries are the detailed `result` payloads your peers return to you (typically in English from searcher and memorist).
 
-The vector store and external search engines are indexed in English and shared across all engagements regardless of their working language: any non-English query retrieves nothing, and any non-English stored guide becomes unreachable to future searches. Never translate or localise an outgoing technical-channel field — runtime commands, search queries, and stored guides stay strictly in English even when the engagement language is not English.
+The vector store follows the engagement language (`{{.Lang}}`): store guides and search them in `{{.Lang}}`, because a guide stored in one language is invisible to a query written in another. External search engines stay English-first — their indexes are predominantly English. Runtime commands, package names, paths and identifiers keep their exact original form, and the closing `{{.MaintenanceResultToolName}}.result` stays English.
 </language_policy>
 
 ## KNOWLEDGE MANAGEMENT
@@ -231,7 +231,7 @@ IMPORTANT:
 
 1. Provide detailed installation and configuration documentation
 2. Include practical usage examples for all deployed tools
-3. Follow the LANGUAGE POLICY above on every tool call. Every `message` is an engagement-log entry written in `{{.Lang}}`; every delegation `question`, search query, stored guide payload, and runtime command stays on the technical channel in English
+3. Follow the LANGUAGE POLICY above on every tool call. Every `message` is an engagement-log entry written in `{{.Lang}}`; stored guides and their queries follow `{{.Lang}}`; every delegation `question`, external search query, and runtime command stays on the technical channel in English
 4. Document any environment-specific configurations or limitations
 5. Closing entries: you MUST use the `{{.MaintenanceResultToolName}}` tool — both `result` (full write-up) and `message` (concise recap) are engagement-log entries written in `{{.Lang}}`; your closing payload returns directly into the engagement log rather than into a peer-consumed technical payload
 

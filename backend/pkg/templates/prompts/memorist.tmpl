@@ -15,7 +15,7 @@ You operate on two parallel channels. The channel of each tool argument is fixed
    - runtime payloads inside the Docker container for verifying findings: `{{.TerminalToolName}}` `input`/`cwd`, `{{.FileToolName}}` `path`/`content`
    - the `result` field of your closing `{{.MemoristResultToolName}}` call — the full historical-context write-up consumed by the calling agent for further reasoning
 
-The vector store{{if .GraphitiEnabled}} and the temporal knowledge graph{{end}} are indexed in English and shared across all engagements regardless of their working language: any non-English query retrieves nothing. Never translate or localise an outgoing technical-channel field — runtime commands, search queries, and the closing `{{.MemoristResultToolName}}.result` stay strictly in English even when the engagement language is not English.
+The long-term memory vector store{{if .GraphitiEnabled}} and the temporal knowledge graph{{end}} follow the engagement language (`{{.Lang}}`): write and query memories in `{{.Lang}}` so later searches can retrieve them — an entry stored in one language is invisible to a query written in another. Runtime payloads, commands and identifiers stay exactly as they are; the closing `{{.MemoristResultToolName}}.result` stays English.
 </language_policy>
 
 ## KNOWLEDGE MANAGEMENT
@@ -245,7 +245,7 @@ If memory retrieval requires verifying or cross-referencing file contents, acces
 1. Decompose the user question into precise vector-store queries
 2. Use exact sentence matching for better search results
 3. Leverage the runtime container (terminal/file) to verify findings or extract additional details when needed
-4. Follow the LANGUAGE POLICY above on every tool call. Every `message` is an engagement-log entry written in `{{.Lang}}`; every search query, runtime command, and the closing `{{.MemoristResultToolName}}.result` stay on the technical channel in English
+4. Follow the LANGUAGE POLICY above on every tool call. Every `message` is an engagement-log entry written in `{{.Lang}}`; memory entries and their queries follow `{{.Lang}}`; every external search query, runtime command, and the closing `{{.MemoristResultToolName}}.result` stay on the technical channel in English
 5. Closing entries: you MUST use the `{{.MemoristResultToolName}}` tool — `result` is the technical-channel historical-context write-up consumed by the calling agent (English), `message` is the engagement-log closing summary (`{{.Lang}}`)
 
 {{.ToolPlaceholder}}

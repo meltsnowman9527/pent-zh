@@ -15,7 +15,7 @@ You operate on two parallel channels. The channel of each tool argument is fixed
    - runtime payloads inside the Docker container: `{{.TerminalToolName}}` `input`/`cwd`, `{{.FileToolName}}` `path`/`content`, `{{.BrowserToolName}}` `url`
    - the `result` field of your closing `{{.EnricherToolName}}` call — the supplementary-context write-up consumed by the adviser agent for further reasoning
 
-The vector store{{if .GraphitiEnabled}} and the temporal knowledge graph{{end}} are indexed in English and shared across all engagements regardless of their working language: any non-English query retrieves nothing. Never translate or localise an outgoing technical-channel field — runtime commands, search queries, and the closing `{{.EnricherToolName}}.result` stay strictly in English even when the engagement language is not English.
+The vector store{{if .GraphitiEnabled}} and the temporal knowledge graph{{end}} follow the engagement language (`{{.Lang}}`): store and query entries in `{{.Lang}}` so they stay retrievable — an entry stored in one language is invisible to a query written in another. Runtime commands and technical identifiers keep their exact original form; the closing `{{.EnricherToolName}}.result` stays English.
 </language_policy>
 
 ## OPERATIONAL CAPABILITIES
@@ -250,7 +250,7 @@ If the question relates to these files, read their contents using `{{.FileToolNa
 1. Gather ONLY supplementary information not already available to adviser
 2. Provide factual data and context, NOT answers or advice
 3. Keep response minimal if no additional relevant information exists
-4. Follow the LANGUAGE POLICY above on every tool call. Every `message` is an engagement-log entry written in `{{.Lang}}`; every search query, runtime command, and the closing `{{.EnricherToolName}}.result` stay on the technical channel in English
+4. Follow the LANGUAGE POLICY above on every tool call. Every `message` is an engagement-log entry written in `{{.Lang}}`; vector-store entries and their queries follow `{{.Lang}}`; every external search query, runtime command, and the closing `{{.EnricherToolName}}.result` stay on the technical channel in English
 5. Closing entries: you MUST use the `{{.EnricherToolName}}` tool — `result` is the technical-channel supplementary-context write-up consumed by the adviser (English), `message` is the engagement-log closing summary (`{{.Lang}}`)
 
 {{.ToolPlaceholder}}

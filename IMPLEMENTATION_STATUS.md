@@ -136,6 +136,20 @@
 
 验证：`pnpm test` **1389 通过 / 16 跳过 / 0 失败**；`eslint`、`tsc -b`、生产构建通过；镜像重建并部署（容器 14:00:41），`http://localhost:8443` 返回 200，容器内 `index.html` 与本地 `dist` 一致（md5 `10d923bda53e80ae33002a590e4c18e7`）。
 
+### 提示词模板与知识库语言（2026-09-14 晚）
+
+用户反馈两点：新建提示词模板时看到的全是英文；知识库里生成的内容是英文。
+
+- **模板预设汉化**：`frontend/src/pages/templates/template.tsx` 内置的 11 个预设模板（标题 + 正文）整体译为中文，保留 `{{TARGET_URL}}`、`{{DOMAIN_NAME}}` 等占位符与「行动方案 1..N」结构。这不只是显示问题——预设正文就是插入任务框的任务描述，中文描述会让语言检测（`language_chooser`）判定为中文，进而让 engagement log、报告与知识库都走中文。
+- **知识库内容语言改为跟随流程语言**：此前所有向量库（答案 / 指南 / 代码 / 长期记忆 / 知识图谱）都被强制英文，依据是上游"英文索引、跨流程共享"的设计。本部署是单一中文使用者，且向量模型（百炼 `qwen3.7-text-embedding`）中文效果良好，因此把策略改为：**向量库的写入内容与查询都使用该流程的语言（`{{.Lang}}`）**，前提是"写什么语言就用什么语言查"——否则存进去也检索不到。改动落点：
+  - 提示词：`searcher` / `memorist` / `enricher` / `coder` / `pentester` / `installer` / `assistant` 的 `<language_policy>` 及其末尾"Follow the LANGUAGE POLICY"清单条目。
+  - 工具参数说明（模型实际读到的字段文档）：`backend/pkg/tools/args.go` 中 `SearchInMemory.Questions`、`SearchGuide/StoreGuide`、`SearchAnswer/StoreAnswer`、`SearchCode/StoreCode`（含 `Explanation`/`Description`/`Question`）、`GraphitiSearch.Query` 共 12 处，从"必须英文"改为"使用系统提示声明的流程语言"。
+  - **保持不变（仍为英文）**：外部搜索引擎查询（其索引以英文为主）、运行命令、源码与标识符，以及 agent 之间传递的 `result`/`question` 技术载荷。
+  - 影响：库里此前的英文条目将无法被中文查询命中（当前向量库为空，无历史负担）；若以后要混用中英文，需要同时用两种语言写入与查询。
+- **顺带修复**：详情导航面板的标题此前是把 `sheetTitle="Templates"/"Flows"/"Knowledges"` 直接渲染（含两处 aria-label），现改为 `uiText(...)`；`table-copy-hygiene` 守卫新增 `sheetTitle="…"` 规则，并把该用例超时放宽到 30 秒（全量并行时读文件偶发超过默认 5 秒，曾误报一次超时失败，并非真实违规）。
+
+验证：`pnpm test` **1389 通过 / 16 跳过 / 0 失败**；`eslint`、`tsc -b`、生产构建通过；后端 `go build ./...` 与 `go test ./pkg/templates/... ./pkg/tools/...` 及 `go test -race`（controller / services / graph / database / converter / knowledge）全部通过；镜像重建并部署（容器 14:40:18），`http://localhost:8443` 返回 200，容器内 `dist` 与本地一致（md5 `9314d60119c2a820645178f9571a473f`）；前端产物可检索到中文预设（「Web 应用安全测试」「内网渗透测试」「行动方案」等）。**接口复核**：调用 `settingsPrompts` 取回运行中实例下发的 searcher / memorist / pentester 提示词，确认包含新的「follows the engagement language」策略且已不含旧的 `indexed in English`。
+
 ## 扫描口径说明
 
 统计“还剩多少英文文案”时必须扫描 `frontend/src` 下的**全部**非测试 `.ts` 与 `.tsx`（只扫 `.tsx` 会漏掉路由标题注册表、API 层、上传校验与资源/文件操作 hook 里的用户可见文案），并把已出现的 `uiText(...)` 调用遮蔽后再匹配，不能跳过已接入文案表的文件：早期版本跳过这些文件，导致 `flow-files.tsx`、`flow-assistant-messages.tsx`、`flows.tsx` 等已接入文案表的文件里剩余的英文没有被统计，进度被高估。匹配要覆盖五类：JSX 文本节点（单行与多行）、常见属性值（含自定义属性）、字符串字面量、**反引号模板字面量**（toast 描述、无障碍名、确认句大量藏在这里），以及把选项名拼进 `aria-label` 的位置。另外两类第九批仍未覆盖，统计时不能省：一是被行内 `<code>` 切开的描述句，`>` 规则只能匹配紧跟标签后的第一段，`</code>` 之后的英文尾巴要单独搜索；二是徽标、下拉项里由数据驱动的显示标签（如令牌状态 `active`/`revoked`/`expired`），它们不是“大写单词开头的句子”，需要按“界面可能出现的英文单词”回查。匹配 `>` 时还要排除箭头函数与注释：前一字符是 `=` 或 `-` 的候选要剔除，否则 `() => ...` 与行内注释里的英文会淹没结果。加入新文案时，词条去重要同时检查 `'Key':` 与裸标识符 `Key:` 两种写法，否则会写出重复键，`tsc` 会以 TS1117 报错。
