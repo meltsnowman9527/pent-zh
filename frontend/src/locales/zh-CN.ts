@@ -190,6 +190,7 @@ const messages = {
     'Copy resource': '复制资源',
     "Copy this token now. You won't be able to see it again for security reasons.":
         '请立即复制该令牌。出于安全原因，之后将无法再次查看。',
+    'Copy to…': '复制到…',
     'Copy to clipboard': '复制到剪贴板',
     'Copy Token': '复制令牌',
     'Copy token ID': '复制令牌 ID',
@@ -436,9 +437,9 @@ const messages = {
     'Flow #{id}': '任务流程 #{id}',
     'Flow #{id} — {title}': '任务流程 #{id} — {title}',
     'Flow actions': '任务流程操作',
-    'Flow deleted successfully': '任务流程已删除',
+    'Flow deleted successfully': '删除请求已受理，清理完成后将移除任务',
     'Flow Execution Details': '任务流程执行明细',
-    'Flow finished successfully': '任务流程已结束',
+    'Flow finished successfully': '结束请求已受理，正在清理资源',
     'Flow not found': '未找到该任务流程',
     'Flow permanently deleted': '任务流程已彻底删除',
     'Flow renamed successfully': '任务流程已重命名',
@@ -1100,6 +1101,7 @@ const messages = {
     '{lang} language': '{lang} 语言',
     '{name} (Copy)': '{name}（副本）',
     '{tab} prompt': '{tab}提示词',
+    'Move to…': '移动到…',
 } as const;
 
 export function uiText(key: keyof typeof messages, params?: Record<string, number | string>): string {

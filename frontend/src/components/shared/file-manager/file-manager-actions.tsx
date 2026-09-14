@@ -115,7 +115,7 @@ export const bulkMoveAction = (
 ): FileManagerBulkAction => ({
     icon: FileSymlink,
     id: '__builtin_bulk_move',
-    label: options.label ?? 'Move to…',
+    label: options.label ?? uiText('Move to…'),
     onSelect: onMove,
     overflow: options.overflow,
 });
@@ -130,7 +130,7 @@ export const bulkCopyAction = (
 ): FileManagerBulkAction => ({
     icon: Copy,
     id: '__builtin_bulk_copy',
-    label: options.label ?? 'Copy to…',
+    label: options.label ?? uiText('Copy to…'),
     onSelect: onCopy,
     overflow: options.overflow,
 });

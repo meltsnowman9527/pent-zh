@@ -189,7 +189,7 @@ export function FlowsProvider({ children }: FlowsProviderProps) {
                     variables: { flowId },
                 });
 
-                toast.success('删除请求已受理，清理完成后将移除任务', {
+                toast.success(uiText('Flow deleted successfully'), {
                     description: flowDescription,
                     id: loadingToastId,
                 });
@@ -232,7 +232,7 @@ export function FlowsProvider({ children }: FlowsProviderProps) {
                     variables: { flowId },
                 });
 
-                toast.success('结束请求已受理，正在清理资源', {
+                toast.success(uiText('Flow finished successfully'), {
                     description: flowDescription,
                     id: loadingToastId,
                 });

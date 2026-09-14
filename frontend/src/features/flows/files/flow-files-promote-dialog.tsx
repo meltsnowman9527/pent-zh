@@ -268,7 +268,7 @@ function FlowFilesPromoteDialogForm({ files, flowId, onClose }: FlowFilesPromote
                                 }}
                                 overwriteLabel={overwriteCtaLabel}
                                 primaryIcon={BookmarkPlus}
-                                primaryLabel="Save"
+                                primaryLabel={uiText('Save')}
                                 primaryType="submit"
                             />
                         </div>

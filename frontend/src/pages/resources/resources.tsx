@@ -329,7 +329,7 @@ function Resources() {
                 appliesToDirs: true,
                 icon: Copy,
                 id: 'resources-copy',
-                label: 'Copy to…',
+                label: uiText('Copy to…'),
                 onSelect: (file) => setFilesToCopy([file]),
             },
             deleteAction(deletion.requestDelete),
