@@ -22,8 +22,8 @@
 
 - `.env` 中 `PENTAGI_IMAGE=pentagi-local:latest`，本地镜像由 `Dockerfile.local` 从当前源码构建，构建过程包含 `go test -race ./pkg/controller`。
 - 入口为 HTTP：`.env` 中 `SERVER_USE_SSL=false`、`SERVER_PORT=8443`，`PUBLIC_URL` 与 `CORS_ORIGINS` 均为 `http://localhost:8443`；`PENTAGI_LISTEN_IP=127.0.0.1` 只监听本机。登录 Cookie 的 `Secure` 标志取自 `c.Request.TLS != nil`，HTTP 下自动省略。
-- `pentagi` 应用容器最近一次重建于 2026-09-14 10:41:48（复核批次：任务生命周期复核修复、界面作业状态、中文化补漏），运行 `pentagi-local:latest`；`pgvector`、`scraper`、`pgexporter` 仍为原配套容器，原数据库卷未替换。
-- 容器内 `/opt/pentagi/fe/index.html` 与本地 `frontend/dist/index.html` 校验值一致（md5 `8c7dd0201561411a48b49697442bc991`），说明运行界面就是当前源码的构建产物。
+- `pentagi` 应用容器最近一次重建于 2026-09-14 11:02:17（用户反馈修复：分析页周/月/季补零与区间文案、流程列表序号列），运行 `pentagi-local:latest`；`pgvector`、`scraper`、`pgexporter` 仍为原配套容器，原数据库卷未替换。
+- 容器内 `/opt/pentagi/fe/index.html` 与本地 `frontend/dist/index.html` 校验值一致（md5 `c15c4e723cccda1b3f261f033c8723cc`），说明运行界面就是当前源码的构建产物。
 - http://localhost:8443 返回 200，HTTPS 不再监听；数据库 `pentagidb` 中保留原有 provider 配置与历史任务。
 
 ## 复核方式

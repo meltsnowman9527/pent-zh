@@ -24,6 +24,7 @@ import {
 import { cn } from '@/lib/utils';
 import { formatCost, formatDuration, formatNumber, formatTokenCount } from '@/lib/utils/format';
 import { uiText } from '@/locales/zh-CN';
+import { fillPeriodDays } from '@/pages/dashboard/analytics-period';
 
 const CHART_COLORS = {
     area1: 'var(--color-chart-1)',
@@ -108,40 +109,72 @@ export function DashboardAnalytics({ period }: { period: UsageStatsPeriod }) {
         return map;
     }, [flowsData?.flows]);
 
+    // The backend groups by day and returns only days that have rows, so every
+    // period used to plot the same single point whenever all activity happened on
+    // one day. Filling the query window makes the week/month/quarter switch
+    // visible on the axis; `empty` below still keys off the raw rows so a period
+    // with no activity keeps its empty state instead of a flat zero chart.
+    const usageRows = usageByPeriodData?.usageStatsByPeriod;
+    const toolcallsRows = toolcallsByPeriodData?.toolcallsStatsByPeriod;
+    const flowsRows = flowsByPeriodData?.flowsStatsByPeriod;
+
     const usageChartData = useMemo(
         () =>
-            [...(usageByPeriodData?.usageStatsByPeriod ?? [])].reverse().map((item) => ({
-                cacheIn: item.stats.totalUsageCacheIn,
-                costIn: item.stats.totalUsageCostIn,
-                costOut: item.stats.totalUsageCostOut,
-                date: item.date,
-                tokensIn: item.stats.totalUsageIn,
-                tokensOut: item.stats.totalUsageOut,
-                totalCost: item.stats.totalUsageCostIn + item.stats.totalUsageCostOut,
-            })),
-        [usageByPeriodData?.usageStatsByPeriod],
+            fillPeriodDays(
+                (usageRows ?? []).map((item) => ({
+                    cacheIn: item.stats.totalUsageCacheIn,
+                    costIn: item.stats.totalUsageCostIn,
+                    costOut: item.stats.totalUsageCostOut,
+                    date: item.date,
+                    tokensIn: item.stats.totalUsageIn,
+                    tokensOut: item.stats.totalUsageOut,
+                    totalCost: item.stats.totalUsageCostIn + item.stats.totalUsageCostOut,
+                })),
+                period,
+                (item) => item.date,
+                (date) => ({
+                    cacheIn: 0,
+                    costIn: 0,
+                    costOut: 0,
+                    date,
+                    tokensIn: 0,
+                    tokensOut: 0,
+                    totalCost: 0,
+                }),
+            ),
+        [period, usageRows],
     );
 
     const toolcallsChartData = useMemo(
         () =>
-            [...(toolcallsByPeriodData?.toolcallsStatsByPeriod ?? [])].reverse().map((item) => ({
-                count: item.stats.totalCount,
-                date: item.date,
-                duration: item.stats.totalDurationSeconds,
-            })),
-        [toolcallsByPeriodData?.toolcallsStatsByPeriod],
+            fillPeriodDays(
+                (toolcallsRows ?? []).map((item) => ({
+                    count: item.stats.totalCount,
+                    date: item.date,
+                    duration: item.stats.totalDurationSeconds,
+                })),
+                period,
+                (item) => item.date,
+                (date) => ({ count: 0, date, duration: 0 }),
+            ),
+        [period, toolcallsRows],
     );
 
     const flowsChartData = useMemo(
         () =>
-            [...(flowsByPeriodData?.flowsStatsByPeriod ?? [])].reverse().map((item) => ({
-                assistants: item.stats.totalAssistantsCount,
-                date: item.date,
-                flows: item.stats.totalFlowsCount,
-                subtasks: item.stats.totalSubtasksCount,
-                tasks: item.stats.totalTasksCount,
-            })),
-        [flowsByPeriodData?.flowsStatsByPeriod],
+            fillPeriodDays(
+                (flowsRows ?? []).map((item) => ({
+                    assistants: item.stats.totalAssistantsCount,
+                    date: item.date,
+                    flows: item.stats.totalFlowsCount,
+                    subtasks: item.stats.totalSubtasksCount,
+                    tasks: item.stats.totalTasksCount,
+                })),
+                period,
+                (item) => item.date,
+                (date) => ({ assistants: 0, date, flows: 0, subtasks: 0, tasks: 0 }),
+            ),
+        [period, flowsRows],
     );
 
     const executionStats = executionStatsData?.flowsExecutionStatsByPeriod ?? [];
@@ -155,7 +188,7 @@ export function DashboardAnalytics({ period }: { period: UsageStatsPeriod }) {
         <div className="flex flex-col gap-6">
             <ChartCard
                 description={uiText('Flows, tasks, and subtasks created per day')}
-                empty={!flowsByPeriodLoading && flowsChartData.length === 0}
+                empty={!flowsByPeriodLoading && (flowsRows?.length ?? 0) === 0}
                 error={!!flowsByPeriodError}
                 height={320}
                 loading={flowsByPeriodLoading}
@@ -215,7 +248,7 @@ export function DashboardAnalytics({ period }: { period: UsageStatsPeriod }) {
             <div className="grid gap-6 lg:grid-cols-2">
                 <ChartCard
                     description={uiText('Number of tool executions per day')}
-                    empty={!toolcallsByPeriodLoading && toolcallsChartData.length === 0}
+                    empty={!toolcallsByPeriodLoading && (toolcallsRows?.length ?? 0) === 0}
                     error={!!toolcallsByPeriodError}
                     loading={toolcallsByPeriodLoading}
                     title={uiText('Tool Calls Over Time')}
@@ -261,7 +294,7 @@ export function DashboardAnalytics({ period }: { period: UsageStatsPeriod }) {
 
                 <ChartCard
                     description={uiText('Input and output tokens processed daily')}
-                    empty={!usageByPeriodLoading && usageChartData.length === 0}
+                    empty={!usageByPeriodLoading && (usageRows?.length ?? 0) === 0}
                     error={!!usageByPeriodError}
                     loading={usageByPeriodLoading}
                     title={uiText('Token Usage Over Time')}
@@ -321,7 +354,7 @@ export function DashboardAnalytics({ period }: { period: UsageStatsPeriod }) {
                 description={uiText(
                     'LLM spending per day. May stay near zero when using local engines — this is expected.',
                 )}
-                empty={!usageByPeriodLoading && usageChartData.length === 0}
+                empty={!usageByPeriodLoading && (usageRows?.length ?? 0) === 0}
                 error={!!usageByPeriodError}
                 height={240}
                 loading={usageByPeriodLoading}

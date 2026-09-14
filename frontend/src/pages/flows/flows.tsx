@@ -46,6 +46,8 @@ import { uiText } from '@/locales/zh-CN';
 import { useFavorites } from '@/providers/favorites-provider';
 import { type Flow, useFlows } from '@/providers/flows-provider';
 
+import { flowRowNumber } from './flow-row-number';
+
 const statusConfig: Record<
     StatusType,
     { label: string; variant: 'default' | 'destructive' | 'outline' | 'secondary' }
@@ -176,6 +178,29 @@ function Flows() {
 
     const columns: ColumnDef<Flow>[] = useMemo(
         () => [
+            {
+                // Display-only row number. Flow ids come from a PostgreSQL
+                // sequence and are never reused, so soft-deleting a flow leaves a
+                // gap in the `id` column; this column numbers the rows that are
+                // actually on screen (current page, current sort/filter order).
+                cell: ({ row, table }) => {
+                    const { pageIndex, pageSize } = table.getState().pagination;
+                    const position = table.getRowModel().rows.findIndex((item) => item.id === row.id);
+
+                    return (
+                        <div className="text-muted-foreground font-mono text-sm">
+                            {flowRowNumber(pageIndex, pageSize, position)}
+                        </div>
+                    );
+                },
+                enableHiding: false,
+                enableSorting: false,
+                header: () => <span className="text-muted-foreground text-xs">{uiText('Row number')}</span>,
+                id: 'rowNumber',
+                maxSize: 70,
+                minSize: 48,
+                size: 56,
+            },
             {
                 accessorKey: 'id',
                 cell: ({ row }) => <div className="font-mono text-sm">{row.getValue('id')}</div>,

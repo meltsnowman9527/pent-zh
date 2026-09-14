@@ -7,6 +7,7 @@ import { UsageStatsPeriod } from '@/graphql/types';
 import { usePageStorageKeys } from '@/hooks/use-page-storage-keys';
 import { cn } from '@/lib/utils';
 import { uiText } from '@/locales/zh-CN';
+import { periodDayCount } from '@/pages/dashboard/analytics-period';
 import { DashboardAnalytics } from '@/pages/dashboard/dashboard-analytics';
 import { DashboardOverview } from '@/pages/dashboard/dashboard-overview';
 
@@ -94,29 +95,34 @@ function Dashboard() {
                         </TabsList>
 
                         {activeTab === 'analytics' && (
-                            <Tabs
-                                onValueChange={handlePeriodChange}
-                                value={period}
-                            >
-                                <TabsList>
-                                    {periodOptions.map(({ label, value }) => (
-                                        <TabsTrigger
-                                            aria-label={label}
-                                            className="size-7 px-0 sm:size-auto sm:px-3"
-                                            key={value}
-                                            value={value}
-                                        >
-                                            <span
-                                                aria-hidden="true"
-                                                className="sm:hidden"
+                            <div className="flex items-center gap-2">
+                                <span className="text-muted-foreground hidden text-xs sm:inline">
+                                    {uiText('Last {days} days', { days: periodDayCount(period) })}
+                                </span>
+                                <Tabs
+                                    onValueChange={handlePeriodChange}
+                                    value={period}
+                                >
+                                    <TabsList>
+                                        {periodOptions.map(({ label, value }) => (
+                                            <TabsTrigger
+                                                aria-label={label}
+                                                className="size-7 px-0 sm:size-auto sm:px-3"
+                                                key={value}
+                                                value={value}
                                             >
-                                                {label[0]}
-                                            </span>
-                                            <span className="hidden sm:inline">{label}</span>
-                                        </TabsTrigger>
-                                    ))}
-                                </TabsList>
-                            </Tabs>
+                                                <span
+                                                    aria-hidden="true"
+                                                    className="sm:hidden"
+                                                >
+                                                    {label[0]}
+                                                </span>
+                                                <span className="hidden sm:inline">{label}</span>
+                                            </TabsTrigger>
+                                        ))}
+                                    </TabsList>
+                                </Tabs>
+                            </div>
                         )}
                     </div>
 

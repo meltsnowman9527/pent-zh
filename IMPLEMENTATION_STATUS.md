@@ -74,6 +74,12 @@
   - 仍未做：浏览器逐页走查（中文变长造成的截断、换行、按钮宽度与图标按钮布局）、报告/PDF 固定标题核对、读屏实测、p95 响应基线与慢模型/慢 Docker/故障注入验收。
   - 复现日志：`build/frontend-tests-verify.log`、`build/frontend-build-verify.log`、`build/backend-review-tests-verify.log`、`build/db-integration-verify.log`、`build/application-build-verify.log`（`build/` 不入库）。真库集成测试的可运行迁移脚本放在 `backend/tmp/migrate-review/main.go`（同样不入库）。
 
+### 用户反馈修复（2026-09-14 下午）
+
+- 概览「分析」的周/月/季切换在界面上"点了没反应"：后端按 period 正确切到 7/30/90 天窗口，但 SQL 只返回**有数据的日期**（`GROUP BY DATE(created_at)`，不补零），而库里全部数据都在 9 月 12 日，因此三个区间返回完全相同的单点。新增 `frontend/src/pages/dashboard/analytics-period.ts`（含测试）：按所选区间生成连续日期轴并把缺失日期补 0；区间外的返回行不会被丢弃。同时在周期切换旁显示「最近 7/30/90 天」。空状态仍以原始返回行数为准，不会把"无活动"画成一条零线。
+- 任务流程列表新增「序号」列（`frontend/src/pages/flows/flow-row-number.ts` 含测试）：删除流程是软删除（`deleted_at`），ID 由 PostgreSQL 序列分配且不复用，因此删除后编号会出现空档（当前库里 1、2 已软删除，只剩 3，新建流程会得到 4）。序号列显示当前页、当前排序/筛选下的连续行号，物理 `id` 列保持不变，报告与证据引用不受影响。这是展示层改动，不是数据库语义变更。
+- 验证：`pnpm test` **1382 通过 / 16 跳过 / 0 失败**（新增 10 项）；`eslint --max-warnings 0` 退出码 0；`tsc -b` 通过；`vite build` 通过；`pentagi-local:latest` 重建并于 11:02:17 替换 `pentagi` 容器，容器内 `/opt/pentagi/fe/index.html` 与本地 `frontend/dist/index.html` 校验值一致（md5 `c15c4e723cccda1b3f261f033c8723cc`），`http://localhost:8443` 返回 200。
+
 ## 扫描口径说明
 
 统计“还剩多少英文文案”时必须扫描 `frontend/src` 下的**全部**非测试 `.ts` 与 `.tsx`（只扫 `.tsx` 会漏掉路由标题注册表、API 层、上传校验与资源/文件操作 hook 里的用户可见文案），并把已出现的 `uiText(...)` 调用遮蔽后再匹配，不能跳过已接入文案表的文件：早期版本跳过这些文件，导致 `flow-files.tsx`、`flow-assistant-messages.tsx`、`flows.tsx` 等已接入文案表的文件里剩余的英文没有被统计，进度被高估。匹配要覆盖五类：JSX 文本节点（单行与多行）、常见属性值（含自定义属性）、字符串字面量、**反引号模板字面量**（toast 描述、无障碍名、确认句大量藏在这里），以及把选项名拼进 `aria-label` 的位置。另外两类第九批仍未覆盖，统计时不能省：一是被行内 `<code>` 切开的描述句，`>` 规则只能匹配紧跟标签后的第一段，`</code>` 之后的英文尾巴要单独搜索；二是徽标、下拉项里由数据驱动的显示标签（如令牌状态 `active`/`revoked`/`expired`），它们不是“大写单词开头的句子”，需要按“界面可能出现的英文单词”回查。匹配 `>` 时还要排除箭头函数与注释：前一字符是 `=` 或 `-` 的候选要剔除，否则 `() => ...` 与行内注释里的英文会淹没结果。加入新文案时，词条去重要同时检查 `'Key':` 与裸标识符 `Key:` 两种写法，否则会写出重复键，`tsc` 会以 TS1117 报错。
