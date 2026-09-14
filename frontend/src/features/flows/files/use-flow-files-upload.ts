@@ -38,8 +38,11 @@ const buildUploadSuccessMessage = (uploadedCount: number, firstFileName?: string
     }
 
     return {
-        description: `${uploadedCount} files are now available under ${UPLOADS_TARGET_DIRECTORY}`,
-        title: `${uploadedCount} files uploaded`,
+        description: uiText('{count} files are now available under {dir}', {
+            count: uploadedCount,
+            dir: UPLOADS_TARGET_DIRECTORY,
+        }),
+        title: uiText('{count} files uploaded', { count: uploadedCount }),
     };
 };
 

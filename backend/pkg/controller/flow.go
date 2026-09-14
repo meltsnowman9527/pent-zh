@@ -246,6 +246,9 @@ func NewFlowWorker(
 	if err != nil {
 		return nil, wrapErrorEndSpan(ctx, flowSpan, "failed to create flow tools executor", err)
 	}
+	if fwc.recording != nil {
+		fwc.recording.persist(ctx, "probing_provider")
+	}
 	flowProvider, err := fwc.provs.NewFlowProvider(
 		ctx, fwc.prvname, prompter, executor, flow.ID, fwc.userID, fwc.cfg.AskUser, fwc.input,
 	)
@@ -335,6 +338,9 @@ func NewFlowWorker(
 		}),
 	}
 
+	if fwc.recording != nil {
+		fwc.recording.persist(ctx, "preparing_docker")
+	}
 	if err := executor.Prepare(ctx); err != nil {
 		return nil, wrapErrorEndSpan(ctx, flowSpan, "failed to prepare flow resources", err)
 	}

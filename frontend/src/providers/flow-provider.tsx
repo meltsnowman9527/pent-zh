@@ -34,6 +34,7 @@ import {
     TerminalLogAddedDocument,
     VectorStoreLogAddedDocument,
 } from '@/graphql/types';
+import { localizeUiErrorText } from '@/lib/errors';
 import { isNotFoundError } from '@/lib/errors';
 import { Log } from '@/lib/log';
 import { uiText } from '@/locales/zh-CN';
@@ -233,7 +234,9 @@ export function FlowProvider({ children }: FlowProviderProps) {
                 });
             } catch (error) {
                 const description =
-                    error instanceof Error ? error.message : uiText('An error occurred while submitting message');
+                    error instanceof Error
+                        ? localizeUiErrorText(error.message)
+                        : uiText('An error occurred while submitting message');
                 toast.error(uiText('Failed to submit message'), {
                     description,
                 });
@@ -256,7 +259,9 @@ export function FlowProvider({ children }: FlowProviderProps) {
             });
         } catch (error) {
             const description =
-                error instanceof Error ? error.message : uiText('An error occurred while stopping flow');
+                error instanceof Error
+                    ? localizeUiErrorText(error.message)
+                    : uiText('An error occurred while stopping flow');
             toast.error(uiText('Failed to stop flow'), {
                 description,
             });
@@ -295,7 +300,9 @@ export function FlowProvider({ children }: FlowProviderProps) {
                 }
             } catch (error) {
                 const description =
-                    error instanceof Error ? error.message : uiText('An error occurred while creating assistant');
+                    error instanceof Error
+                        ? localizeUiErrorText(error.message)
+                        : uiText('An error occurred while creating assistant');
                 toast.error('Failed to create assistant', {
                     description,
                 });
@@ -327,7 +334,9 @@ export function FlowProvider({ children }: FlowProviderProps) {
                 });
             } catch (error) {
                 const description =
-                    error instanceof Error ? error.message : uiText('An error occurred while calling assistant');
+                    error instanceof Error
+                        ? localizeUiErrorText(error.message)
+                        : uiText('An error occurred while calling assistant');
                 toast.error(uiText('Failed to call assistant'), {
                     description,
                 });
@@ -352,7 +361,9 @@ export function FlowProvider({ children }: FlowProviderProps) {
                 });
             } catch (error) {
                 const description =
-                    error instanceof Error ? error.message : uiText('An error occurred while stopping assistant');
+                    error instanceof Error
+                        ? localizeUiErrorText(error.message)
+                        : uiText('An error occurred while stopping assistant');
                 toast.error(uiText('Failed to stop assistant'), {
                     description,
                 });
@@ -386,7 +397,9 @@ export function FlowProvider({ children }: FlowProviderProps) {
                 }
             } catch (error) {
                 const description =
-                    error instanceof Error ? error.message : uiText('An error occurred while deleting assistant');
+                    error instanceof Error
+                        ? localizeUiErrorText(error.message)
+                        : uiText('An error occurred while deleting assistant');
                 toast.error(uiText('Failed to delete assistant'), {
                     description,
                 });

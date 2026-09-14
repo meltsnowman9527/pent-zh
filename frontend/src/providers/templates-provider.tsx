@@ -11,6 +11,7 @@ import {
     FlowTemplateUpdatedDocument,
     UpdateFlowTemplateDocument,
 } from '@/graphql/types';
+import { localizeUiErrorText } from '@/lib/errors';
 import { Log } from '@/lib/log';
 import { uiText } from '@/locales/zh-CN';
 import { useUser } from '@/providers/user-provider';
@@ -101,7 +102,8 @@ export function TemplatesProvider({ children }: TemplatesProviderProps) {
                     },
                 });
             } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : uiText('Failed to create template');
+                const errorMessage =
+                    error instanceof Error ? localizeUiErrorText(error.message) : uiText('Failed to create template');
                 toast.error(uiText('Failed to create template'), {
                     description: errorMessage,
                 });
@@ -125,7 +127,8 @@ export function TemplatesProvider({ children }: TemplatesProviderProps) {
                     },
                 });
             } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : uiText('Failed to update template');
+                const errorMessage =
+                    error instanceof Error ? localizeUiErrorText(error.message) : uiText('Failed to update template');
                 toast.error(uiText('Failed to update template'), {
                     description: errorMessage,
                 });
@@ -145,7 +148,8 @@ export function TemplatesProvider({ children }: TemplatesProviderProps) {
                     },
                 });
             } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : uiText('Failed to delete template');
+                const errorMessage =
+                    error instanceof Error ? localizeUiErrorText(error.message) : uiText('Failed to delete template');
                 toast.error(uiText('Failed to delete template'), {
                     description: errorMessage,
                 });

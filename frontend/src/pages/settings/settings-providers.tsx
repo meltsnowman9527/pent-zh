@@ -28,6 +28,7 @@ import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTi
 import { Spinner } from '@/components/ui/spinner';
 import { DeleteProviderDocument, ProviderType, SettingsProvidersDocument } from '@/graphql/types';
 import { useTableState } from '@/hooks/use-table-state';
+import { localizeUiErrorText } from '@/lib/errors';
 import { routes } from '@/lib/routes';
 import { formatDate } from '@/lib/utils/format';
 import { uiText } from '@/locales/zh-CN';
@@ -129,7 +130,7 @@ function SettingsProviders() {
                 setDeletingProvider(null);
             } catch (error) {
                 toast.error(uiText('Failed to delete provider'), {
-                    description: error instanceof Error ? error.message : undefined,
+                    description: error instanceof Error ? localizeUiErrorText(error.message) : undefined,
                 });
             }
         },

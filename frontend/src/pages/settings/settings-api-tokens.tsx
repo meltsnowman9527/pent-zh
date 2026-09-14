@@ -2,7 +2,7 @@ import type { ColumnDef } from '@tanstack/react-table';
 
 import { useMutation, useQuery, useSubscription } from '@apollo/client/react';
 import { format } from 'date-fns';
-import { enUS } from 'date-fns/locale';
+import { zhCN } from 'date-fns/locale';
 import { CalendarIcon, Check, Copy, Ellipsis, ExternalLink, Key, Pencil, Plus, Trash, X } from 'lucide-react';
 import { useCallback, useId, useMemo, useState } from 'react';
 import { type Control, Controller, useFormState } from 'react-hook-form';
@@ -51,6 +51,7 @@ import {
 } from '@/graphql/types';
 import { useAppForm } from '@/hooks/use-app-form';
 import { useTableState } from '@/hooks/use-table-state';
+import { localizeUiErrorText } from '@/lib/errors';
 import { cn } from '@/lib/utils';
 import { formatDate } from '@/lib/utils/format';
 import { uiText } from '@/locales/zh-CN';
@@ -324,7 +325,7 @@ function SettingsAPITokens() {
                 editForm.reset(EDIT_TOKEN_DEFAULTS);
             } catch (error) {
                 toast.error(uiText('Failed to update token'), {
-                    description: error instanceof Error ? error.message : undefined,
+                    description: error instanceof Error ? localizeUiErrorText(error.message) : undefined,
                 });
             }
         },
@@ -378,7 +379,7 @@ function SettingsAPITokens() {
             createForm.reset(CREATE_TOKEN_DEFAULTS);
         } catch (error) {
             toast.error(uiText('Failed to create token'), {
-                description: error instanceof Error ? error.message : undefined,
+                description: error instanceof Error ? localizeUiErrorText(error.message) : undefined,
             });
         }
     }, [createAPIToken, createForm]);
@@ -403,7 +404,7 @@ function SettingsAPITokens() {
                 setDeletingToken(null);
             } catch (error) {
                 toast.error(uiText('Failed to delete token'), {
-                    description: error instanceof Error ? error.message : undefined,
+                    description: error instanceof Error ? localizeUiErrorText(error.message) : undefined,
                 });
             }
         },
@@ -471,7 +472,7 @@ function SettingsAPITokens() {
 
                     return (
                         <div className="font-medium">
-                            {token.name || <span className="text-muted-foreground font-normal italic">(unnamed)</span>}
+                            {token.name || <span className="text-muted-foreground font-normal italic">{uiText("(unnamed)")}</span>}
                         </div>
                     );
                 },
@@ -607,7 +608,7 @@ function SettingsAPITokens() {
                                             >
                                                 <CalendarIcon className="mr-2 size-4" />
                                                 {field.value ? (
-                                                    format(field.value, 'd MMM yyyy', { locale: enUS })
+                                                    format(field.value, 'yyyy年M月d日', { locale: zhCN })
                                                 ) : (
                                                     <span>{uiText('Pick date')}</span>
                                                 )}

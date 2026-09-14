@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { hasLocalizedApiErrorText, isNotFoundError, knownApiErrorMessages, localizeApiErrorText } from './errors';
+import {
+    hasLocalizedApiErrorText,
+    isNotFoundError,
+    knownApiErrorMessages,
+    localizeApiErrorText,
+    localizeUiErrorText,
+} from './errors';
 
 describe('isNotFoundError', () => {
     it.each(['no rows in result set', 'flow not found', 'template not found: sql: no rows', 'Record Not Found'])(
@@ -63,5 +69,13 @@ describe('localizeApiErrorText', () => {
         expect(localizeApiErrorText(undefined)).toBe('');
         expect(localizeApiErrorText('   ')).toBe('');
         expect(hasLocalizedApiErrorText(null)).toBe(false);
+    });
+});
+describe('UI error fallback', () => {
+    it('translates known failures and contains unknown diagnostics', () => {
+        expect(localizeUiErrorText('network error')).toContain('网络');
+        expect(localizeUiErrorText('unknown provider detail')).toBe('操作未完成，请稍后重试');
+        expect(localizeApiErrorText('unknown provider detail')).toBe('unknown provider detail');
+        expect(localizeUiErrorText('保存失败，请检查输入')).toBe('保存失败，请检查输入');
     });
 });

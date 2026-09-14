@@ -449,10 +449,10 @@ const FlowExecutionItem = memo(function FlowExecutionItem({
                         {flowMeta?.provider?.name && <Badge variant="secondary">{flowMeta.provider.name}</Badge>}
                     </div>
                     <div className="text-muted-foreground mt-0.5 text-xs">
-                        {taskCount} {taskCount === 1 ? 'task' : 'tasks'}
-                        {subtaskCount > 0 && ` · ${subtaskCount} ${subtaskCount === 1 ? 'subtask' : 'subtasks'}`}
+                        {uiText('{count} tasks', { count: taskCount })}
+                        {subtaskCount > 0 && ` · ${uiText('{count} subtasks', { count: subtaskCount })}`}
                         {flow.totalAssistantsCount > 0 &&
-                            ` · ${flow.totalAssistantsCount} ${flow.totalAssistantsCount === 1 ? 'assistant' : 'assistants'}`}
+                            ` · ${uiText('{count} assistants', { count: flow.totalAssistantsCount })}`}
                     </div>
                 </div>
                 <div className="text-muted-foreground flex shrink-0 items-center gap-4 pt-1 text-sm">

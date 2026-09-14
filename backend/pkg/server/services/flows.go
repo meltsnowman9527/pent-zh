@@ -537,7 +537,7 @@ func (s *FlowService) PatchFlow(c *gin.Context) {
 // @Tags Flows
 // @Security BearerAuth
 // @Param flowID path int true "flow id" minimum(0)
-// @Success 200 {object} response.successResp{data=models.Flow} "flow deleted successful"
+// @Success 202 {object} response.successResp{data=models.Flow} "flow deletion accepted; cleanup continues in background"
 // @Failure 403 {object} response.errorResp "deleting flow not permitted"
 // @Failure 404 {object} response.errorResp "flow not found"
 // @Failure 500 {object} response.errorResp "internal error on deleting flow"
@@ -583,61 +583,12 @@ func (s *FlowService) DeleteFlow(c *gin.Context) {
 		return
 	}
 
-	if err := s.fc.FinishFlow(c, int64(flow.ID)); err != nil {
-		logger.FromContext(c).WithError(err).Errorf("error stopping flow")
+	if err := s.fc.DeleteFlow(c, int64(flow.ID)); err != nil {
 		response.Error(c, response.ErrInternal, err)
 		return
 	}
 
-	var containers []models.Container
-	err = s.db.Model(&containers).Where("flow_id = ?", flow.ID).Find(&containers).Error
-	if err != nil {
-		logger.FromContext(c).WithError(err).Errorf("error getting flow containers")
-		response.Error(c, response.ErrInternal, err)
-		return
-	}
-
-	if err = s.db.Scopes(scope).Delete(&flow).Error; err != nil {
-		logger.FromContext(c).WithError(err).Errorf("error deleting flow by id")
-		if gorm.IsRecordNotFoundError(err) {
-			response.Error(c, response.ErrFlowsNotFound, err)
-		} else {
-			response.Error(c, response.ErrInternal, err)
-		}
-		return
-	}
-
-	// Best-effort cleanup: remove accumulated long-term memory documents for this
-	// flow from the vector store. They will never be re-used after the flow is gone.
-	if err := s.db.Exec(
-		`DELETE FROM langchain_pg_embedding
-		 WHERE collection_id = (SELECT uuid FROM langchain_pg_collection WHERE name = 'langchain')
-		   AND COALESCE(cmetadata ->> 'doc_type', '') = 'memory'
-		   AND (cmetadata ->> 'flow_id') = ?`,
-		strconv.FormatUint(flow.ID, 10),
-	).Error; err != nil {
-		logger.FromContext(c).WithError(err).Warnf("failed to clean up memory documents for deleted flow %d", flow.ID)
-	}
-
-	flowDB, err := convertFlowToDatabase(flow)
-	if err != nil {
-		logger.FromContext(c).WithError(err).Errorf("error converting flow to database")
-		response.Error(c, response.ErrInternal, err)
-		return
-	}
-
-	containersDB := make([]database.Container, 0, len(containers))
-	for _, container := range containers {
-		containersDB = append(containersDB, convertContainerToDatabase(container))
-	}
-
-	if s.ss != nil {
-		publisher := s.ss.NewFlowPublisher(int64(flow.UserID), int64(flow.ID))
-		publisher.FlowUpdated(c, flowDB, containersDB)
-		publisher.FlowDeleted(c, flowDB, containersDB)
-	}
-
-	response.Success(c, http.StatusOK, flow)
+	response.Success(c, http.StatusAccepted, flow)
 }
 
 func convertFlowToDatabase(flow models.Flow) (database.Flow, error) {

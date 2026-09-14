@@ -102,7 +102,7 @@ function FlowTask({ searchValue = '', task }: FlowTaskProps) {
                                 value={progress}
                             />
                             <div className="text-muted-foreground shrink-0 text-xs text-nowrap">
-                                {progress}% completed ({completedSubtasksCount} of {subtasks?.length})
+                                {uiText('Completed {percent}% ({done}/{total})', {done:completedSubtasksCount,percent:progress,total:subtasks?.length ?? 0})}
                             </div>
                         </div>
                     )}

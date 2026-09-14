@@ -35,8 +35,10 @@ import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTi
 import { Spinner } from '@/components/ui/spinner';
 import { Toggle } from '@/components/ui/toggle';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { FlowJobStatus, isFlowJobPending } from '@/features/flows/flow-job-status';
 import { RenameFlowDocument, ResultType, StatusType, type TerminalFragmentFragment } from '@/graphql/types';
 import { useTableState } from '@/hooks/use-table-state';
+import { localizeUiErrorText } from '@/lib/errors';
 import { routes } from '@/lib/routes';
 import { mergeHrefWithSearchParams } from '@/lib/url-params';
 import { formatDate } from '@/lib/utils/format';
@@ -144,7 +146,8 @@ function Flows() {
                 setEditingFlowId(null);
             }
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : uiText('Failed to rename flow');
+            const errorMessage =
+                error instanceof Error ? localizeUiErrorText(error.message) : uiText('Failed to rename flow');
             toast.error(errorMessage);
         }
     }, [editingFlowId, renameFlowMutation]);
@@ -229,6 +232,10 @@ function Flows() {
                 cell: ({ row }) => {
                     const status = row.getValue('status') as StatusType;
                     const config = statusConfig[status];
+
+                    if (row.original.lifecycleJob && row.original.lifecycleJob.status !== 'succeeded') {
+                        return <FlowJobStatus job={row.original.lifecycleJob} />;
+                    }
 
                     return (
                         <Badge variant={config.variant}>
@@ -327,7 +334,7 @@ function Flows() {
                                         >
                                             <span className="text-xs">{terminal.image}</span>
                                             <span className="text-muted-foreground text-xs">
-                                                ({terminal.connected ? 'connected' : 'disconnected'})
+                                                ({terminal.connected ? uiText('Connected') : uiText('Disconnected')})
                                             </span>
                                         </div>
                                     ))}
@@ -448,10 +455,16 @@ function Flows() {
                                     </DropdownMenuItem>
                                     {isRunning && (
                                         <DropdownMenuItem
-                                            disabled={finishingFlowIds.has(flow.id)}
+                                            disabled={
+                                                finishingFlowIds.has(flow.id) ||
+                                                (isFlowJobPending(flow.lifecycleJob) &&
+                                                    flow.lifecycleJob?.kind !== 'create')
+                                            }
                                             onClick={() => handleFlowFinish(flow)}
                                         >
-                                            {finishingFlowIds.has(flow.id) ? (
+                                            {finishingFlowIds.has(flow.id) ||
+                                            (isFlowJobPending(flow.lifecycleJob) &&
+                                                flow.lifecycleJob?.kind !== 'create') ? (
                                                 <>
                                                     <Spinner variant="circle" />
                                                     {uiText('Finishing...')}
@@ -466,10 +479,16 @@ function Flows() {
                                     )}
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem
-                                        disabled={deletingFlowIds.has(flow.id)}
+                                        disabled={
+                                            deletingFlowIds.has(flow.id) ||
+                                            (isFlowJobPending(flow.lifecycleJob) &&
+                                                flow.lifecycleJob?.kind !== 'create')
+                                        }
                                         onClick={() => handleFlowDeleteDialogOpen(flow)}
                                     >
-                                        {deletingFlowIds.has(flow.id) ? (
+                                        {deletingFlowIds.has(flow.id) ||
+                                        (isFlowJobPending(flow.lifecycleJob) &&
+                                            flow.lifecycleJob?.kind !== 'create') ? (
                                             <>
                                                 <Spinner variant="circle" />
                                                 {uiText('Deleting...')}
@@ -533,20 +552,32 @@ function Flows() {
 
                     {isRunning && (
                         <ContextMenuItem
-                            disabled={finishingFlowIds.has(flow.id)}
+                            disabled={
+                                finishingFlowIds.has(flow.id) ||
+                                (isFlowJobPending(flow.lifecycleJob) && flow.lifecycleJob?.kind !== 'create')
+                            }
                             onClick={() => handleFlowFinish(flow)}
                         >
                             <Pause />
-                            {finishingFlowIds.has(flow.id) ? uiText('Finishing...') : uiText('Finish')}
+                            {finishingFlowIds.has(flow.id) ||
+                            (isFlowJobPending(flow.lifecycleJob) && flow.lifecycleJob?.kind !== 'create')
+                                ? uiText('Finishing...')
+                                : uiText('Finish')}
                         </ContextMenuItem>
                     )}
                     <ContextMenuSeparator />
                     <ContextMenuItem
-                        disabled={deletingFlowIds.has(flow.id)}
+                        disabled={
+                            deletingFlowIds.has(flow.id) ||
+                            (isFlowJobPending(flow.lifecycleJob) && flow.lifecycleJob?.kind !== 'create')
+                        }
                         onClick={() => handleFlowDeleteDialogOpen(flow)}
                     >
                         <Trash />
-                        {deletingFlowIds.has(flow.id) ? uiText('Deleting...') : uiText('Delete')}
+                        {deletingFlowIds.has(flow.id) ||
+                        (isFlowJobPending(flow.lifecycleJob) && flow.lifecycleJob?.kind !== 'create')
+                            ? uiText('Deleting...')
+                            : uiText('Delete')}
                     </ContextMenuItem>
                 </>
             );

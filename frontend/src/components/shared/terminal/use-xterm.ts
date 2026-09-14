@@ -11,6 +11,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Log } from '@/lib/log';
 import { isMac } from '@/lib/utils/platform';
+import { uiText } from '@/locales/zh-CN';
 
 import { getTerminalTheme, isDarkMode, TERMINAL_OPTIONS } from './terminal-config';
 import { SAFE_PROTOCOLS } from './terminal-sanitizer';
@@ -345,7 +346,7 @@ function showLinkTooltip(container: HTMLElement, event: MouseEvent, uri: string,
 
     const hint = document.createElement('div');
     hint.style.cssText = 'opacity:0.6;font-size:11px;margin-top:2px';
-    hint.textContent = `${mac ? 'Cmd' : 'Ctrl'}+Click to open`;
+    hint.textContent = uiText('{key}+Click to open', { key: mac ? 'Cmd' : 'Ctrl' });
     tooltip.appendChild(hint);
 
     container.style.position = 'relative';

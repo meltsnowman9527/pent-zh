@@ -235,10 +235,7 @@ function ResourcesMoveDialogForm({ files, onClose }: ResourcesMoveDialogFormProp
                                     </FormControl>
                                     <FormDescription>
                                         {isMulti ? (
-                                            <>
-                                                Relative directory inside your library. Leave empty for the root. Each
-                                                item keeps its current filename.
-                                            </>
+                                            <>{uiText("Relative directory inside your library. Leave empty for the root. Each item keeps its current filename.")}</>
                                         ) : (
                                             <>
                                                 {uiText(

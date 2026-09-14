@@ -19,6 +19,7 @@ import { Form } from '@/components/ui/form';
 import { AnonymizeTextDocument, KnowledgeAnswerType, KnowledgeDocType, KnowledgeGuideType } from '@/graphql/types';
 import { useAppForm } from '@/hooks/use-app-form';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
+import { localizeUiErrorText } from '@/lib/errors';
 import { Log } from '@/lib/log';
 import { uiText } from '@/locales/zh-CN';
 import { useUser } from '@/providers/user-provider';
@@ -360,7 +361,9 @@ export function KnowledgeForm({ initialValues, isNew, knowledge, onSubmit }: Kno
             toast.success(uiText('Content anonymized'));
         } catch (error) {
             Log.error('Failed to anonymize content', error);
-            toast.error(error instanceof Error ? error.message : uiText('Failed to anonymize content'));
+            toast.error(
+                error instanceof Error ? localizeUiErrorText(error.message) : uiText('Failed to anonymize content'),
+            );
         } finally {
             setIsAnonymizing(false);
         }

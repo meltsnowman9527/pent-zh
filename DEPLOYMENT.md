@@ -1,6 +1,6 @@
 # 单套部署与更新
 
-按用户最新决定，只保留原来的 PentAGI 部署，访问地址为 https://localhost:8443。后续直接修改当前项目源码，再构建并替换同名 `pentagi` 应用容器。原数据库和其他必要配套服务继续使用，不再创建独立开发部署，也不自动制作备份。
+按用户最新决定，只保留原来的 PentAGI 部署，访问地址为 http://localhost:8443（2026-09-14 起由 HTTPS 改为 HTTP，本机部署不再使用自签证书）。后续直接修改当前项目源码，再构建并替换同名 `pentagi` 应用容器。原数据库和其他必要配套服务继续使用，不再创建独立开发部署，也不自动制作备份。
 
 完整更新命令（在项目目录的 PowerShell 中运行）：
 
@@ -18,16 +18,19 @@
 
 2026-09-13 已撤除开发副本及旧备份。锁修复与第一批中文化保留在源码中，并已于同日 14:06 完成构建与部署。
 
-## 当前部署实况（2026-09-13 复核）
+## 当前部署实况（2026-09-14 复核）
 
 - `.env` 中 `PENTAGI_IMAGE=pentagi-local:latest`，本地镜像由 `Dockerfile.local` 从当前源码构建，构建过程包含 `go test -race ./pkg/controller`。
-- `pentagi` 应用容器最近一次重建于 2026-09-13 17:18:49（中文化残留英文补漏：模型用量卡片标题、文件页无匹配空态、附加资源与从容器拉取弹窗说明、详情导航提示、API 令牌状态标签、复制消息的 Markdown 小标题），运行 `pentagi-local:latest`；`pgvector`、`scraper`、`pgexporter` 仍为原配套容器，原数据库卷未替换。
-- 容器内 `/opt/pentagi/fe/index.html` 与本地 `frontend/dist/index.html` 校验值一致（md5 `56adcc7cbed48967c6dbfba73ef91128`），说明运行界面就是当前源码的构建产物。
-- https://localhost:8443 返回 200；数据库 `pentagidb` 中保留原有 provider 配置与历史任务。
+- 入口为 HTTP：`.env` 中 `SERVER_USE_SSL=false`、`SERVER_PORT=8443`，`PUBLIC_URL` 与 `CORS_ORIGINS` 均为 `http://localhost:8443`；`PENTAGI_LISTEN_IP=127.0.0.1` 只监听本机。登录 Cookie 的 `Secure` 标志取自 `c.Request.TLS != nil`，HTTP 下自动省略。
+- `pentagi` 应用容器最近一次重建于 2026-09-14 10:41:48（复核批次：任务生命周期复核修复、界面作业状态、中文化补漏），运行 `pentagi-local:latest`；`pgvector`、`scraper`、`pgexporter` 仍为原配套容器，原数据库卷未替换。
+- 容器内 `/opt/pentagi/fe/index.html` 与本地 `frontend/dist/index.html` 校验值一致（md5 `8c7dd0201561411a48b49697442bc991`），说明运行界面就是当前源码的构建产物。
+- http://localhost:8443 返回 200，HTTPS 不再监听；数据库 `pentagidb` 中保留原有 provider 配置与历史任务。
 
 ## 复核方式
 
 - `docker ps -a --format '{{.Names}}|{{.Image}}|{{.Status}}'`
+- `docker exec pentagi printenv | Select-String 'SERVER_USE_SSL|PUBLIC_URL'`
 - `docker exec pentagi md5sum /opt/pentagi/fe/index.html` 与本地 `frontend/dist/index.html` 比对
+- `curl.exe -s -o NUL -w "%{http_code}" http://localhost:8443`
 - `docker exec pgvector psql -U postgres -d pentagidb -tAc "select count(*) from flows;"`
 - 后端并发测试：`docker run --rm -v <项目>/backend:/src -w /src golang:1.26.5-bookworm sh -c "go test -race -p 4 ./pkg/controller -timeout 300s"`

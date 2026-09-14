@@ -21,6 +21,8 @@ import { toast } from 'sonner';
 
 import type { DefaultPromptFragmentFragment as DefaultPrompt, PromptType } from '@/graphql/types';
 
+import { localizeUiErrorText } from '@/lib/errors';
+
 type AgentPrompts = { human?: DefaultPrompt; system: DefaultPrompt };
 
 import { AppHeader, AppHeaderContent, AppHeaderTitle } from '@/components/layouts/app/app-header';
@@ -197,7 +199,7 @@ function SettingsPrompts() {
             setResetOperation(null);
         } catch (error) {
             toast.error(uiText('Failed to reset prompt'), {
-                description: error instanceof Error ? error.message : undefined,
+                description: error instanceof Error ? localizeUiErrorText(error.message) : undefined,
             });
         }
     };
@@ -910,8 +912,14 @@ function SettingsPrompts() {
                                 { name: resetOperation.displayName },
                             )
                           : resetOperation?.type === 'all'
-                            ? `Are you sure you want to reset all prompts for "${resetOperation.displayName}"? This will revert both system and human prompts to their default templates and cannot be undone.`
-                            : `Are you sure you want to reset the prompt for "${resetOperation?.displayName}"? This will revert it to the default template and cannot be undone.`
+                            ? uiText(
+                                  'Are you sure you want to reset all prompts for "{name}"? This will revert both system and human prompts to their default templates and cannot be undone.',
+                                  { name: resetOperation.displayName },
+                              )
+                            : uiText(
+                                  'Are you sure you want to reset the prompt for "{name}"? This will revert it to the default template and cannot be undone.',
+                                  { name: resetOperation?.displayName ?? '' },
+                              )
                 }
                 handleConfirm={handleResetPrompt}
                 handleOpenChange={setResetDialogOpen}

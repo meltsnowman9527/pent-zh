@@ -12,8 +12,8 @@ export const resourcesMkdirFormSchema = z.object({
         .string()
         .trim()
         .min(1, { message: uiText('Path cannot be empty') })
-        .refine((value) => !value.startsWith('/'), { message: 'Path must be relative (no leading "/")' })
-        .refine((value) => !value.split('/').includes('..'), { message: 'Path must not contain ".."' }),
+        .refine((value) => !value.startsWith('/'), { message: uiText('Path must be relative (no leading "/")') })
+        .refine((value) => !value.split('/').includes('..'), { message: uiText('Path must not contain ".."') }),
 });
 
 export type ResourcesMkdirFormValues = z.infer<typeof resourcesMkdirFormSchema>;

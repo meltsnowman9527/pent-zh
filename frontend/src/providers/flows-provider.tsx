@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useSubscription } from '@apollo/client/react';
-import { createContext, useCallback, useContext, useMemo } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 
 import type { FlowFormValues } from '@/features/flows/flow-form';
@@ -15,6 +15,7 @@ import {
     FlowsDocument,
     FlowUpdatedDocument,
 } from '@/graphql/types';
+import { localizeUiErrorText } from '@/lib/errors';
 import { Log } from '@/lib/log';
 import { uiText } from '@/locales/zh-CN';
 
@@ -46,8 +47,22 @@ export function FlowsProvider({ children }: FlowsProviderProps) {
         refetch,
     } = useQuery(FlowsDocument, {
         notifyOnNetworkStatusChange: true,
+        pollInterval: 5000,
     });
 
+    useEffect(() => {
+        const refresh = () => {
+            void refetch().catch(() => undefined);
+        };
+
+        window.addEventListener('online', refresh);
+        window.addEventListener('focus', refresh);
+
+        return () => {
+            window.removeEventListener('online', refresh);
+            window.removeEventListener('focus', refresh);
+        };
+    }, [refetch]);
     const flows = useMemo(() => flowsData?.flows ?? [], [flowsData?.flows]);
     // Full-page spinner only while there's nothing to show yet: a background refetch
     // (reconnect sweep) keeps the rendered list, and a retry after a failed initial load
@@ -90,7 +105,9 @@ export function FlowsProvider({ children }: FlowsProviderProps) {
                 return null;
             } catch (error) {
                 const description =
-                    error instanceof Error ? error.message : uiText('An error occurred while creating flow');
+                    error instanceof Error
+                        ? localizeUiErrorText(error.message)
+                        : uiText('An error occurred while creating flow');
                 toast.error(uiText('Failed to create flow'), {
                     description,
                 });
@@ -131,7 +148,9 @@ export function FlowsProvider({ children }: FlowsProviderProps) {
                 return null;
             } catch (error) {
                 const description =
-                    error instanceof Error ? error.message : uiText('An error occurred while creating assistant');
+                    error instanceof Error
+                        ? localizeUiErrorText(error.message)
+                        : uiText('An error occurred while creating assistant');
                 toast.error(uiText('Failed to create assistant'), {
                     description,
                 });
@@ -159,10 +178,11 @@ export function FlowsProvider({ children }: FlowsProviderProps) {
 
             try {
                 await deleteFlowMutation({
+                    refetchQueries: [FlowsDocument],
                     variables: { flowId },
                 });
 
-                toast.success(uiText('Flow deleted successfully'), {
+                toast.success('删除请求已受理，清理完成后将移除任务', {
                     description: flowDescription,
                     id: loadingToastId,
                 });
@@ -170,7 +190,9 @@ export function FlowsProvider({ children }: FlowsProviderProps) {
                 return true;
             } catch (error) {
                 const errorMessage =
-                    error instanceof Error ? error.message : uiText('An error occurred while deleting flow');
+                    error instanceof Error
+                        ? localizeUiErrorText(error.message)
+                        : uiText('An error occurred while deleting flow');
                 toast.error(errorMessage, {
                     description: flowDescription,
                     id: loadingToastId,
@@ -199,10 +221,11 @@ export function FlowsProvider({ children }: FlowsProviderProps) {
 
             try {
                 await finishFlowMutation({
+                    refetchQueries: [FlowsDocument],
                     variables: { flowId },
                 });
 
-                toast.success(uiText('Flow finished successfully'), {
+                toast.success('结束请求已受理，正在清理资源', {
                     description: flowDescription,
                     id: loadingToastId,
                 });
@@ -210,7 +233,9 @@ export function FlowsProvider({ children }: FlowsProviderProps) {
                 return true;
             } catch (error) {
                 const errorMessage =
-                    error instanceof Error ? error.message : uiText('An error occurred while finishing flow');
+                    error instanceof Error
+                        ? localizeUiErrorText(error.message)
+                        : uiText('An error occurred while finishing flow');
                 toast.error(errorMessage, {
                     description: flowDescription,
                     id: loadingToastId,

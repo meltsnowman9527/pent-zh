@@ -98,14 +98,14 @@ function KnowledgeIntroBlock({ isNew, knowledge }: KnowledgeIntroBlockProps) {
             {!isNew && knowledge ? (
                 <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-xs">
                     <Badge variant={knowledge.manual ? 'secondary' : 'outline'}>
-                        {knowledge.manual ? 'manual' : 'agent'}
+                        {knowledge.manual ? uiText('manual') : uiText('agent')}
                     </Badge>
-                    {knowledge.flowId ? <Badge variant="outline">flow #{knowledge.flowId}</Badge> : null}
-                    {knowledge.taskId ? <Badge variant="outline">task #{knowledge.taskId}</Badge> : null}
-                    {knowledge.subtaskId ? <Badge variant="outline">subtask #{knowledge.subtaskId}</Badge> : null}
+                    {knowledge.flowId ? <Badge variant="outline">{uiText("flow #")}{knowledge.flowId}</Badge> : null}
+                    {knowledge.taskId ? <Badge variant="outline">{uiText("task #")}{knowledge.taskId}</Badge> : null}
+                    {knowledge.subtaskId ? <Badge variant="outline">{uiText("subtask #")}{knowledge.subtaskId}</Badge> : null}
                     <span>·</span>
                     <span>
-                        chunk {knowledge.partSize} of {knowledge.totalSize}
+                        {uiText('Chunk {part} of {total}', {part:knowledge.partSize,total:knowledge.totalSize})}
                     </span>
                 </div>
             ) : null}

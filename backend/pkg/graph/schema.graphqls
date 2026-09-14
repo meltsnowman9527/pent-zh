@@ -262,6 +262,7 @@ type FlowAssistant {
 }
 
 type Flow {
+  lifecycleJob: FlowLifecycleJob
   id: ID!
   title: String!
   status: StatusType!
@@ -269,6 +270,17 @@ type Flow {
   provider: Provider!
   createdAt: Time!
   updatedAt: Time!
+}
+
+type FlowLifecycleJob {
+  id: ID!
+  kind: String!
+  status: String!
+  step: String!
+  attempts: Int!
+  maxAttempts: Int!
+  error: String
+  correlationId: String!
 }
 
 type Task {

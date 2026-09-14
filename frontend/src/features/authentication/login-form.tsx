@@ -12,6 +12,7 @@ import { FormSubmitButton } from '@/components/ui/form-submit-button';
 import { Input } from '@/components/ui/input';
 import { InputPassword } from '@/components/ui/input-password';
 import { useAppForm } from '@/hooks/use-app-form';
+import { localizeUiErrorText } from '@/lib/errors';
 import { routes } from '@/lib/routes';
 import { uiText } from '@/locales/zh-CN';
 import { useUser } from '@/providers/user-provider';
@@ -115,7 +116,7 @@ function LoginForm({ providers, returnUrl = routes.newFlow }: LoginFormProps) {
 
             navigate(returnUrl);
         } catch (error) {
-            setError(error instanceof Error ? error.message : errorMessage);
+            setError(error instanceof Error ? localizeUiErrorText(error.message) : errorMessage);
         } finally {
             setIsSubmitting(false);
         }

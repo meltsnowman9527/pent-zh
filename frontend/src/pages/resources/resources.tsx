@@ -47,7 +47,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { ResourcesCopyDialog } from '@/features/resources/resources-copy-dialog';
 import { ResourcesMkdirDialog } from '@/features/resources/resources-mkdir-dialog';
 import { ResourcesMoveDialog } from '@/features/resources/resources-move-dialog';
-import { buildResourcesDownloadHref, pluralizeItems, toFileNode } from '@/features/resources/resources-utils';
+import { buildResourcesDownloadHref, toFileNode } from '@/features/resources/resources-utils';
 import { useResourcesDelete } from '@/features/resources/use-resources-delete';
 import { useResourcesMove } from '@/features/resources/use-resources-move';
 import { useResourcesSearch } from '@/features/resources/use-resources-search';
@@ -243,7 +243,7 @@ function Resources() {
         const wasCopied = await copyToClipboard(paths.join('\n'));
 
         if (wasCopied) {
-            toast.success(`${paths.length} ${pluralizeItems(paths.length)} copied to clipboard`);
+            toast.success(uiText('{count} items copied to clipboard', { count: paths.length }));
 
             return;
         }
@@ -411,8 +411,10 @@ function Resources() {
     const noResourcesState = (
         <FileDropZone
             actionLabel={uiText('Upload files')}
-            description="Upload documents so PentAGI agents can reference them during your flows. You can also drag & drop files anywhere in this panel."
-            hint="Up to 300 MB per file · 2 GB per upload"
+            description={uiText(
+                'Upload documents so PentAGI agents can reference them during your flows. You can also drag & drop files anywhere in this panel.',
+            )}
+            hint={uiText('Up to 300 MB per file · 2 GB per upload')}
             isDragging={isDragging}
             isUploading={upload.isUploading}
             onBrowse={upload.openFilePicker}
@@ -429,7 +431,8 @@ function Resources() {
                 <EmptyTitle>{uiText('No matches')}</EmptyTitle>
                 <EmptyDescription>
                     {uiText('No resources match')}
-                    <code>{search.debouncedQuery.trim()}</code>. Try a different query.
+                    <code>{search.debouncedQuery.trim()}</code>
+                    {uiText('. Try a different query.')}
                 </EmptyDescription>
             </EmptyHeader>
         </Empty>

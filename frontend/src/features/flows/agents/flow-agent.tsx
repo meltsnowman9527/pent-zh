@@ -130,13 +130,13 @@ function FlowAgent({ log, searchValue = '' }: FlowAgentProps) {
                 {taskId && (
                     <>
                         <span className="text-muted-foreground/50">|</span>
-                        <span className="text-muted-foreground/50">Task ID: {taskId}</span>
+                        <span className="text-muted-foreground/50">{uiText("Task ID:")}{taskId}</span>
                     </>
                 )}
                 {subtaskId && (
                     <>
                         <span className="text-muted-foreground/50">|</span>
-                        <span className="text-muted-foreground/50">Subtask ID: {subtaskId}</span>
+                        <span className="text-muted-foreground/50">{uiText("Subtask ID:")}{subtaskId}</span>
                     </>
                 )}
             </div>

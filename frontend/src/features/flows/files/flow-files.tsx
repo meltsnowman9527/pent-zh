@@ -32,7 +32,7 @@ import { FlowFilesAttachResourcesDialog } from './flow-files-attach-resources-di
 import { ROOT_GROUPS } from './flow-files-constants';
 import { FlowFilesPromoteDialog } from './flow-files-promote-dialog';
 import { FlowFilesPullDialog } from './flow-files-pull-dialog';
-import { buildFlowFilesDownloadHref, pluralizeItems } from './flow-files-utils';
+import { buildFlowFilesDownloadHref } from './flow-files-utils';
 import { useFlowFilesData } from './use-flow-files-data';
 import { useFlowFilesDelete } from './use-flow-files-delete';
 import { useFlowFilesRealtime } from './use-flow-files-realtime';
@@ -86,7 +86,7 @@ function FlowFiles() {
         const wasCopied = await copyToClipboard(paths.join('\n'));
 
         if (wasCopied) {
-            toast.success(`${paths.length} ${pluralizeItems(paths.length)} copied to clipboard`);
+            toast.success(uiText('{count} items copied to clipboard', { count: paths.length }));
 
             return;
         }

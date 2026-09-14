@@ -41,6 +41,7 @@ type Config struct {
 }
 
 type ResolverRoot interface {
+	Flow() FlowResolver
 	Mutation() MutationResolver
 	Query() QueryResolver
 	Subscription() SubscriptionResolver
@@ -224,13 +225,14 @@ type ComplexityRoot struct {
 	}
 
 	Flow struct {
-		CreatedAt func(childComplexity int) int
-		ID        func(childComplexity int) int
-		Provider  func(childComplexity int) int
-		Status    func(childComplexity int) int
-		Terminals func(childComplexity int) int
-		Title     func(childComplexity int) int
-		UpdatedAt func(childComplexity int) int
+		CreatedAt    func(childComplexity int) int
+		ID           func(childComplexity int) int
+		LifecycleJob func(childComplexity int) int
+		Provider     func(childComplexity int) int
+		Status       func(childComplexity int) int
+		Terminals    func(childComplexity int) int
+		Title        func(childComplexity int) int
+		UpdatedAt    func(childComplexity int) int
 	}
 
 	FlowAssistant struct {
@@ -254,6 +256,17 @@ type ComplexityRoot struct {
 		Name       func(childComplexity int) int
 		Path       func(childComplexity int) int
 		Size       func(childComplexity int) int
+	}
+
+	FlowLifecycleJob struct {
+		Attempts      func(childComplexity int) int
+		CorrelationID func(childComplexity int) int
+		Error         func(childComplexity int) int
+		ID            func(childComplexity int) int
+		Kind          func(childComplexity int) int
+		MaxAttempts   func(childComplexity int) int
+		Status        func(childComplexity int) int
+		Step          func(childComplexity int) int
 	}
 
 	FlowStats struct {
@@ -753,6 +766,9 @@ type ComplexityRoot struct {
 	}
 }
 
+type FlowResolver interface {
+	LifecycleJob(ctx context.Context, obj *model.Flow) (*model.FlowLifecycleJob, error)
+}
 type MutationResolver interface {
 	CreateFlow(ctx context.Context, modelProvider string, input string, resourceIds []int64) (*model.Flow, error)
 	PutUserInput(ctx context.Context, flowID int64, input string, modelProvider *string, resourceIds []int64) (model.ResultType, error)
@@ -1739,6 +1755,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Flow.ID(childComplexity), true
 
+	case "Flow.lifecycleJob":
+		if e.complexity.Flow.LifecycleJob == nil {
+			break
+		}
+
+		return e.complexity.Flow.LifecycleJob(childComplexity), true
+
 	case "Flow.provider":
 		if e.complexity.Flow.Provider == nil {
 			break
@@ -1871,6 +1894,62 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.FlowFile.Size(childComplexity), true
+
+	case "FlowLifecycleJob.attempts":
+		if e.complexity.FlowLifecycleJob.Attempts == nil {
+			break
+		}
+
+		return e.complexity.FlowLifecycleJob.Attempts(childComplexity), true
+
+	case "FlowLifecycleJob.correlationId":
+		if e.complexity.FlowLifecycleJob.CorrelationID == nil {
+			break
+		}
+
+		return e.complexity.FlowLifecycleJob.CorrelationID(childComplexity), true
+
+	case "FlowLifecycleJob.error":
+		if e.complexity.FlowLifecycleJob.Error == nil {
+			break
+		}
+
+		return e.complexity.FlowLifecycleJob.Error(childComplexity), true
+
+	case "FlowLifecycleJob.id":
+		if e.complexity.FlowLifecycleJob.ID == nil {
+			break
+		}
+
+		return e.complexity.FlowLifecycleJob.ID(childComplexity), true
+
+	case "FlowLifecycleJob.kind":
+		if e.complexity.FlowLifecycleJob.Kind == nil {
+			break
+		}
+
+		return e.complexity.FlowLifecycleJob.Kind(childComplexity), true
+
+	case "FlowLifecycleJob.maxAttempts":
+		if e.complexity.FlowLifecycleJob.MaxAttempts == nil {
+			break
+		}
+
+		return e.complexity.FlowLifecycleJob.MaxAttempts(childComplexity), true
+
+	case "FlowLifecycleJob.status":
+		if e.complexity.FlowLifecycleJob.Status == nil {
+			break
+		}
+
+		return e.complexity.FlowLifecycleJob.Status(childComplexity), true
+
+	case "FlowLifecycleJob.step":
+		if e.complexity.FlowLifecycleJob.Step == nil {
+			break
+		}
+
+		return e.complexity.FlowLifecycleJob.Step(childComplexity), true
 
 	case "FlowStats.totalAssistantsCount":
 		if e.complexity.FlowStats.TotalAssistantsCount == nil {
@@ -14583,6 +14662,65 @@ func (ec *executionContext) fieldContext_DefaultProvidersConfig_minimax(_ contex
 	return fc, nil
 }
 
+func (ec *executionContext) _Flow_lifecycleJob(ctx context.Context, field graphql.CollectedField, obj *model.Flow) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Flow_lifecycleJob(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Flow().LifecycleJob(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.FlowLifecycleJob)
+	fc.Result = res
+	return ec.marshalOFlowLifecycleJob2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐFlowLifecycleJob(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Flow_lifecycleJob(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Flow",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_FlowLifecycleJob_id(ctx, field)
+			case "kind":
+				return ec.fieldContext_FlowLifecycleJob_kind(ctx, field)
+			case "status":
+				return ec.fieldContext_FlowLifecycleJob_status(ctx, field)
+			case "step":
+				return ec.fieldContext_FlowLifecycleJob_step(ctx, field)
+			case "attempts":
+				return ec.fieldContext_FlowLifecycleJob_attempts(ctx, field)
+			case "maxAttempts":
+				return ec.fieldContext_FlowLifecycleJob_maxAttempts(ctx, field)
+			case "error":
+				return ec.fieldContext_FlowLifecycleJob_error(ctx, field)
+			case "correlationId":
+				return ec.fieldContext_FlowLifecycleJob_correlationId(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type FlowLifecycleJob", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Flow_id(ctx context.Context, field graphql.CollectedField, obj *model.Flow) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Flow_id(ctx, field)
 	if err != nil {
@@ -14947,6 +15085,8 @@ func (ec *executionContext) fieldContext_FlowAssistant_flow(_ context.Context, f
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "lifecycleJob":
+				return ec.fieldContext_Flow_lifecycleJob(ctx, field)
 			case "id":
 				return ec.fieldContext_Flow_id(ctx, field)
 			case "title":
@@ -15565,6 +15705,355 @@ func (ec *executionContext) fieldContext_FlowFile_modifiedAt(_ context.Context, 
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FlowLifecycleJob_id(ctx context.Context, field graphql.CollectedField, obj *model.FlowLifecycleJob) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FlowLifecycleJob_id(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNID2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FlowLifecycleJob_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FlowLifecycleJob",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FlowLifecycleJob_kind(ctx context.Context, field graphql.CollectedField, obj *model.FlowLifecycleJob) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FlowLifecycleJob_kind(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Kind, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FlowLifecycleJob_kind(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FlowLifecycleJob",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FlowLifecycleJob_status(ctx context.Context, field graphql.CollectedField, obj *model.FlowLifecycleJob) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FlowLifecycleJob_status(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Status, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FlowLifecycleJob_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FlowLifecycleJob",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FlowLifecycleJob_step(ctx context.Context, field graphql.CollectedField, obj *model.FlowLifecycleJob) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FlowLifecycleJob_step(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Step, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FlowLifecycleJob_step(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FlowLifecycleJob",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FlowLifecycleJob_attempts(ctx context.Context, field graphql.CollectedField, obj *model.FlowLifecycleJob) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FlowLifecycleJob_attempts(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Attempts, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FlowLifecycleJob_attempts(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FlowLifecycleJob",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FlowLifecycleJob_maxAttempts(ctx context.Context, field graphql.CollectedField, obj *model.FlowLifecycleJob) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FlowLifecycleJob_maxAttempts(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.MaxAttempts, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FlowLifecycleJob_maxAttempts(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FlowLifecycleJob",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FlowLifecycleJob_error(ctx context.Context, field graphql.CollectedField, obj *model.FlowLifecycleJob) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FlowLifecycleJob_error(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Error, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FlowLifecycleJob_error(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FlowLifecycleJob",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FlowLifecycleJob_correlationId(ctx context.Context, field graphql.CollectedField, obj *model.FlowLifecycleJob) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FlowLifecycleJob_correlationId(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.CorrelationID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FlowLifecycleJob_correlationId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FlowLifecycleJob",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -18579,6 +19068,8 @@ func (ec *executionContext) fieldContext_Mutation_createFlow(ctx context.Context
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "lifecycleJob":
+				return ec.fieldContext_Flow_lifecycleJob(ctx, field)
 			case "id":
 				return ec.fieldContext_Flow_id(ctx, field)
 			case "title":
@@ -23532,6 +24023,8 @@ func (ec *executionContext) fieldContext_Query_flows(_ context.Context, field gr
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "lifecycleJob":
+				return ec.fieldContext_Flow_lifecycleJob(ctx, field)
 			case "id":
 				return ec.fieldContext_Flow_id(ctx, field)
 			case "title":
@@ -23592,6 +24085,8 @@ func (ec *executionContext) fieldContext_Query_flow(ctx context.Context, field g
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "lifecycleJob":
+				return ec.fieldContext_Flow_lifecycleJob(ctx, field)
 			case "id":
 				return ec.fieldContext_Flow_id(ctx, field)
 			case "title":
@@ -27444,6 +27939,8 @@ func (ec *executionContext) fieldContext_Subscription_flowCreated(_ context.Cont
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "lifecycleJob":
+				return ec.fieldContext_Flow_lifecycleJob(ctx, field)
 			case "id":
 				return ec.fieldContext_Flow_id(ctx, field)
 			case "title":
@@ -27518,6 +28015,8 @@ func (ec *executionContext) fieldContext_Subscription_flowDeleted(_ context.Cont
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "lifecycleJob":
+				return ec.fieldContext_Flow_lifecycleJob(ctx, field)
 			case "id":
 				return ec.fieldContext_Flow_id(ctx, field)
 			case "title":
@@ -27592,6 +28091,8 @@ func (ec *executionContext) fieldContext_Subscription_flowUpdated(_ context.Cont
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "lifecycleJob":
+				return ec.fieldContext_Flow_lifecycleJob(ctx, field)
 			case "id":
 				return ec.fieldContext_Flow_id(ctx, field)
 			case "title":
@@ -38829,37 +39330,70 @@ func (ec *executionContext) _Flow(ctx context.Context, sel ast.SelectionSet, obj
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Flow")
+		case "lifecycleJob":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Flow_lifecycleJob(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "id":
 			out.Values[i] = ec._Flow_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "title":
 			out.Values[i] = ec._Flow_title(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "status":
 			out.Values[i] = ec._Flow_status(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "terminals":
 			out.Values[i] = ec._Flow_terminals(ctx, field, obj)
 		case "provider":
 			out.Values[i] = ec._Flow_provider(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "createdAt":
 			out.Values[i] = ec._Flow_createdAt(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "updatedAt":
 			out.Values[i] = ec._Flow_updatedAt(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
@@ -39030,6 +39564,77 @@ func (ec *executionContext) _FlowFile(ctx context.Context, sel ast.SelectionSet,
 			}
 		case "modifiedAt":
 			out.Values[i] = ec._FlowFile_modifiedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var flowLifecycleJobImplementors = []string{"FlowLifecycleJob"}
+
+func (ec *executionContext) _FlowLifecycleJob(ctx context.Context, sel ast.SelectionSet, obj *model.FlowLifecycleJob) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, flowLifecycleJobImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("FlowLifecycleJob")
+		case "id":
+			out.Values[i] = ec._FlowLifecycleJob_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "kind":
+			out.Values[i] = ec._FlowLifecycleJob_kind(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "status":
+			out.Values[i] = ec._FlowLifecycleJob_status(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "step":
+			out.Values[i] = ec._FlowLifecycleJob_step(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "attempts":
+			out.Values[i] = ec._FlowLifecycleJob_attempts(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "maxAttempts":
+			out.Values[i] = ec._FlowLifecycleJob_maxAttempts(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "error":
+			out.Values[i] = ec._FlowLifecycleJob_error(ctx, field, obj)
+		case "correlationId":
+			out.Values[i] = ec._FlowLifecycleJob_correlationId(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -45701,6 +46306,13 @@ func (ec *executionContext) marshalOFlow2ᚕᚖpentagiᚋpkgᚋgraphᚋmodelᚐF
 	}
 
 	return ret
+}
+
+func (ec *executionContext) marshalOFlowLifecycleJob2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐFlowLifecycleJob(ctx context.Context, sel ast.SelectionSet, v *model.FlowLifecycleJob) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._FlowLifecycleJob(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalOFlowTemplate2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐFlowTemplate(ctx context.Context, sel ast.SelectionSet, v *model.FlowTemplate) graphql.Marshaler {

@@ -8,7 +8,7 @@ import { api, getApiErrorMessage } from '@/lib/axios';
 import { uiText } from '@/locales/zh-CN';
 
 import { FLOW_FILES_API_PATH } from './flow-files-constants';
-import { type FlowFilesResponse, pluralizeItems } from './flow-files-utils';
+import { type FlowFilesResponse } from './flow-files-utils';
 
 interface UseFlowFilesDeleteParams {
     flowId: null | string;
@@ -82,7 +82,7 @@ export function useFlowFilesDelete({ flowId, onAfterDelete }: UseFlowFilesDelete
                     const [single] = filesToDelete;
                     toast.success(single?.isDir ? uiText('Directory deleted') : uiText('File deleted'));
                 } else {
-                    toast.success(`${filesToDelete.length} ${pluralizeItems(filesToDelete.length)} deleted`);
+                    toast.success(uiText('{count} items deleted', { count: filesToDelete.length }));
                 }
 
                 onAfterDelete?.();

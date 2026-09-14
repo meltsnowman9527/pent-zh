@@ -23,6 +23,7 @@ const (
 	FlowJobKindCreate = "create"
 	FlowJobKindStop   = "stop"
 	FlowJobKindFinish = "finish"
+	FlowJobKindDelete = "delete"
 )
 
 // Lifecycle job statuses. `queued` and `running` are the only states a job can
@@ -330,6 +331,8 @@ func (r *flowJobRunner) Start(ctx context.Context) {
 		r.executors = map[string]flowJobExecutor{
 			FlowJobKindCreate: r.executeCreate,
 			FlowJobKindFinish: r.executeFinish,
+			FlowJobKindDelete: r.executeDelete,
+			FlowJobKindStop:   r.executeStop,
 		}
 
 		if recovered, err := r.fc.db.RecoverInterruptedFlowJobs(ctx); err != nil {
@@ -365,6 +368,7 @@ func (r *flowJobRunner) enqueue(jobID int64) {
 	select {
 	case r.queue <- jobID:
 	case <-r.ctx.Done():
+	default: // The database poller will pick it up; never block a request or the poller itself.
 	}
 }
 
@@ -509,6 +513,9 @@ func (r *flowJobRunner) executeCreate(ctx context.Context, job database.FlowJob,
 	if err != nil {
 		return fmt.Errorf("failed to load flow %d for initialization: %w", job.FlowID, err)
 	}
+	if flow.Status == database.FlowStatusFinished || flow.Status == database.FlowStatusFailed {
+		return nil // A queued cleanup may have completed while creation was waiting to retry.
+	}
 
 	r.fc.lifecycleMX.Lock()
 	defer r.fc.lifecycleMX.Unlock()
@@ -560,6 +567,41 @@ func (r *flowJobRunner) executeFinish(ctx context.Context, job database.FlowJob,
 	return rec.Step(ctx, "cleanup", "cleaning_up", func(ctx context.Context) error {
 		return r.fc.finishFlow(ctx, job.FlowID)
 	})
+}
+
+func (r *flowJobRunner) executeStop(ctx context.Context, job database.FlowJob, rec *lifecycleRecorder) error {
+	r.fc.lifecycleMX.Lock()
+	defer r.fc.lifecycleMX.Unlock()
+	fw, err := r.fc.GetFlow(ctx, job.FlowID)
+	if err != nil {
+		return err
+	}
+	return rec.Step(ctx, "stop", "stopping", fw.Stop)
+}
+
+func (r *flowJobRunner) executeDelete(ctx context.Context, job database.FlowJob, rec *lifecycleRecorder) error {
+	if err := r.executeFinish(ctx, job, rec); err != nil {
+		return err
+	}
+	flow, err := r.fc.db.GetFlow(ctx, job.FlowID)
+	if err == sql.ErrNoRows {
+		return nil // A previous attempt already deleted the record.
+	}
+	if err != nil {
+		return err
+	}
+	containers, err := r.fc.db.GetFlowContainers(ctx, flow.ID)
+	if err != nil {
+		return err
+	}
+	if _, err := r.fc.db.DeleteFlow(ctx, flow.ID); err != nil {
+		return err
+	}
+	if err := r.fc.db.DeleteFlowMemoryDocuments(ctx, database.StringToNullString(fmt.Sprint(flow.ID))); err != nil {
+		rec.logger.WithError(err).Warn("failed to remove deleted flow memory")
+	}
+	r.fc.subs.NewFlowPublisher(flow.UserID, flow.ID).FlowDeleted(ctx, flow, containers)
+	return nil
 }
 
 func flowJobRetryWait(attempts int16) time.Duration {

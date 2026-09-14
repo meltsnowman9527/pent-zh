@@ -203,13 +203,14 @@ type DefaultProvidersConfig struct {
 }
 
 type Flow struct {
-	ID        int64       `json:"id"`
-	Title     string      `json:"title"`
-	Status    StatusType  `json:"status"`
-	Terminals []*Terminal `json:"terminals,omitempty"`
-	Provider  *Provider   `json:"provider"`
-	CreatedAt time.Time   `json:"createdAt"`
-	UpdatedAt time.Time   `json:"updatedAt"`
+	LifecycleJob *FlowLifecycleJob `json:"lifecycleJob,omitempty"`
+	ID           int64             `json:"id"`
+	Title        string            `json:"title"`
+	Status       StatusType        `json:"status"`
+	Terminals    []*Terminal       `json:"terminals,omitempty"`
+	Provider     *Provider         `json:"provider"`
+	CreatedAt    time.Time         `json:"createdAt"`
+	UpdatedAt    time.Time         `json:"updatedAt"`
 }
 
 type FlowAssistant struct {
@@ -233,6 +234,17 @@ type FlowFile struct {
 	Size       int       `json:"size"`
 	IsDir      bool      `json:"isDir"`
 	ModifiedAt time.Time `json:"modifiedAt"`
+}
+
+type FlowLifecycleJob struct {
+	ID            int64   `json:"id"`
+	Kind          string  `json:"kind"`
+	Status        string  `json:"status"`
+	Step          string  `json:"step"`
+	Attempts      int     `json:"attempts"`
+	MaxAttempts   int     `json:"maxAttempts"`
+	Error         *string `json:"error,omitempty"`
+	CorrelationID string  `json:"correlationId"`
 }
 
 type FlowStats struct {

@@ -37,6 +37,23 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// LifecycleJob is the resolver for the lifecycleJob field.
+func (r *flowResolver) LifecycleJob(ctx context.Context, obj *model.Flow) (*model.FlowLifecycleJob, error) {
+	job, err := r.DB.GetLatestFlowJob(ctx, obj.ID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	var detail *string
+	if job.Error.Valid {
+		detail = &job.Error.String
+	}
+	return &model.FlowLifecycleJob{ID: job.ID, Kind: job.Kind, Status: job.Status, Step: job.Step,
+		Attempts: int(job.Attempts), MaxAttempts: int(job.MaxAttempts), Error: detail, CorrelationID: job.CorrelationID}, nil
+}
+
 // CreateFlow is the resolver for the createFlow field.
 func (r *mutationResolver) CreateFlow(ctx context.Context, modelProvider string, input string, resourceIds []int64) (*model.Flow, error) {
 	uid, _, err := validatePermission(ctx, "flows.create")
@@ -201,40 +218,9 @@ func (r *mutationResolver) DeleteFlow(ctx context.Context, flowID int64) (model.
 		"flow": flowID,
 	}).Debug("delete flow")
 
-	// Goes through the controller rather than GetFlow + worker.Finish: only
-	// FinishFlow evicts the worker from the in-memory map. A worker left behind
-	// for a soft-deleted flow leaks for the process lifetime, still shows up in
-	// ListFlows, and can be finished a second time by a concurrent caller.
-	if err := r.Controller.FinishFlow(ctx, flowID); err != nil &&
-		!errors.Is(err, controller.ErrFlowNotFound) {
+	if err := r.Controller.DeleteFlow(ctx, flowID); err != nil {
 		return model.ResultTypeError, err
 	}
-
-	flow, err := r.DB.GetFlow(ctx, flowID)
-	if err != nil {
-		return model.ResultTypeError, err
-	}
-
-	containers, err := r.DB.GetFlowContainers(ctx, flow.ID)
-	if err != nil {
-		return model.ResultTypeError, err
-	}
-
-	if _, err := r.DB.DeleteFlow(ctx, flow.ID); err != nil {
-		return model.ResultTypeError, err
-	}
-
-	// Best-effort cleanup: remove accumulated long-term memory documents for this
-	// flow from the vector store. They will never be re-used after the flow is gone.
-	if err := r.DB.DeleteFlowMemoryDocuments(ctx,
-		database.StringToNullString(fmt.Sprintf("%d", flow.ID)),
-	); err != nil {
-		r.Logger.WithError(err).Warnf("failed to clean up memory documents for deleted flow %d", flow.ID)
-	}
-
-	publisher := r.Subscriptions.NewFlowPublisher(flow.UserID, flow.ID)
-	publisher.FlowUpdated(ctx, flow, containers)
-	publisher.FlowDeleted(ctx, flow, containers)
 
 	return model.ResultTypeSuccess, nil
 }
@@ -3050,6 +3036,9 @@ func (r *subscriptionResolver) KnowledgeDocumentDeleted(ctx context.Context) (<-
 	return sub.KnowledgeDocumentDeleted(ctx)
 }
 
+// Flow returns FlowResolver implementation.
+func (r *Resolver) Flow() FlowResolver { return &flowResolver{r} }
+
 // Mutation returns MutationResolver implementation.
 func (r *Resolver) Mutation() MutationResolver { return &mutationResolver{r} }
 
@@ -3059,6 +3048,7 @@ func (r *Resolver) Query() QueryResolver { return &queryResolver{r} }
 // Subscription returns SubscriptionResolver implementation.
 func (r *Resolver) Subscription() SubscriptionResolver { return &subscriptionResolver{r} }
 
+type flowResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
 type subscriptionResolver struct{ *Resolver }

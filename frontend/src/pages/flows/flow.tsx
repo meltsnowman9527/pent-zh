@@ -44,11 +44,13 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/componen
 import { Spinner } from '@/components/ui/spinner';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import FlowCentralTabs from '@/features/flows/flow-central-tabs';
+import { FlowJobStatus, isFlowJobPending } from '@/features/flows/flow-job-status';
 import FlowTabs from '@/features/flows/flow-tabs';
 import { useFlowDetailNavigation } from '@/features/flows/use-flow-detail-navigation';
 import { RenameFlowDocument, ResultType, StatusType } from '@/graphql/types';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
 import { useFlowTabDetection } from '@/hooks/use-flow-tab-detection';
+import { localizeUiErrorText } from '@/lib/errors';
 import { Log } from '@/lib/log';
 import { copyToClipboard, downloadTextFile, generateFileName, generateReport } from '@/lib/report';
 import { routes } from '@/lib/routes';
@@ -82,10 +84,11 @@ function Flow() {
     const navigate = useNavigate();
 
     const { flowData, flowId, flowLoadError, isFlowMissing, isLoading: isFlowLoading, refetchFlow } = useFlow();
-    const { deleteFlow, finishFlow } = useFlows();
+    const { deleteFlow, finishFlow, flows } = useFlows();
     const { isFavoriteFlow, toggleFavoriteFlow } = useFavorites();
 
-    const flow = flowData?.flow;
+    const flow = flows.find((item) => item.id === flowId) ?? flowData?.flow;
+    const pendingJob = isFlowJobPending(flow?.lifecycleJob) && flow?.lifecycleJob?.kind !== 'create';
     const actualFlowTitle = flow?.title ?? '';
     const [flowTitle, setOptimisticFlowTitle] = useOptimistic(actualFlowTitle, (_current, next: string) => next);
     const isFlowRunning = flow ? ![StatusType.Failed, StatusType.Finished].includes(flow.status) : false;
@@ -134,7 +137,8 @@ function Flow() {
                     handleFlowRenameCancel();
                 }
             } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : uiText('Failed to rename flow');
+                const errorMessage =
+                    error instanceof Error ? localizeUiErrorText(error.message) : uiText('Failed to rename flow');
                 toast.error(errorMessage);
             }
         });
@@ -193,6 +197,9 @@ function Flow() {
                         </Breadcrumb>
                     </AppHeaderContent>
                 </AppHeader>
+                <div className="px-4">
+                    <FlowJobStatus job={flow?.lifecycleJob} />
+                </div>
                 <div className="flex flex-1 flex-col gap-4 p-4">
                     <ErrorState
                         message={flowLoadError.message}
@@ -351,7 +358,7 @@ function Flow() {
                             </DropdownMenuItem>
                             {isFlowRunning && (
                                 <DropdownMenuItem
-                                    disabled={isFinishing}
+                                    disabled={isFinishing || pendingJob}
                                     onClick={() => handleFlowFinish()}
                                 >
                                     {isFinishing ? (
@@ -369,7 +376,7 @@ function Flow() {
                             )}
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
-                                disabled={isDeleting || isFlowLoading}
+                                disabled={isDeleting || isFlowLoading || pendingJob}
                                 onClick={() => setIsDeleteDialogOpen(true)}
                             >
                                 {isDeleting ? (

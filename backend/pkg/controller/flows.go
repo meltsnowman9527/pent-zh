@@ -10,6 +10,8 @@ import (
 	"sync"
 	"time"
 
+	"database/sql"
+	"pentagi/pkg/cast"
 	"pentagi/pkg/config"
 	"pentagi/pkg/database"
 	"pentagi/pkg/docker"
@@ -52,6 +54,7 @@ type FlowController interface {
 	GetFlow(ctx context.Context, flowID int64) (FlowWorker, error)
 	StopFlow(ctx context.Context, flowID int64) error
 	FinishFlow(ctx context.Context, flowID int64) error
+	DeleteFlow(ctx context.Context, flowID int64) error
 	GetLatestFlowJob(ctx context.Context, flowID int64) (database.FlowJob, bool)
 	RenameFlow(ctx context.Context, flowID int64, title string) error
 	RenameFlowsProvider(ctx context.Context, userID int64, oldName, newName provider.ProviderName) error
@@ -92,6 +95,7 @@ type flowController struct {
 	// it. Guarded by its own mutex, not by lifecycleMX: the whole point is that a
 	// request returns before the slow part starts.
 	jobs      *flowJobRunner
+	submitMX  sync.Mutex
 	recentMX  sync.Mutex
 	recentSub map[string]recentFlowCreate
 }
@@ -196,10 +200,25 @@ func (fc *flowController) CreateFlow(
 	functions *tools.Functions,
 	resources []database.UserResource,
 ) (int64, error) {
-	fc.lifecycleMX.Lock()
-	defer fc.lifecycleMX.Unlock()
+	fc.submitMX.Lock()
+	defer fc.submitMX.Unlock()
 
-	if flowID, ok := fc.recentCreateFlow(userID, input, prvname); ok {
+	functionsBlob, err := json.Marshal(functions)
+	if err != nil {
+		return 0, fmt.Errorf("failed to encode flow functions: %w", err)
+	}
+
+	payload, err := encodeFlowJobPayload(flowJobPayload{
+		Input:     input,
+		Functions: functionsBlob,
+		Resources: resources,
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	submission := prvtype.String() + string(payload)
+	if flowID, ok := fc.recentCreateFlow(ctx, userID, submission, prvname); ok {
 		logrus.WithContext(ctx).WithFields(logrus.Fields{
 			"flow_id":    flowID,
 			"user_id":    userID,
@@ -210,36 +229,18 @@ func (fc *flowController) CreateFlow(
 		return flowID, nil
 	}
 
-	flow, err := createFlowRow(ctx, fc.db, userID, prvname, prvtype)
-	if err != nil {
-		return 0, err
-	}
-
-	functionsBlob, err := json.Marshal(functions)
-	if err != nil {
-		return flow.ID, fmt.Errorf("failed to encode flow functions: %w", err)
-	}
-
-	payload, err := encodeFlowJobPayload(flowJobPayload{
-		Input:     input,
-		Functions: functionsBlob,
-		Resources: resources,
+	flow, err := fc.db.CreateFlowWithJob(ctx, database.CreateFlowWithJobParams{
+		ModelProviderName: prvname.String(), ModelProviderType: database.ProviderType(prvtype),
+		ToolCallIDTemplate: cast.ToolCallIDTemplate, UserID: userID,
+		CorrelationID: newFlowJobCorrelationID(FlowJobKindCreate), Payload: payload, MaxAttempts: flowJobMaxAttempts,
 	})
 	if err != nil {
-		return flow.ID, err
+		return 0, fmt.Errorf("failed to queue flow initialization: %w", err)
 	}
-
-	job, err := fc.db.CreateFlowJob(ctx, database.CreateFlowJobParams{
-		FlowID:        flow.ID,
-		UserID:        userID,
-		Kind:          FlowJobKindCreate,
-		CorrelationID: newFlowJobCorrelationID(FlowJobKindCreate),
-		Payload:       payload,
-		MaxAttempts:   flowJobMaxAttempts,
-	})
+	job, err := fc.db.GetActiveFlowJob(ctx, database.GetActiveFlowJobParams{FlowID: flow.ID, Kind: FlowJobKindCreate})
 	if err != nil {
-		return flow.ID, fmt.Errorf("failed to queue flow %d initialization: %w", flow.ID, err)
-	}
+		return flow.ID, nil
+	} // The durable poller still owns this accepted job.
 
 	logrus.WithContext(ctx).WithFields(logrus.Fields{
 		"flow_id":        flow.ID,
@@ -249,7 +250,7 @@ func (fc *flowController) CreateFlow(
 		"provider_name":  prvname.String(),
 	}).Info("flow initialization queued")
 
-	fc.rememberCreateFlow(userID, input, prvname, flow.ID)
+	fc.rememberCreateFlow(userID, submission, prvname, flow.ID)
 	fc.jobs.enqueue(job.ID)
 
 	return flow.ID, nil
@@ -275,7 +276,7 @@ func (fc *flowController) rememberCreateFlow(userID int64, input string, prvname
 	}
 }
 
-func (fc *flowController) recentCreateFlow(userID int64, input string, prvname provider.ProviderName) (int64, bool) {
+func (fc *flowController) recentCreateFlow(ctx context.Context, userID int64, input string, prvname provider.ProviderName) (int64, bool) {
 	fc.recentMX.Lock()
 	defer fc.recentMX.Unlock()
 
@@ -286,6 +287,13 @@ func (fc *flowController) recentCreateFlow(userID int64, input string, prvname p
 		return 0, false
 	}
 
+	row, err := fc.db.GetFlow(ctx, record.flowID)
+	if err != nil || row.Status != database.FlowStatusCreated {
+		return 0, false
+	}
+	if _, err := fc.db.GetActiveFlowJob(ctx, database.GetActiveFlowJobParams{FlowID: record.flowID, Kind: FlowJobKindCreate}); err != nil {
+		return 0, false
+	}
 	return record.flowID, true
 }
 
@@ -516,10 +524,6 @@ func (fc *flowController) StopFlow(ctx context.Context, flowID int64) error {
 // caller learns the outcome from the flow's job (GetLatestFlowJob), not from a
 // success that only means "the request did not fail".
 func (fc *flowController) FinishFlow(ctx context.Context, flowID int64) error {
-	if _, err := fc.GetFlow(ctx, flowID); err != nil {
-		return err
-	}
-
 	job, err := fc.createLifecycleJob(ctx, flowID, FlowJobKindFinish, flowJobPayload{})
 	if err != nil {
 		return err
@@ -527,6 +531,15 @@ func (fc *flowController) FinishFlow(ctx context.Context, flowID int64) error {
 
 	fc.jobs.enqueue(job.ID)
 
+	return nil
+}
+
+func (fc *flowController) DeleteFlow(ctx context.Context, flowID int64) error {
+	job, err := fc.createLifecycleJob(ctx, flowID, FlowJobKindDelete, flowJobPayload{})
+	if err != nil {
+		return err
+	}
+	fc.jobs.enqueue(job.ID)
 	return nil
 }
 
@@ -539,7 +552,31 @@ func (fc *flowController) finishFlow(ctx context.Context, flowID int64) error {
 
 	flow, err := fc.GetFlow(ctx, flowID)
 	if err != nil {
-		return err
+		// A restart or failed initialization may leave no worker; clean recorded containers directly.
+		row, loadErr := fc.db.GetFlow(ctx, flowID)
+		if loadErr == sql.ErrNoRows {
+			return nil
+		}
+		if loadErr != nil {
+			return loadErr
+		}
+		containers, loadErr := fc.db.GetFlowContainers(ctx, flowID)
+		if loadErr != nil {
+			return loadErr
+		}
+		for _, c := range containers {
+			if c.LocalID.Valid {
+				if err := fc.docker.RemoveContainer(ctx, c.LocalID.String, c.ID); err != nil {
+					return err
+				}
+			}
+		}
+		row, loadErr = fc.db.UpdateFlowStatus(ctx, database.UpdateFlowStatusParams{ID: flowID, Status: database.FlowStatusFinished})
+		if loadErr != nil {
+			return loadErr
+		}
+		fc.subs.NewFlowPublisher(row.UserID, row.ID).FlowUpdated(ctx, row, containers)
+		return nil
 	}
 
 	if err := flow.Finish(ctx); err != nil {
@@ -581,7 +618,13 @@ func (fc *flowController) createLifecycleJob(
 		MaxAttempts:   flowJobMaxAttempts,
 	})
 	if err != nil {
-		return database.FlowJob{}, fmt.Errorf("a %s job for flow %d is already queued or running", kind, flowID)
+		if kind != FlowJobKindStop {
+			active, activeErr := fc.db.GetActiveFlowJob(ctx, database.GetActiveFlowJobParams{FlowID: flowID, Kind: kind})
+			if activeErr == nil {
+				return active, nil
+			}
+		}
+		return database.FlowJob{}, fmt.Errorf("failed to queue %s job for flow %d: %w", kind, flowID, err)
 	}
 
 	return job, nil

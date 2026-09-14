@@ -307,10 +307,7 @@ function FlowAutomationMessages({ className }: FlowAutomationMessagesProps) {
                             <Inbox />
                         </EmptyMedia>
                         <EmptyTitle>{uiText('No active tasks')}</EmptyTitle>
-                        <EmptyDescription>
-                            Starting a new task may take some time as the PentAGI agent downloads the required Docker
-                            image
-                        </EmptyDescription>
+                        <EmptyDescription>{uiText("Starting a new task may take some time as the PentAGI agent downloads the required Docker image")}</EmptyDescription>
                     </EmptyHeader>
                 </Empty>
             )}

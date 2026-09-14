@@ -319,6 +319,16 @@ export type FlowFragmentFragment = {
     status: StatusType;
     createdAt: string;
     updatedAt: string;
+    lifecycleJob: {
+        id: string;
+        kind: string;
+        status: string;
+        step: string;
+        attempts: number;
+        maxAttempts: number;
+        error: string | null;
+        correlationId: string;
+    } | null;
     terminals: Array<TerminalFragmentFragment> | null;
     provider: ProviderFragmentFragment;
 };
@@ -1482,6 +1492,23 @@ export const FlowFragmentFragmentDoc = {
             selectionSet: {
                 kind: 'SelectionSet',
                 selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'lifecycleJob' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'kind' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'status' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'step' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'attempts' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'maxAttempts' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'error' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'correlationId' } },
+                            ],
+                        },
+                    },
                     { kind: 'Field', name: { kind: 'Name', value: 'id' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'title' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'status' } },
@@ -3428,6 +3455,23 @@ export const FlowsDocument = {
             selectionSet: {
                 kind: 'SelectionSet',
                 selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'lifecycleJob' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'kind' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'status' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'step' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'attempts' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'maxAttempts' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'error' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'correlationId' } },
+                            ],
+                        },
+                    },
                     { kind: 'Field', name: { kind: 'Name', value: 'id' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'title' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'status' } },
@@ -5197,6 +5241,23 @@ export const FlowDocument = {
             selectionSet: {
                 kind: 'SelectionSet',
                 selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'lifecycleJob' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'kind' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'status' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'step' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'attempts' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'maxAttempts' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'error' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'correlationId' } },
+                            ],
+                        },
+                    },
                     { kind: 'Field', name: { kind: 'Name', value: 'id' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'title' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'status' } },
@@ -5813,6 +5874,23 @@ export const FlowReportDocument = {
             selectionSet: {
                 kind: 'SelectionSet',
                 selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'lifecycleJob' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'kind' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'status' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'step' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'attempts' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'maxAttempts' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'error' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'correlationId' } },
+                            ],
+                        },
+                    },
                     { kind: 'Field', name: { kind: 'Name', value: 'id' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'title' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'status' } },
@@ -7763,6 +7841,23 @@ export const CreateFlowDocument = {
             selectionSet: {
                 kind: 'SelectionSet',
                 selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'lifecycleJob' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'kind' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'status' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'step' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'attempts' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'maxAttempts' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'error' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'correlationId' } },
+                            ],
+                        },
+                    },
                     { kind: 'Field', name: { kind: 'Name', value: 'id' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'title' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'status' } },
@@ -8137,6 +8232,23 @@ export const CreateAssistantDocument = {
             selectionSet: {
                 kind: 'SelectionSet',
                 selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'lifecycleJob' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'kind' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'status' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'step' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'attempts' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'maxAttempts' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'error' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'correlationId' } },
+                            ],
+                        },
+                    },
                     { kind: 'Field', name: { kind: 'Name', value: 'id' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'title' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'status' } },
@@ -10939,6 +11051,23 @@ export const FlowCreatedDocument = {
             selectionSet: {
                 kind: 'SelectionSet',
                 selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'lifecycleJob' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'kind' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'status' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'step' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'attempts' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'maxAttempts' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'error' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'correlationId' } },
+                            ],
+                        },
+                    },
                     { kind: 'Field', name: { kind: 'Name', value: 'id' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'title' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'status' } },
@@ -11021,6 +11150,23 @@ export const FlowDeletedDocument = {
             selectionSet: {
                 kind: 'SelectionSet',
                 selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'lifecycleJob' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'kind' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'status' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'step' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'attempts' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'maxAttempts' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'error' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'correlationId' } },
+                            ],
+                        },
+                    },
                     { kind: 'Field', name: { kind: 'Name', value: 'id' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'title' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'status' } },
@@ -11103,6 +11249,23 @@ export const FlowUpdatedDocument = {
             selectionSet: {
                 kind: 'SelectionSet',
                 selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'lifecycleJob' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'kind' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'status' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'step' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'attempts' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'maxAttempts' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'error' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'correlationId' } },
+                            ],
+                        },
+                    },
                     { kind: 'Field', name: { kind: 'Name', value: 'id' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'title' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'status' } },

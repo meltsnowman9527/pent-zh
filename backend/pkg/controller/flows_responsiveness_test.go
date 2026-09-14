@@ -154,5 +154,5 @@ func TestConcurrentFinishOnlyShutsDownWorkerOnce(t *testing.T) {
 		first, second = second, first
 	}
 	require.NoError(t, first)
-	require.ErrorIs(t, second, ErrFlowNotFound)
+	require.NoError(t, second, "cleanup retries are idempotent after the worker has been removed")
 }

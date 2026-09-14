@@ -46,5 +46,3 @@ export const buildResourcesDownloadHref = (files: readonly FileNode[]): string =
 
     return `${baseUrl}${RESOURCES_DOWNLOAD_API_PATH}?${query}`;
 };
-
-export const pluralizeItems = (count: number): string => (count === 1 ? 'item' : 'items');

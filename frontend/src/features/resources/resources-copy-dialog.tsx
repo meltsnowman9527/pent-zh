@@ -239,10 +239,7 @@ function ResourcesCopyDialogForm({ files, onClose }: ResourcesCopyDialogFormProp
                                     </FormControl>
                                     <FormDescription>
                                         {isMulti ? (
-                                            <>
-                                                Relative directory inside your library. Leave empty for the root. Each
-                                                item keeps its current filename.
-                                            </>
+                                            <>{uiText("Relative directory inside your library. Leave empty for the root. Each item keeps its current filename.")}</>
                                         ) : (
                                             <>{uiText('Relative path inside your library.')}</>
                                         )}

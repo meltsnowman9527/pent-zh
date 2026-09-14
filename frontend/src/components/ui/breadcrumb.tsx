@@ -12,8 +12,8 @@ function Breadcrumb({
 }) {
     return (
         <nav
-            aria-label="breadcrumb"
-            data-slot="breadcrumb"
+            aria-label={uiText("breadcrumb")}
+            data-slot={uiText("breadcrumb")}
             {...props}
         />
     );

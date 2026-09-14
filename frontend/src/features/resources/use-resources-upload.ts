@@ -14,7 +14,6 @@ import {
     RESOURCES_API_PATH,
 } from './resources-constants';
 import { restResourceEntryToFragment, type RestResourceList } from './resources-rest';
-import { pluralizeItems } from './resources-utils';
 
 interface UploadOptions {
     /** Virtual directory path inside the user's library. Empty/undefined uploads to root. */
@@ -63,18 +62,18 @@ interface UseResourcesUploadResult {
     uploadFiles: (selectedFiles: File[], options?: UploadOptions) => Promise<null | UploadResponse>;
 }
 
-const UPLOAD_OVERWRITE_HINT = 'Resource already exists — please rename or remove the existing entry';
+const UPLOAD_OVERWRITE_HINT = uiText('Resource already exists — please rename or remove the existing entry');
 
 const buildUploadSuccessMessage = (uploadedCount: number, dir?: string) => {
-    const target = dir ? `to /${dir}` : 'to your library';
+    const target = dir ? `/${dir}` : uiText('your resource library');
 
     if (uploadedCount === 1) {
         return { description: uiText('Uploaded {target}', { target }), title: uiText('File uploaded') };
     }
 
     return {
-        description: `${uploadedCount} files uploaded ${target}`,
-        title: `${uploadedCount} ${pluralizeItems(uploadedCount)} uploaded`,
+        description: uiText('{count} files uploaded to {target}', { count: uploadedCount, target }),
+        title: uiText('{count} files uploaded', { count: uploadedCount }),
     };
 };
 

@@ -7,7 +7,7 @@ import { api, getApiErrorMessage } from '@/lib/axios';
 import { uiText } from '@/locales/zh-CN';
 
 import { RESOURCES_API_PATH } from './resources-constants';
-import { buildPathsQuery, pluralizeItems } from './resources-utils';
+import { buildPathsQuery } from './resources-utils';
 
 interface UseResourcesDeleteParams {
     onAfterDelete?: () => void;
@@ -66,7 +66,7 @@ export function useResourcesDelete({ onAfterDelete }: UseResourcesDeleteParams =
                     const [single] = filesToDelete;
                     toast.success(single?.isDir ? uiText('Directory deleted') : uiText('Resource deleted'));
                 } else {
-                    toast.success(`${filesToDelete.length} ${pluralizeItems(filesToDelete.length)} deleted`);
+                    toast.success(uiText('{count} items deleted', { count: filesToDelete.length }));
                 }
 
                 onAfterDelete?.();

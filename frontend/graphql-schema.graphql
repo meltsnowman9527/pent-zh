@@ -10,6 +10,16 @@ fragment settingsFragment on Settings {
 }
 
 fragment flowFragment on Flow {
+    lifecycleJob {
+        id
+        kind
+        status
+        step
+        attempts
+        maxAttempts
+        error
+        correlationId
+    }
     id
     title
     status

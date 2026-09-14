@@ -1,6 +1,8 @@
 import { subMonths, subYears } from 'date-fns';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { uiText } from '@/locales/zh-CN';
+
 import type { FileManagerInternalNode, FileManagerRootGroup, FileNode } from './file-manager-types';
 
 import {
@@ -25,7 +27,6 @@ import {
     getCheckboxState,
     isEverySelected,
     normalizeRootGroups,
-    pluralizeItemsEnglish,
     removeAll,
     resolveSelectionModifier,
     sortFileManagerTree,
@@ -87,37 +88,41 @@ describe('formatModifiedRelative', () => {
     });
 
     it('handles "just now"', () => {
-        expect(formatModifiedRelative(new Date(NOW - 10_000))).toBe('just now');
+        expect(formatModifiedRelative(new Date(NOW - 10_000))).toBe(uiText('just now'));
     });
 
     it('formats minutes / hours / days within a week', () => {
-        expect(formatModifiedRelative(new Date(NOW - 5 * 60_000))).toBe('5m ago');
-        expect(formatModifiedRelative(new Date(NOW - 3 * 60 * 60_000))).toBe('3h ago');
-        expect(formatModifiedRelative(new Date(NOW - 4 * 24 * 60 * 60_000))).toBe('4d ago');
+        expect(formatModifiedRelative(new Date(NOW - 5 * 60_000))).toBe(uiText('{count}m ago', { count: 5 }));
+        expect(formatModifiedRelative(new Date(NOW - 3 * 60 * 60_000))).toBe(uiText('{count}h ago', { count: 3 }));
+        expect(formatModifiedRelative(new Date(NOW - 4 * 24 * 60 * 60_000))).toBe(uiText('{count}d ago', { count: 4 }));
     });
 
     it('formats weeks for entries within 4 weeks', () => {
-        expect(formatModifiedRelative(new Date(NOW - 14 * 24 * 60 * 60_000))).toBe('2w ago');
-        expect(formatModifiedRelative(new Date(NOW - 21 * 24 * 60 * 60_000))).toBe('3w ago');
+        expect(formatModifiedRelative(new Date(NOW - 14 * 24 * 60 * 60_000))).toBe(
+            uiText('{count}w ago', { count: 2 }),
+        );
+        expect(formatModifiedRelative(new Date(NOW - 21 * 24 * 60 * 60_000))).toBe(
+            uiText('{count}w ago', { count: 3 }),
+        );
     });
 
     it('formats months for entries within a year', () => {
         // 90 days ≈ 2 calendar months from the fake `NOW`. Using subMonths
         // instead of arithmetic keeps the test robust against month-length
         // variation (date-fns' differenceInMonths is calendar-based, not 30d).
-        expect(formatModifiedRelative(subMonths(new Date(NOW), 2))).toBe('2mo ago');
-        expect(formatModifiedRelative(subMonths(new Date(NOW), 6))).toBe('6mo ago');
+        expect(formatModifiedRelative(subMonths(new Date(NOW), 2))).toBe(uiText('{count}mo ago', { count: 2 }));
+        expect(formatModifiedRelative(subMonths(new Date(NOW), 6))).toBe(uiText('{count}mo ago', { count: 6 }));
     });
 
     it('formats years for entries older than a year', () => {
-        expect(formatModifiedRelative(subYears(new Date(NOW), 1))).toBe('1y ago');
-        expect(formatModifiedRelative(subYears(new Date(NOW), 5))).toBe('5y ago');
+        expect(formatModifiedRelative(subYears(new Date(NOW), 1))).toBe(uiText('{count}y ago', { count: 1 }));
+        expect(formatModifiedRelative(subYears(new Date(NOW), 5))).toBe(uiText('{count}y ago', { count: 5 }));
     });
 
     it('accepts ISO strings', () => {
         const iso = new Date(NOW - 10 * 60_000).toISOString();
 
-        expect(formatModifiedRelative(iso)).toBe('10m ago');
+        expect(formatModifiedRelative(iso)).toBe(uiText('{count}m ago', { count: 10 }));
     });
 });
 
@@ -148,13 +153,13 @@ describe('formatModifiedAbsolute', () => {
     });
 
     it('renders day, month and time within the current calendar year', () => {
-        expect(formatModifiedAbsolute(new Date(2026, 0, 3, 8, 7))).toBe('3 Jan, 08:07');
-        expect(formatModifiedAbsolute(new Date(2026, 11, 15, 18, 0))).toBe('15 Dec, 18:00');
+        expect(formatModifiedAbsolute(new Date(2026, 0, 3, 8, 7))).toBe('1月3日 08:07');
+        expect(formatModifiedAbsolute(new Date(2026, 11, 15, 18, 0))).toBe('12月15日 18:00');
     });
 
     it('includes the year for entries from previous calendar years', () => {
-        expect(formatModifiedAbsolute(new Date(2024, 5, 1, 6, 30))).toBe('1 Jun 2024, 06:30');
-        expect(formatModifiedAbsolute(new Date(2020, 11, 31, 23, 45))).toBe('31 Dec 2020, 23:45');
+        expect(formatModifiedAbsolute(new Date(2024, 5, 1, 6, 30))).toBe('2024年6月1日 06:30');
+        expect(formatModifiedAbsolute(new Date(2020, 11, 31, 23, 45))).toBe('2020年12月31日 23:45');
     });
 
     it('accepts ISO strings', () => {
@@ -163,7 +168,7 @@ describe('formatModifiedAbsolute', () => {
         // back through the local clock returns the original wall-clock time.
         const local = new Date(2026, 2, 14, 10, 5);
 
-        expect(formatModifiedAbsolute(local.toISOString())).toBe('14 Mar, 10:05');
+        expect(formatModifiedAbsolute(local.toISOString())).toBe('3月14日 10:05');
     });
 });
 
@@ -455,17 +460,6 @@ describe('collectSubtreePaths', () => {
 
         expect(groupRoot.isGroupRoot).toBe(true);
         expect(collectSubtreePaths(groupRoot).sort()).toEqual(['uploads/a.txt', 'uploads/sub', 'uploads/sub/b.txt']);
-    });
-});
-
-describe('pluralizeItemsEnglish', () => {
-    it('uses singular for 1', () => {
-        expect(pluralizeItemsEnglish(1)).toBe('1 item');
-    });
-
-    it('uses plural for 0 and >1', () => {
-        expect(pluralizeItemsEnglish(0)).toBe('0 items');
-        expect(pluralizeItemsEnglish(5)).toBe('5 items');
     });
 });
 

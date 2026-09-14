@@ -15,7 +15,7 @@ import { uiText } from '@/locales/zh-CN';
 
 import type { FileManagerBulkAction, FileManagerLabels, FileNode } from './file-manager-types';
 
-import { dedupeOverlappingPaths, formatFileSize, pluralizeItemsEnglish } from './file-manager-utils';
+import { dedupeOverlappingPaths, formatFileSize } from './file-manager-utils';
 
 interface BulkActionButtonProps {
     action: FileManagerBulkAction;
@@ -127,9 +127,10 @@ export function FileManagerBulkActionsBar({
         return null;
     }
 
-    const pluralize = labels.pluralizeItems ?? pluralizeItemsEnglish;
+    const pluralize = labels.pluralizeItems ?? ((count: number) => uiText('{count} items', { count }));
     const countLabel = pluralize(selectedPaths.size);
-    const baseSelectedText = labels.selectedLabel?.(selectedPaths.size) ?? `${selectedPaths.size} selected`;
+    const baseSelectedText =
+        labels.selectedLabel?.(selectedPaths.size) ?? uiText('{count} selected', { count: selectedPaths.size });
     const sizeSuffix = (labels.formatSelectionSize ?? formatFileSize)(selectionTotalBytes);
     const selectedText = sizeSuffix ? `${baseSelectedText} · ${sizeSuffix}` : baseSelectedText;
     const cancelText = labels.bulkCancel ?? uiText('Cancel');

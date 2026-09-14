@@ -5,6 +5,7 @@ import type { OverwriteOutcome } from '@/components/shared/overwrite';
 
 import { resourceIdsToWire } from '@/features/resources/resources-rest';
 import { api, getApiErrorMessage, getApiErrorStatusCode } from '@/lib/axios';
+import { localizeUiErrorText } from '@/lib/errors';
 import { uiText } from '@/locales/zh-CN';
 
 import type { FlowFilesResponse } from './flow-files-utils';
@@ -52,7 +53,8 @@ export function useFlowFilesAttachResources({
             } catch (error) {
                 // Non-numeric IDs indicate an upstream cache contract bug, not a user
                 // mistake. Surface a developer-friendly toast and bail out loudly.
-                const description = error instanceof Error ? error.message : uiText('Invalid resource IDs.');
+                const description =
+                    error instanceof Error ? localizeUiErrorText(error.message) : uiText('Invalid resource IDs.');
 
                 toast.error(uiText('Attach failed'), { description });
 

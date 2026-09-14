@@ -270,7 +270,7 @@ function FlowFilesAttachResourcesDialogBody({
                 <DialogFooter className="flex-wrap gap-4 sm:items-center">
                     <span className="text-muted-foreground order-last mr-auto text-xs sm:order-first">
                         {selectedCount > 0
-                            ? `${selectedCount} selected`
+                            ? uiText('{count} selected', { count: selectedCount })
                             : hasResources
                               ? uiText('Select one or more items')
                               : ''}

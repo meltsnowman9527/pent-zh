@@ -17,6 +17,7 @@ import {
     SettingsUserDocument,
     SettingsUserUpdatedDocument,
 } from '@/graphql/types';
+import { localizeUiErrorText } from '@/lib/errors';
 import { Log } from '@/lib/log';
 import { uiText } from '@/locales/zh-CN';
 import { useUser } from '@/providers/user-provider';
@@ -149,7 +150,8 @@ export function FavoritesProvider({ children }: FavoritesProviderProps) {
                         variables: { flowId: id },
                     });
                 } catch (error) {
-                    const errorMessage = error instanceof Error ? error.message : uiText('Failed to add favorite');
+                    const errorMessage =
+                        error instanceof Error ? localizeUiErrorText(error.message) : uiText('Failed to add favorite');
                     toast.error(uiText('Failed to add to favorites'), {
                         description: errorMessage,
                     });
@@ -173,7 +175,10 @@ export function FavoritesProvider({ children }: FavoritesProviderProps) {
                         variables: { flowId: id },
                     });
                 } catch (error) {
-                    const errorMessage = error instanceof Error ? error.message : uiText('Failed to remove favorite');
+                    const errorMessage =
+                        error instanceof Error
+                            ? localizeUiErrorText(error.message)
+                            : uiText('Failed to remove favorite');
                     toast.error(uiText('Failed to remove from favorites'), {
                         description: errorMessage,
                     });

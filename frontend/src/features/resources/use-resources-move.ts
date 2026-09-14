@@ -15,7 +15,7 @@ export const resourcesMoveFormSchema = z.object({
         .trim()
         .min(1, { message: uiText('Destination cannot be empty') })
         .refine((value) => !value.startsWith('/'), { message: uiText('Destination must be a relative path') })
-        .refine((value) => !value.split('/').includes('..'), { message: 'Destination must not contain ".."' }),
+        .refine((value) => !value.split('/').includes('..'), { message: uiText('Destination must not contain ".."') }),
 });
 
 export type ResourcesMoveFormValues = z.infer<typeof resourcesMoveFormSchema>;

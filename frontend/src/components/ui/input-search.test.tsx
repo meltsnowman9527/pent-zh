@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -208,22 +208,23 @@ describe('InputSearch — trailing clear button', () => {
         expect(queryTrigger()).not.toBeInTheDocument();
     });
 
-    it('drops a pending debounce when clicked mid-typing', async () => {
-        const emitted: string[] = [];
-        const user = userEvent.setup();
-        render(<SearchHost emitted={emitted} />, { wrapper: Wrapper });
+    it('drops a pending debounce when clicked mid-typing', () => {
+        vi.useFakeTimers();
 
-        await user.click(queryTrigger()!);
-        await user.type(getInput(), 'ab');
-        // Clear button appears as soon as a character is typed.
-        const clearBtn = queryClearButton();
-        expect(clearBtn).toBeInTheDocument();
-
-        await user.click(clearBtn!);
-        await sleep(PAST_DEBOUNCE_MS);
-
-        expect(emitted.some((value) => value.length > 0)).toBe(false);
-        expect(getInput().value).toBe('');
+        try {
+            const emitted: string[] = [];
+            render(<SearchHost emitted={emitted} />, { wrapper: Wrapper });
+            fireEvent.click(queryTrigger()!);
+            fireEvent.change(getInput(), { target: { value: 'ab' } });
+            fireEvent.click(queryClearButton()!);
+            act(() => {
+                vi.advanceTimersByTime(PAST_DEBOUNCE_MS);
+            });
+            expect(emitted.some((value) => value.length > 0)).toBe(false);
+            expect(getInput().value).toBe('');
+        } finally {
+            vi.useRealTimers();
+        }
     });
 });
 

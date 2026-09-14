@@ -1,5 +1,7 @@
 import { type DragEvent as ReactDragEvent, useCallback, useEffect, useRef, useState } from 'react';
 
+import { uiText } from '@/locales/zh-CN';
+
 import type { FileManagerInternalNode, FileNode } from './file-manager-types';
 
 import { dedupeOverlappingPaths } from './file-manager-utils';
@@ -282,7 +284,7 @@ export function useFileManagerDnd({
             if (sources.length > 1) {
                 const badge = document.createElement('div');
 
-                badge.textContent = `${sources.length} items`;
+                badge.textContent = uiText('{count} items', { count: sources.length });
                 badge.style.cssText = [
                     'position: fixed',
                     // Render off-screen so we never flash it to the user — `setDragImage`

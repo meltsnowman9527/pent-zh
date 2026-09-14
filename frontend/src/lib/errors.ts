@@ -89,3 +89,10 @@ export const hasLocalizedApiErrorText = (text: null | string | undefined): boole
 
 /** 供测试与调用方读取的已知错误码表（键为后端原值）。 */
 export const knownApiErrorMessages = KNOWN_ERROR_MESSAGES;
+
+/** UI fallback for unmapped diagnostics; callers retain the raw error in logs/details. */
+export const localizeUiErrorText = (text: null | string | undefined): string => {
+    const localized = localizeApiErrorText(text);
+
+    return localized && /[\u3400-\u9fff]/u.test(localized) ? localized : '操作未完成，请稍后重试';
+};

@@ -11,6 +11,7 @@ import (
 )
 
 type Querier interface {
+	CreateFlowWithJob(context.Context, CreateFlowWithJobParams) (CreateFlowWithJobRow, error)
 	AddFavoriteFlow(ctx context.Context, arg AddFavoriteFlowParams) (UserPreference, error)
 	ClaimFlowJob(ctx context.Context, id int64) (FlowJob, error)
 	CompleteFlowJob(ctx context.Context, arg CompleteFlowJobParams) (FlowJob, error)

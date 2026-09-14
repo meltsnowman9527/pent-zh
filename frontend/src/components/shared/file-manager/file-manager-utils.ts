@@ -13,7 +13,9 @@ import {
     isToday,
     isValid,
 } from 'date-fns';
-import { enUS } from 'date-fns/locale';
+import { zhCN } from 'date-fns/locale';
+
+import { uiText } from '@/locales/zh-CN';
 
 import type {
     FileManagerInternalNode,
@@ -64,30 +66,30 @@ export const formatModifiedRelative = (modifiedAt?: Date | string): string => {
     const years = differenceInYears(now, date);
 
     if (seconds < 60 || !minutes) {
-        return 'just now';
+        return uiText('just now');
     }
 
     if (minutes < 60 || !hours) {
-        return `${minutes}m ago`;
+        return uiText('{count}m ago', { count: minutes });
     }
 
     if (hours < 24 || !days) {
-        return `${hours}h ago`;
+        return uiText('{count}h ago', { count: hours });
     }
 
     if (days < 7 || !weeks) {
-        return `${days}d ago`;
+        return uiText('{count}d ago', { count: days });
     }
 
     if (weeks < 4 || !months) {
-        return `${weeks}w ago`;
+        return uiText('{count}w ago', { count: weeks });
     }
 
     if (months < 12 || !years) {
-        return `${months}mo ago`;
+        return uiText('{count}mo ago', { count: months });
     }
 
-    return `${years}y ago`;
+    return uiText('{count}y ago', { count: years });
 };
 
 /**
@@ -100,9 +102,7 @@ export const formatModifiedRelative = (modifiedAt?: Date | string): string => {
  *   - same calendar year  → `d MMM, HH:mm` (e.g. `15 Apr, 14:32`)
  *   - any other year      → `d MMM yyyy, HH:mm` (e.g. `15 Apr 2024, 14:32`)
  *
- * Locale is forced to `en-US` so day/month tokens stay stable regardless of
- * the user's browser locale (matches the rest of the FileManager UI strings,
- * which are English-only by default).
+ * Dates use the same Chinese locale as the rest of the interface.
  */
 export const formatModifiedAbsolute = (modifiedAt?: Date | string): string => {
     if (!modifiedAt) {
@@ -120,10 +120,10 @@ export const formatModifiedAbsolute = (modifiedAt?: Date | string): string => {
     }
 
     if (isThisYear(date)) {
-        return format(date, 'd MMM, HH:mm', { locale: enUS });
+        return format(date, 'M月d日 HH:mm', { locale: zhCN });
     }
 
-    return format(date, 'd MMM yyyy, HH:mm', { locale: enUS });
+    return format(date, 'yyyy年M月d日 HH:mm', { locale: zhCN });
 };
 
 /** Strip trailing slashes from a `pathPrefix`. Empty / `'/'` collapse to `''`. */
@@ -597,9 +597,6 @@ export const collectSubtreePaths = (node: FileManagerInternalNode): string[] => 
 
     return result;
 };
-
-/** Default English pluralization for "N item" / "N items". Override via `labels.pluralizeItems`. */
-export const pluralizeItemsEnglish = (count: number): string => `${count} ${count === 1 ? 'item' : 'items'}`;
 
 /**
  * Recursively sum every file's `size` inside a node's subtree. Synthetic group

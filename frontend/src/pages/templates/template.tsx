@@ -472,7 +472,7 @@ function TemplateForm({ templateId }: { templateId?: string }) {
                                                 className="max-w-64 min-w-0 cursor-text truncate select-none"
                                                 onDoubleClick={handleTemplateRenameStart}
                                             >
-                                                {templateName ?? 'Template'}
+                                                {templateName ?? uiText('Template')}
                                             </BreadcrumbPage>
                                         </TooltipTrigger>
                                         <TooltipContent>{uiText('Double-click to rename')}</TooltipContent>

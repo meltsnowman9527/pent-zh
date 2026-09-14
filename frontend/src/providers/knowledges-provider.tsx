@@ -22,6 +22,7 @@ import {
     UpdateKnowledgeDocumentDocument,
 } from '@/graphql/types';
 import { useLatestRef } from '@/hooks/use-latest-ref';
+import { localizeUiErrorText } from '@/lib/errors';
 import { Log } from '@/lib/log';
 import { URL_PARAMS } from '@/lib/url-params';
 import { uiText } from '@/locales/zh-CN';
@@ -155,7 +156,9 @@ export function KnowledgesProvider({ children }: KnowledgesProviderProps) {
                 return result?.createKnowledgeDocument;
             } catch (error) {
                 const errorMessage =
-                    error instanceof Error ? error.message : uiText('Failed to create knowledge document');
+                    error instanceof Error
+                        ? localizeUiErrorText(error.message)
+                        : uiText('Failed to create knowledge document');
                 toast.error(uiText('Failed to create knowledge document'), { description: errorMessage });
                 Log.error('Error creating knowledge document:', error);
                 throw error;
@@ -172,7 +175,9 @@ export function KnowledgesProvider({ children }: KnowledgesProviderProps) {
                 return result?.updateKnowledgeDocument;
             } catch (error) {
                 const errorMessage =
-                    error instanceof Error ? error.message : uiText('Failed to update knowledge document');
+                    error instanceof Error
+                        ? localizeUiErrorText(error.message)
+                        : uiText('Failed to update knowledge document');
                 toast.error(uiText('Failed to update knowledge document'), { description: errorMessage });
                 Log.error('Error updating knowledge document:', error);
                 throw error;
@@ -189,7 +194,9 @@ export function KnowledgesProvider({ children }: KnowledgesProviderProps) {
                 return result?.renameKnowledgeDocument;
             } catch (error) {
                 const errorMessage =
-                    error instanceof Error ? error.message : uiText('Failed to rename knowledge document');
+                    error instanceof Error
+                        ? localizeUiErrorText(error.message)
+                        : uiText('Failed to rename knowledge document');
                 toast.error(uiText('Failed to rename knowledge document'), { description: errorMessage });
                 Log.error('Error renaming knowledge document:', error);
                 throw error;
@@ -204,7 +211,9 @@ export function KnowledgesProvider({ children }: KnowledgesProviderProps) {
                 await deleteKnowledgeMutation({ variables: { id } });
             } catch (error) {
                 const errorMessage =
-                    error instanceof Error ? error.message : uiText('Failed to delete knowledge document');
+                    error instanceof Error
+                        ? localizeUiErrorText(error.message)
+                        : uiText('Failed to delete knowledge document');
                 toast.error(uiText('Failed to delete knowledge document'), { description: errorMessage });
                 Log.error('Error deleting knowledge document:', error);
                 throw error;

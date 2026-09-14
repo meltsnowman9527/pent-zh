@@ -49,6 +49,31 @@
 - 部署复核：`pentagi` 容器于 2026-09-13 16:26:08 重建（第八批），运行 `pentagi-local:latest`；容器内 `/opt/pentagi/fe/index.html` 与本地 `frontend/dist/index.html` 校验值一致（md5 `ceaf97c0c6d117a5888fdb6d3ec4e02e`）；https://localhost:8443 返回 200；容器静态文件（`zh-CN-CZO_8hL0.js`）中可检索到「资源已复制」「已复制到剪贴板」「上传目录」「左对齐」「上传失败」「任务流程 #」「删除{count}」「文件数量过多」。
 - 部署复核：`pentagi` 容器于 2026-09-13 16:11:37 重建（第七批），运行 `pentagi-local:latest`；容器内 `/opt/pentagi/fe/index.html` 与本地 `frontend/dist/index.html` 校验值一致（md5 `40cc62c280e066ebf4817668016dd9f7`）；https://localhost:8443 返回 200；容器静态文件（`zh-CN-CZO_8hL0.js`）中可检索到「文字样式」「插入表格」「覆盖复制」「最多 50 个字符」「上一个」。此前 15:40:33 的重建（第六批），运行 `pentagi-local:latest`；容器静态文件中可检索到「语义搜索」「预设模板」。此前 15:29:26 的重建（第五批），运行 `pentagi-local:latest`；容器静态文件中可检索到「该任务流程已结束」「滚动到最新消息」。此前 15:17:55 的重建（第四批），运行 `pentagi-local:latest`；容器静态文件中可检索到「任务流程活动趋势」「该时间段暂无数据」。此前 15:10:33 的重建（第三批），运行 `pentagi-local:latest`；容器内 `/opt/pentagi/fe/index.html` 与本地 `frontend/dist/index.html` 校验值一致；容器静态文件中可检索到「推理配置」「模型服务测试结果」等新文案；https://localhost:8443 返回 200；`pentagidb` 中保留原有 provider 配置与历史任务。
 
+## 复核批次（2026-09-14）
+
+本批是对现有中文化与任务生命周期改动的复核修复，不扩展五阶段业务范围。改动先在工作区完成，随后随本批记录一并提交。
+
+- 后端（`backend/pkg/controller`、`backend/pkg/database`、`backend/pkg/graph`、`backend/pkg/server/services`）：
+  - 创建任务改为一次原子写入：新增 sqlc 查询 `CreateFlowWithJob`（CTE 同时插入 `flows` 与 `flow_jobs`），作业插入失败不会再留下无法启动的任务行。
+  - 提交锁与生命周期锁分离（`submitMX` 与 `lifecycleMX`），队列拥堵不再拖住创建请求。
+  - 删除改为持久后台作业（`DeleteFlow`）：GraphQL 与 REST 都只入队，REST 返回 202 Accepted，清理完成后由作业推送 `FlowUpdated`。
+  - 结束/清理在进程重启后仍可执行，缺少 worker 时直接清理已记录的容器，重复清理幂等。
+  - 领取与重试门控下沉到 SQL：`running` 不能被二次领取，`retrying` 需等待退避间隔，`stop` 作业仅在 `recovered` 步骤可恢复。
+  - 新增 `Flow.lifecycleJob`（`FlowLifecycleJob`）字段与解析器，供界面显示排队、清理、重试与失败原因。
+- 前端（`frontend/src`）：
+  - 新增 `features/flows/flow-job-status.tsx`（含测试），任务列表与详情页显示后台作业状态；结束/删除提示改为“请求已受理…”，列表增加轮询与 online/focus 重取，避免清理期间重复提交。
+  - 后端英文错误统一经 `localizeUiErrorText` 映射为中文，`ErrorState` 把原始诊断收进「查看原始诊断」；日期格式统一为中文区域。
+  - 中文化补漏（本批新发现并修复，均为此前扫描口径遗漏的位置）：`ariaLabel`/`description`/`hint` 等属性值 4 处；由数据驱动的显示值 5 处（知识文档与模板的占位标题、终端连接状态、手工/智能体徽标、任务/子任务/交互助手计数）；zod 校验消息 5 条；上传、删除、复制的多选 toast 与上传目标文案；终端 Cmd/Ctrl 提示；拖拽数量徽标；提示词重置确认句与插入变量提示；模型服务复制名；额外请求体说明；资源拖放区说明与体积提示。
+  - 移除三处只产出英文的复数化辅助函数（`pluralizeItems`、`pluralizeItemsEnglish`）及其测试，改为经文案表取整句。
+- 验证（2026-09-14）：
+  - 前端：`pnpm test` **1372 通过 / 16 跳过 / 0 失败**（比上一批少 2 项，来自删除的英文复数化用例）；`eslint --max-warnings 0` 退出码 0；`tsc -b` 通过；`vite build` 通过。
+  - 后端：容器内 `go test -race ./pkg/controller ./pkg/server/services ./pkg/graph/... ./pkg/database` 通过。
+  - 数据库：真实 PostgreSQL 上迁移至 `20260913_180000_flow_jobs` 成功；原子创建失败回滚、运行中作业不可二次领取、清理失败保留任务、重试等待时间等用例通过。
+  - 部署：`pentagi-local:latest` 重新构建，并于 10:41:48 替换 `pentagi` 容器；容器内 `/opt/pentagi/fe/index.html` 与本地 `frontend/dist/index.html` 校验值一致（md5 `8c7dd0201561411a48b49697442bc991`）。
+  - 入口改为 HTTP：`.env` 中 `SERVER_USE_SSL=false`，`PUBLIC_URL`/`CORS_ORIGINS` 改为 `http://localhost:8443`；`http://localhost:8443` 返回 200，HTTPS 不再监听。登录 Cookie 的 `Secure` 标志由 `c.Request.TLS != nil` 决定，HTTP 下自动省略，登录不受影响。
+  - 仍未做：浏览器逐页走查（中文变长造成的截断、换行、按钮宽度与图标按钮布局）、报告/PDF 固定标题核对、读屏实测、p95 响应基线与慢模型/慢 Docker/故障注入验收。
+  - 复现日志：`build/frontend-tests-verify.log`、`build/frontend-build-verify.log`、`build/backend-review-tests-verify.log`、`build/db-integration-verify.log`、`build/application-build-verify.log`（`build/` 不入库）。真库集成测试的可运行迁移脚本放在 `backend/tmp/migrate-review/main.go`（同样不入库）。
+
 ## 扫描口径说明
 
 统计“还剩多少英文文案”时必须扫描 `frontend/src` 下的**全部**非测试 `.ts` 与 `.tsx`（只扫 `.tsx` 会漏掉路由标题注册表、API 层、上传校验与资源/文件操作 hook 里的用户可见文案），并把已出现的 `uiText(...)` 调用遮蔽后再匹配，不能跳过已接入文案表的文件：早期版本跳过这些文件，导致 `flow-files.tsx`、`flow-assistant-messages.tsx`、`flows.tsx` 等已接入文案表的文件里剩余的英文没有被统计，进度被高估。匹配要覆盖五类：JSX 文本节点（单行与多行）、常见属性值（含自定义属性）、字符串字面量、**反引号模板字面量**（toast 描述、无障碍名、确认句大量藏在这里），以及把选项名拼进 `aria-label` 的位置。另外两类第九批仍未覆盖，统计时不能省：一是被行内 `<code>` 切开的描述句，`>` 规则只能匹配紧跟标签后的第一段，`</code>` 之后的英文尾巴要单独搜索；二是徽标、下拉项里由数据驱动的显示标签（如令牌状态 `active`/`revoked`/`expired`），它们不是“大写单词开头的句子”，需要按“界面可能出现的英文单词”回查。匹配 `>` 时还要排除箭头函数与注释：前一字符是 `=` 或 `-` 的候选要剔除，否则 `() => ...` 与行内注释里的英文会淹没结果。加入新文案时，词条去重要同时检查 `'Key':` 与裸标识符 `Key:` 两种写法，否则会写出重复键，`tsc` 会以 TS1117 报错。
@@ -68,7 +93,7 @@
 
 - 全站中文化：JSX 文本节点层面的界面文案已清完（第十批关闭了最后 7 处：模型用量卡片标题、文件页无匹配空态、附加资源与从容器拉取两个弹窗的整段说明、详情导航提示、API 令牌状态标签、复制消息的 Markdown 小标题）。118 个非测试源文件接入文案表（`frontend/src/locales/zh-CN.ts`，约 970 条词条），23 个测试文件改为经 `uiText(...)` 取期望文案。第三方库自身抛出的英文错误不在此范围。按第九批修正后的口径（`frontend/src` 下全部非测试 `.ts` 与 `.tsx`，遮蔽 `uiText(...)` 后匹配 JSX 文本、多行文本、常见属性、字符串字面量与反引号模板字面量，范围含 `providers/`、`hooks/`、`lib/`）剩余英文逐条确认后，全部属于**不应翻译**的四类：品牌与产品名（PentAGI、GraphQL Playground、Swagger UI、Kimi/MiniMax/Qwen 等模型服务商名）、类型与数据值（`Promise`、`None`、GraphQL 错误码、GraphQL 查询文本、`Record<string, boolean>`）、日志与示例（`Redirection failed:`、`GraphQL WebSocket closed`、示例 URL、字体名、`Cmd`/`Ctrl` 等按键名）、模板页内置的 11 个预设模板名称与正文（生成提示词用内容）。技术参数名 `Top K`/`Top P` 与协议名 `OAuth` 同样保留英文。
 - P0A 验收项里**尚未实测**的部分（源码扫描与构建校验不能替代）：① 页面走查——中文变长造成的截断、换行、按钮宽度、图标按钮布局，目前只做了源码扫描与产物校验，没有在浏览器里逐页走查，也没有登录后台走查受权限保护的页面；② 前端生成报告/PDF 的固定标题与表头核对（`report-pdf.tsx` 已使用 `NotoSansSC` 中文字体，但固定表头未逐项核对）；③ 读屏工具实测无障碍名（`aria-label` 已全部中文化，未实测）。计划里的“错误码映射为中文说明、原始诊断放可展开详情”已由第九批实现（见 `lib/errors.ts` 与 `ErrorState`），但后端新增错误码时需要同步登记，否则会退回展示英文原文。
-- 任务创建与删除的完整后台作业机制（P0 第 3、5 条）：目前只缩小了锁范围，未给创建/停止/删除增加分段耗时与关联标识，未实现持久作业记录与失败重试，也未测量 p95 响应基线，未做慢模型/慢 Docker/故障注入验收。
+- 任务创建与删除的后台作业机制已落地（P0 第 3、5 条）：创建、停止、结束、删除都有持久作业行、分段耗时与关联标识、失败重试与重启恢复，界面也能看到排队、清理、重试和失败原因；仍未测量 p95 响应基线，未做慢模型/慢 Docker/故障注入验收。
 - 资产发现/漏洞扫描、漏洞收集、利用链推理、渗透测试、报告输出的业务改造与对应页面。原始运行日志和第三方错误内容不属于静态文案替换范围。
 
 ## 部署方式

@@ -41,8 +41,10 @@ SELECT
   *
 FROM flow_jobs
 WHERE status IN ('queued', 'running')
+  AND (kind <> 'stop' OR step = 'recovered')
+  AND (step <> 'retrying' OR updated_at <= CURRENT_TIMESTAMP - INTERVAL '3 seconds' * GREATEST(attempts, 1))
 ORDER BY id
-LIMIT $1;
+LIMIT $1::bigint;
 
 -- name: ClaimFlowJob :one
 UPDATE flow_jobs
@@ -50,7 +52,8 @@ SET status = 'running',
     attempts = attempts + 1,
     started_at = COALESCE(started_at, CURRENT_TIMESTAMP),
     updated_at = CURRENT_TIMESTAMP
-WHERE id = $1 AND status IN ('queued', 'running')
+WHERE id = $1 AND status = 'queued'
+  AND (step <> 'retrying' OR updated_at <= CURRENT_TIMESTAMP - INTERVAL '3 seconds' * GREATEST(attempts, 1))
 RETURNING *;
 
 -- name: UpdateFlowJobProgress :one
@@ -107,3 +110,16 @@ RETURNING *;
 -- name: DeleteFinishedFlowJobsOlderThan :exec
 DELETE FROM flow_jobs
 WHERE status IN ('succeeded', 'failed') AND updated_at < $1;
+-- name: CreateFlowWithJob :one
+-- Both records commit together; a failed job insert cannot leave an orphan flow.
+WITH new_flow AS (
+  INSERT INTO flows (title, status, model, model_provider_name, model_provider_type,
+                     language, tool_call_id_template, functions, user_id)
+  VALUES ('untitled', 'created', 'unknown', $1, $2, 'English', $3, '{}', $4)
+  RETURNING *
+), new_job AS (
+  INSERT INTO flow_jobs (flow_id, user_id, kind, correlation_id, payload, max_attempts)
+  SELECT id, user_id, 'create', $5, $6, $7 FROM new_flow
+  RETURNING flow_id
+)
+SELECT new_flow.* FROM new_flow JOIN new_job ON new_job.flow_id = new_flow.id;

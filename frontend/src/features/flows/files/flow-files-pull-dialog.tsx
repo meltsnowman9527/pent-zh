@@ -343,8 +343,7 @@ function FlowFilesPullDialogForm({ cachedFiles, flowId, onClose, onSuccess }: Fl
                 </EmptyMedia>
                 <EmptyTitle>{uiText('Nothing readable here')}</EmptyTitle>
                 <EmptyDescription>
-                    None of the {listingFailures.length} {listingFailures.length === 1 ? 'entry' : 'entries'} in{' '}
-                    <code>{currentPath}</code> could be read.
+                    {uiText('Cannot read {count} entries in {path}.', {count:listingFailures.length,path:currentPath})}
                 </EmptyDescription>
             </EmptyHeader>
             <ul className="text-muted-foreground max-w-full space-y-1 px-4 text-left text-xs">
@@ -356,7 +355,7 @@ function FlowFilesPullDialogForm({ cachedFiles, flowId, onClose, onSuccess }: Fl
                         <span className="text-foreground font-medium">{failure.name}</span> — {failure.message}
                     </li>
                 ))}
-                {listingFailures.length > 5 && <li>…and {listingFailures.length - 5} more</li>}
+                {listingFailures.length > 5 && <li>{uiText('and {count} more', {count:listingFailures.length - 5})}</li>}
             </ul>
         </Empty>
     ) : (
@@ -462,16 +461,15 @@ function FlowFilesPullDialogForm({ cachedFiles, flowId, onClose, onSuccess }: Fl
                         <Alert>
                             <TriangleAlert />
                             <AlertTitle>
-                                {listingFailures.length} {listingFailures.length === 1 ? 'entry' : 'entries'} could not
-                                be read
+                                {uiText('{count} entries could not be read', {count:listingFailures.length})}
                             </AlertTitle>
                             <AlertDescription>
-                                The readable entries are shown below. Skipped:{' '}
+                                {uiText('Readable entries are shown below. Skipped:')}{' '}
                                 {listingFailures
                                     .slice(0, 5)
                                     .map((failure) => failure.name)
                                     .join(', ')}
-                                {listingFailures.length > 5 ? `, and ${listingFailures.length - 5} more` : ''}.
+                                {listingFailures.length > 5 ? uiText('and {count} more', {count:listingFailures.length - 5}) : ''}.
                             </AlertDescription>
                         </Alert>
                     )}
@@ -481,8 +479,7 @@ function FlowFilesPullDialogForm({ cachedFiles, flowId, onClose, onSuccess }: Fl
                             <TriangleAlert />
                             <AlertTitle>{uiText('Directory truncated')}</AlertTitle>
                             <AlertDescription>
-                                This directory has too many entries to list in full; only the first {files.length} are
-                                shown. Open a subfolder to see the rest.
+                                {uiText('Only the first {count} entries are shown. Open a subfolder to see the rest.', {count:files.length})}
                             </AlertDescription>
                         </Alert>
                     )}

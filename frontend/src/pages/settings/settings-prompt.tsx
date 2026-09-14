@@ -43,6 +43,7 @@ import {
     VARIABLE_RE,
     variableUseRegex,
 } from '@/components/shared/markdown-editor';
+import { localizeUiErrorText } from '@/lib/errors';
 
 type AgentPrompts = { human?: DefaultPrompt; system: DefaultPrompt };
 
@@ -359,7 +360,11 @@ function SettingsPromptEditor({ promptId }: { promptId?: string }) {
             setResetDialogOpen(false);
         } catch (error) {
             console.error('Reset error:', error);
-            setSubmitError(error instanceof Error ? error.message : uiText('An error occurred while resetting'));
+            setSubmitError(
+                error instanceof Error
+                    ? localizeUiErrorText(error.message)
+                    : uiText('An error occurred while resetting'),
+            );
             setResetDialogOpen(false);
         }
     };
@@ -403,7 +408,11 @@ function SettingsPromptEditor({ promptId }: { promptId?: string }) {
             setValidationDialogOpen(true);
         } catch (error) {
             console.error('Validation error:', error);
-            setSubmitError(error instanceof Error ? error.message : uiText('An error occurred while validating'));
+            setSubmitError(
+                error instanceof Error
+                    ? localizeUiErrorText(error.message)
+                    : uiText('An error occurred while validating'),
+            );
         }
     };
 
@@ -571,7 +580,9 @@ function SettingsPromptEditor({ promptId }: { promptId?: string }) {
             return true;
         } catch (error) {
             console.error('Submit error:', error);
-            setSubmitError(error instanceof Error ? error.message : uiText('An error occurred while saving'));
+            setSubmitError(
+                error instanceof Error ? localizeUiErrorText(error.message) : uiText('An error occurred while saving'),
+            );
 
             return false;
         }
@@ -622,7 +633,9 @@ function SettingsPromptEditor({ promptId }: { promptId?: string }) {
             return true;
         } catch (error) {
             console.error('Submit error:', error);
-            setSubmitError(error instanceof Error ? error.message : uiText('An error occurred while saving'));
+            setSubmitError(
+                error instanceof Error ? localizeUiErrorText(error.message) : uiText('An error occurred while saving'),
+            );
 
             return false;
         }
@@ -943,7 +956,7 @@ function SettingsPromptEditor({ promptId }: { promptId?: string }) {
                 handleConfirm={handleConfirmReset}
                 handleOpenChange={setResetDialogOpen}
                 isOpen={resetDialogOpen}
-                itemName={`${activeTab} prompt`}
+                itemName={uiText(activeTab === 'system' ? 'System Prompt' : 'Human Prompt')}
                 itemType={uiText('template')}
                 title={uiText('Reset Prompt')}
             />
@@ -969,7 +982,7 @@ function SettingsPromptEditor({ promptId }: { promptId?: string }) {
                             {uiText('Validation Results')}
                         </DialogTitle>
                         <DialogDescription>
-                            The validation result for the {activeTab} prompt template.
+                            {uiText('Validation result for {tab} prompt template.', { tab: activeTab })}
                         </DialogDescription>
                     </DialogHeader>
 
@@ -1115,7 +1128,7 @@ function VariablesContent({ currentTemplate, onVariableClick, variables }: Varia
                 const isUsed = count > 0;
                 const action = isUsed
                     ? `${uiText('Go to next {{.{variable}}} in the template', { variable })}${count > 1 ? uiText(' ({count} uses)', { count }) : ''}`
-                    : `Insert {{.${variable}}} at the cursor`;
+                    : uiText('Insert {{.{variable}}} at the cursor', { variable });
 
                 return (
                     // className stays on Badge: Slot only concatenates, so `font-normal` would race

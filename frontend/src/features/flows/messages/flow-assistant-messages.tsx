@@ -148,7 +148,7 @@ function AssistantsDropdown({
 
                 <div className="flex flex-1 items-center gap-2 overflow-hidden">
                     <span className="truncate text-sm">{assistant.title}</span>
-                    {!isValid && <span className="text-destructive shrink-0 text-xs">(unavailable)</span>}
+                    {!isValid && <span className="text-destructive shrink-0 text-xs">{uiText("(unavailable)")}</span>}
                 </div>
 
                 <Check

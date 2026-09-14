@@ -25,7 +25,7 @@ import (
 type fakeFlowJobStore struct {
 	database.Querier
 
-	mx   sync.Mutex
+	mx    sync.Mutex
 	flows map[int64]database.Flow
 	jobs  map[int64]database.FlowJob
 	// active mirrors flow_jobs_active_uniq: one queued/running job per flow+kind.
@@ -49,6 +49,15 @@ func newFakeFlowJobStore() *fakeFlowJobStore {
 		active:     map[string]int64{},
 		containers: map[int64][]database.Container{},
 	}
+}
+
+func (s *fakeFlowJobStore) CreateFlowWithJob(ctx context.Context, arg database.CreateFlowWithJobParams) (database.CreateFlowWithJobRow, error) {
+	flow, err := s.CreateFlow(ctx, database.CreateFlowParams{UserID: arg.UserID, ModelProviderName: arg.ModelProviderName, ModelProviderType: arg.ModelProviderType, Status: database.FlowStatusCreated})
+	if err != nil {
+		return database.CreateFlowWithJobRow{}, err
+	}
+	_, err = s.CreateFlowJob(ctx, database.CreateFlowJobParams{FlowID: flow.ID, UserID: arg.UserID, Kind: FlowJobKindCreate, Payload: arg.Payload, CorrelationID: arg.CorrelationID, MaxAttempts: arg.MaxAttempts})
+	return database.CreateFlowWithJobRow{ID: flow.ID}, err
 }
 
 func jobActiveKey(flowID int64, kind string) string {
@@ -89,6 +98,20 @@ func (s *fakeFlowJobStore) GetFlow(_ context.Context, id int64) (database.Flow, 
 	}
 
 	return flow, nil
+}
+
+func (s *fakeFlowJobStore) GetActiveFlowJob(_ context.Context, arg database.GetActiveFlowJobParams) (database.FlowJob, error) {
+	s.mx.Lock()
+	defer s.mx.Unlock()
+	id, ok := s.active[jobActiveKey(arg.FlowID, arg.Kind)]
+	if !ok {
+		return database.FlowJob{}, sql.ErrNoRows
+	}
+	return s.jobs[id], nil
+}
+
+func (s *fakeFlowJobStore) DeleteFlowMemoryDocuments(context.Context, sql.NullString) error {
+	return nil
 }
 
 func (s *fakeFlowJobStore) DeleteFlow(_ context.Context, id int64) (database.Flow, error) {
@@ -159,7 +182,7 @@ func (s *fakeFlowJobStore) ClaimFlowJob(_ context.Context, id int64) (database.F
 		return database.FlowJob{}, sql.ErrNoRows
 	}
 
-	if job.Status != FlowJobStatusQueued && job.Status != FlowJobStatusRunning {
+	if job.Status != FlowJobStatusQueued {
 		return database.FlowJob{}, fmt.Errorf("job %d is not claimable (%s)", id, job.Status)
 	}
 
@@ -313,6 +336,8 @@ func (p *jobTestPublisher) FlowUpdated(context.Context, database.Flow, []databas
 
 	p.updated++
 }
+
+func (p *jobTestPublisher) FlowDeleted(context.Context, database.Flow, []database.Container) {}
 
 func (p *jobTestPublisher) updateCount() int {
 	p.mx.Lock()
@@ -580,7 +605,7 @@ func TestCreateFlowDuplicateSubmissionReusesTheFlowAlreadyStarting(t *testing.T)
 	require.Len(t, store.jobs, 1, "a duplicate submission must not create a second flow")
 }
 
-func TestCreateLifecycleJobRejectsAConcurrentDuplicate(t *testing.T) {
+func TestCreateLifecycleJobReusesAConcurrentDuplicate(t *testing.T) {
 	store := newFakeFlowJobStore()
 	fc, _ := newJobTestController(store)
 
@@ -590,9 +615,10 @@ func TestCreateLifecycleJobRejectsAConcurrentDuplicate(t *testing.T) {
 	_, err = fc.createLifecycleJob(context.Background(), flow.ID, FlowJobKindFinish, flowJobPayload{})
 	require.NoError(t, err)
 
-	_, err = fc.createLifecycleJob(context.Background(), flow.ID, FlowJobKindFinish, flowJobPayload{})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "already queued or running")
+	job, err := fc.createLifecycleJob(context.Background(), flow.ID, FlowJobKindFinish, flowJobPayload{})
+	require.NoError(t, err)
+	require.EqualValues(t, 1, job.ID)
+	require.Len(t, store.jobs, 1)
 }
 
 func TestFinishFlowReturnsBeforeTheCleanupRuns(t *testing.T) {

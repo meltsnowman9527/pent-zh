@@ -52,6 +52,7 @@ export const makeFlow = (id: string, title: string, status: StatusType = StatusT
     entity('Flow', {
         createdAt: T,
         id,
+        lifecycleJob: null,
         provider: PROVIDER,
         status,
         terminals: [terminal(id)],

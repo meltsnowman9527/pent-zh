@@ -20,7 +20,8 @@ SET status = 'running',
     attempts = attempts + 1,
     started_at = COALESCE(started_at, CURRENT_TIMESTAMP),
     updated_at = CURRENT_TIMESTAMP
-WHERE id = $1 AND status IN ('queued', 'running')
+WHERE id = $1 AND status = 'queued'
+  AND (step <> 'retrying' OR updated_at <= CURRENT_TIMESTAMP - INTERVAL '3 seconds' * GREATEST(attempts, 1))
 RETURNING id, flow_id, user_id, kind, status, step, attempts, max_attempts, error, correlation_id, payload, segments, created_at, started_at, finished_at, updated_at
 `
 
@@ -135,6 +136,78 @@ func (q *Queries) CreateFlowJob(ctx context.Context, arg CreateFlowJobParams) (F
 		&i.StartedAt,
 		&i.FinishedAt,
 		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const createFlowWithJob = `-- name: CreateFlowWithJob :one
+WITH new_flow AS (
+  INSERT INTO flows (title, status, model, model_provider_name, model_provider_type,
+                     language, tool_call_id_template, functions, user_id)
+  VALUES ('untitled', 'created', 'unknown', $1, $2, 'English', $3, '{}', $4)
+  RETURNING id, status, title, model, model_provider_name, language, functions, user_id, created_at, updated_at, deleted_at, trace_id, model_provider_type, tool_call_id_template
+), new_job AS (
+  INSERT INTO flow_jobs (flow_id, user_id, kind, correlation_id, payload, max_attempts)
+  SELECT id, user_id, 'create', $5, $6, $7 FROM new_flow
+  RETURNING flow_id
+)
+SELECT new_flow.id, new_flow.status, new_flow.title, new_flow.model, new_flow.model_provider_name, new_flow.language, new_flow.functions, new_flow.user_id, new_flow.created_at, new_flow.updated_at, new_flow.deleted_at, new_flow.trace_id, new_flow.model_provider_type, new_flow.tool_call_id_template FROM new_flow JOIN new_job ON new_job.flow_id = new_flow.id
+`
+
+type CreateFlowWithJobParams struct {
+	ModelProviderName  string          `json:"model_provider_name"`
+	ModelProviderType  ProviderType    `json:"model_provider_type"`
+	ToolCallIDTemplate string          `json:"tool_call_id_template"`
+	UserID             int64           `json:"user_id"`
+	CorrelationID      string          `json:"correlation_id"`
+	Payload            json.RawMessage `json:"payload"`
+	MaxAttempts        int16           `json:"max_attempts"`
+}
+
+type CreateFlowWithJobRow struct {
+	ID                 int64           `json:"id"`
+	Status             FlowStatus      `json:"status"`
+	Title              string          `json:"title"`
+	Model              string          `json:"model"`
+	ModelProviderName  string          `json:"model_provider_name"`
+	Language           string          `json:"language"`
+	Functions          json.RawMessage `json:"functions"`
+	UserID             int64           `json:"user_id"`
+	CreatedAt          sql.NullTime    `json:"created_at"`
+	UpdatedAt          sql.NullTime    `json:"updated_at"`
+	DeletedAt          sql.NullTime    `json:"deleted_at"`
+	TraceID            sql.NullString  `json:"trace_id"`
+	ModelProviderType  ProviderType    `json:"model_provider_type"`
+	ToolCallIDTemplate string          `json:"tool_call_id_template"`
+}
+
+// Both records commit together; a failed job insert cannot leave an orphan flow.
+func (q *Queries) CreateFlowWithJob(ctx context.Context, arg CreateFlowWithJobParams) (CreateFlowWithJobRow, error) {
+	row := q.db.QueryRowContext(ctx, createFlowWithJob,
+		arg.ModelProviderName,
+		arg.ModelProviderType,
+		arg.ToolCallIDTemplate,
+		arg.UserID,
+		arg.CorrelationID,
+		arg.Payload,
+		arg.MaxAttempts,
+	)
+	var i CreateFlowWithJobRow
+	err := row.Scan(
+		&i.ID,
+		&i.Status,
+		&i.Title,
+		&i.Model,
+		&i.ModelProviderName,
+		&i.Language,
+		&i.Functions,
+		&i.UserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.TraceID,
+		&i.ModelProviderType,
+		&i.ToolCallIDTemplate,
 	)
 	return i, err
 }
@@ -346,12 +419,14 @@ SELECT
   id, flow_id, user_id, kind, status, step, attempts, max_attempts, error, correlation_id, payload, segments, created_at, started_at, finished_at, updated_at
 FROM flow_jobs
 WHERE status IN ('queued', 'running')
+  AND (kind <> 'stop' OR step = 'recovered')
+  AND (step <> 'retrying' OR updated_at <= CURRENT_TIMESTAMP - INTERVAL '3 seconds' * GREATEST(attempts, 1))
 ORDER BY id
-LIMIT $1
+LIMIT $1::bigint
 `
 
-func (q *Queries) ListPendingFlowJobs(ctx context.Context, limit int64) ([]FlowJob, error) {
-	rows, err := q.db.QueryContext(ctx, listPendingFlowJobs, limit)
+func (q *Queries) ListPendingFlowJobs(ctx context.Context, dollar_1 int64) ([]FlowJob, error) {
+	rows, err := q.db.QueryContext(ctx, listPendingFlowJobs, dollar_1)
 	if err != nil {
 		return nil, err
 	}

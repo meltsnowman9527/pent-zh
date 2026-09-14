@@ -74,6 +74,7 @@ import {
 } from '@/graphql/types';
 import { useAppForm } from '@/hooks/use-app-form';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
+import { localizeUiErrorText } from '@/lib/errors';
 import { routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
 import { uiText } from '@/locales/zh-CN';
@@ -238,13 +239,15 @@ function FormComboboxItem<T extends FieldValues = FieldValues>({
                             <CommandInput
                                 className="h-9"
                                 onValueChange={setSearch}
-                                placeholder={`Search ${label.toLowerCase()}...`}
+                                placeholder={uiText('Search {label}...', { label: label.toLowerCase() })}
                                 value={search}
                             />
                             <CommandList>
                                 <CommandEmpty>
                                     <div className="py-2 text-center">
-                                        <p className="text-muted-foreground text-sm">No {label.toLowerCase()} found.</p>
+                                        <p className="text-muted-foreground text-sm">
+                                            {uiText('No {label} found.', { label: label.toLowerCase() })}
+                                        </p>
                                         {search && allowCustom && (
                                             <Button
                                                 className="mt-2"
@@ -256,7 +259,10 @@ function FormComboboxItem<T extends FieldValues = FieldValues>({
                                                 size="sm"
                                                 variant="ghost"
                                             >
-                                                Use "{search}" as custom {label.toLowerCase()}
+                                                {uiText('Use {value} as custom {label}', {
+                                                    label: label.toLowerCase(),
+                                                    value: search,
+                                                })}
                                             </Button>
                                         )}
                                     </div>
@@ -482,13 +488,15 @@ function FormModelComboboxItem<T extends FieldValues = FieldValues>({
                             <CommandInput
                                 className="h-9"
                                 onValueChange={setSearch}
-                                placeholder={`Search ${label.toLowerCase()}...`}
+                                placeholder={uiText('Search {label}...', { label: label.toLowerCase() })}
                                 value={search}
                             />
                             <CommandList>
                                 <CommandEmpty>
                                     <div className="py-2 text-center">
-                                        <p className="text-muted-foreground text-sm">No {label.toLowerCase()} found.</p>
+                                        <p className="text-muted-foreground text-sm">
+                                            {uiText('No {label} found.', { label: label.toLowerCase() })}
+                                        </p>
                                         {search && allowCustom && (
                                             <Button
                                                 className="mt-2"
@@ -501,7 +509,10 @@ function FormModelComboboxItem<T extends FieldValues = FieldValues>({
                                                 size="sm"
                                                 variant="ghost"
                                             >
-                                                Use "{search}" as custom {label.toLowerCase()}
+                                                {uiText('Use {value} as custom {label}', {
+                                                    label: label.toLowerCase(),
+                                                    value: search,
+                                                })}
                                             </Button>
                                         )}
                                     </div>
@@ -1076,7 +1087,8 @@ function TestResultsDialog({ handleOpenChange, isOpen, results }: TestResultsDia
                                                     isNonePassed ? 'destructive' : isAllPassed ? 'green' : 'secondary'
                                                 }
                                             >
-                                                {successTestsCount}/{testsCount} passed
+                                                {successTestsCount}/{testsCount}
+                                                {uiText('passed')}
                                             </Badge>
                                         </div>
                                     </AccordionTrigger>
@@ -1416,7 +1428,7 @@ function SettingsProvider() {
 
                     reset({
                         agents: agents ? (normalizeGraphQLData(agents) as FormAgents) : {},
-                        name: `${name} (Copy)`,
+                        name: uiText('{name} (Copy)', { name }),
                         type: sourceType ?? undefined,
                     });
 
@@ -1491,7 +1503,9 @@ function SettingsProvider() {
             return true;
         } catch (error) {
             console.error('Submit error:', error);
-            setSubmitError(error instanceof Error ? error.message : uiText('An error occurred while saving'));
+            setSubmitError(
+                error instanceof Error ? localizeUiErrorText(error.message) : uiText('An error occurred while saving'),
+            );
 
             return false;
         }
@@ -1587,7 +1601,11 @@ function SettingsProvider() {
             navigate(routes.settings.providers);
         } catch (error) {
             console.error('Delete error:', error);
-            setSubmitError(error instanceof Error ? error.message : uiText('An error occurred while deleting'));
+            setSubmitError(
+                error instanceof Error
+                    ? localizeUiErrorText(error.message)
+                    : uiText('An error occurred while deleting'),
+            );
         }
     };
 
@@ -1619,7 +1637,9 @@ function SettingsProvider() {
             setIsTestDialogOpen(true);
         } catch (error) {
             console.error('Test error:', error);
-            setSubmitError(error instanceof Error ? error.message : uiText('An error occurred while testing'));
+            setSubmitError(
+                error instanceof Error ? localizeUiErrorText(error.message) : uiText('An error occurred while testing'),
+            );
         }
     };
 
@@ -1654,7 +1674,9 @@ function SettingsProvider() {
             return;
         } catch (error) {
             console.error('Test error:', error);
-            setSubmitError(error instanceof Error ? error.message : uiText('An error occurred while testing'));
+            setSubmitError(
+                error instanceof Error ? localizeUiErrorText(error.message) : uiText('An error occurred while testing'),
+            );
             setCurrentAgentKey(null);
         }
     };
@@ -1991,7 +2013,9 @@ function SettingsProvider() {
                                 <h4 className="text-sm font-medium">{uiText('Extra Body')}</h4>
                                 <FormTextareaItem
                                     control={control}
-                                    description="Provider-specific request body fields as a JSON object, merged into every call (e.g. vLLM chat_template_kwargs)."
+                                    description={uiText(
+                                        'Provider-specific request body fields as a JSON object, merged into every call (e.g. vLLM chat_template_kwargs).',
+                                    )}
                                     disabled={isLoading}
                                     label={uiText('Extra Body (JSON)')}
                                     name={`agents.${agentKey}.extraBody`}

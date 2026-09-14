@@ -39,4 +39,4 @@ try {
 } finally {
     $env:PENTAGI_IMAGE = $previousImage
 }
-Write-Host '已更新原部署，请访问 https://localhost:8443。'
+Write-Host '已更新原部署，请访问 http://localhost:8443。'

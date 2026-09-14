@@ -181,7 +181,7 @@ export function KnowledgeHeader({
                                                 className="max-w-64 min-w-0 cursor-text truncate select-none"
                                                 onDoubleClick={handleRenameStart}
                                             >
-                                                {knowledgeName ?? 'Knowledge'}
+                                                {knowledgeName ?? uiText('Knowledge')}
                                             </BreadcrumbPage>
                                         </TooltipTrigger>
                                         <TooltipContent>{uiText('Double-click to rename')}</TooltipContent>
