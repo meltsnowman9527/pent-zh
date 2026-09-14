@@ -78,7 +78,8 @@
 
 - 概览「分析」的周/月/季切换在界面上"点了没反应"：后端按 period 正确切到 7/30/90 天窗口，但 SQL 只返回**有数据的日期**（`GROUP BY DATE(created_at)`，不补零），而库里全部数据都在 9 月 12 日，因此三个区间返回完全相同的单点。新增 `frontend/src/pages/dashboard/analytics-period.ts`（含测试）：按所选区间生成连续日期轴并把缺失日期补 0；区间外的返回行不会被丢弃。同时在周期切换旁显示「最近 7/30/90 天」。空状态仍以原始返回行数为准，不会把"无活动"画成一条零线。
 - 任务流程列表新增「序号」列（`frontend/src/pages/flows/flow-row-number.ts` 含测试）：删除流程是软删除（`deleted_at`），ID 由 PostgreSQL 序列分配且不复用，因此删除后编号会出现空档（当前库里 1、2 已软删除，只剩 3，新建流程会得到 4）。序号列显示当前页、当前排序/筛选下的连续行号，物理 `id` 列保持不变，报告与证据引用不受影响。这是展示层改动，不是数据库语义变更。
-- 验证：`pnpm test` **1382 通过 / 16 跳过 / 0 失败**（新增 10 项）；`eslint --max-warnings 0` 退出码 0；`tsc -b` 通过；`vite build` 通过；`pentagi-local:latest` 重建并于 11:02:17 替换 `pentagi` 容器，容器内 `/opt/pentagi/fe/index.html` 与本地 `frontend/dist/index.html` 校验值一致（md5 `c15c4e723cccda1b3f261f033c8723cc`），`http://localhost:8443` 返回 200。
+- 侧边栏「最近任务流程」（以及「收藏的任务流程」）同样改为显示序号：此前 `FlowMenuItem` 直接打印 `flow.id`，两处都会显示如 `#3` 的物理编号。现在按各自列表的显示顺序编号（最近列表 1＝最新，收藏列表 1＝最新），折叠态与展开态的角标都改；`main-sidebar.test.tsx` 新增用例断言渲染的是 1、2 而不是原始 id 7、4。链接仍指向真实 `flow.id`，导航不受影响。
+- 验证：`pnpm test` **1383 通过 / 16 跳过 / 0 失败**（新增 11 项）；`eslint --max-warnings 0` 退出码 0；`tsc -b` 通过；`vite build` 通过；`pentagi-local:latest` 重建并于 11:09:20 替换 `pentagi` 容器，容器内 `/opt/pentagi/fe/index.html` 与本地 `frontend/dist/index.html` 校验值一致（md5 `918598e5522fe61b6c1de65c50354d15`），`http://localhost:8443` 返回 200。
 
 ## 扫描口径说明
 

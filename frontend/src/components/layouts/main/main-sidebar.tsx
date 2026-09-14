@@ -60,6 +60,12 @@ interface FlowMenuItemProps {
     flow: Flow;
     isFavorite: boolean;
     onToggleFavorite: (flowId: string) => void;
+    /**
+     * Display-only row number. Flow ids come from a PostgreSQL sequence and are
+     * never reused, so a soft-deleted flow leaves a gap; the sidebar numbers the
+     * entries it is actually showing instead of printing the raw id.
+     */
+    position: number;
 }
 
 export function MainSidebar() {
@@ -237,13 +243,14 @@ export function MainSidebar() {
                         </SidebarGroupLabel>
                         <SidebarGroupContent>
                             <SidebarMenu>
-                                {recentFlows.map((flow) => (
+                                {recentFlows.map((flow, index) => (
                                     <FlowMenuItem
                                         activeFlowId={flowId}
                                         flow={flow}
                                         isFavorite={false}
                                         key={flow.id}
                                         onToggleFavorite={addFavoriteFlow}
+                                        position={index + 1}
                                     />
                                 ))}
                             </SidebarMenu>
@@ -259,13 +266,14 @@ export function MainSidebar() {
                         </SidebarGroupLabel>
                         <SidebarGroupContent>
                             <SidebarMenu>
-                                {favoriteFlows.map((flow) => (
+                                {favoriteFlows.map((flow, index) => (
                                     <FlowMenuItem
                                         activeFlowId={flowId}
                                         flow={flow}
                                         isFavorite
                                         key={flow.id}
                                         onToggleFavorite={removeFavoriteFlow}
+                                        position={index + 1}
                                     />
                                 ))}
                             </SidebarMenu>
@@ -403,7 +411,7 @@ export function MainSidebar() {
     );
 }
 
-function FlowMenuItem({ activeFlowId, flow, isFavorite, onToggleFavorite }: FlowMenuItemProps) {
+function FlowMenuItem({ activeFlowId, flow, isFavorite, onToggleFavorite, position }: FlowMenuItemProps) {
     return (
         <SidebarMenuItem>
             <SidebarMenuButton
@@ -412,10 +420,10 @@ function FlowMenuItem({ activeFlowId, flow, isFavorite, onToggleFavorite }: Flow
             >
                 <Link to={routes.flow(flow.id)}>
                     <span className="-mx-2 w-8 shrink-0 text-center text-xs group-data-[state=expanded]:hidden">
-                        {flow.id}
+                        {position}
                     </span>
                     <span className="text-muted-foreground bg-background dark:bg-muted -my-0.5 -ml-0.5 h-5 min-w-5 shrink-0 rounded-md px-px py-0.5 text-center text-xs group-data-[state=collapsed]:hidden">
-                        {flow.id}
+                        {position}
                     </span>
                     <span className="truncate">{flow.title}</span>
                 </Link>
