@@ -1771,57 +1771,33 @@ function SettingsProvider() {
                     key={agentKey}
                     value={agentKey}
                 >
-                    <AccordionTrigger className="group text-left hover:no-underline">
-                        <div className="flex w-full items-center justify-between gap-2">
-                            <span className="group-hover:underline">{getName(agentKey)}</span>
+                    <AccordionTrigger
+                        actions={
                             <Button
-                                asChild
                                 className={cn(
                                     'mr-2',
                                     (isTestLoading || isAgentTestLoading) && 'pointer-events-none opacity-50',
                                 )}
+                                disabled={isTestLoading || isAgentTestLoading}
+                                onClick={() => handleTestAgent(agentKey)}
                                 size="xs"
                                 variant="outline"
                             >
-                                <span
-                                    onClick={(event) => {
-                                        if (isTestLoading || isAgentTestLoading) {
-                                            return;
-                                        }
-
-                                        event.stopPropagation();
-                                        handleTestAgent(agentKey);
-                                    }}
-                                    onKeyDown={(event) => {
-                                        if (event.key !== 'Enter' && event.key !== ' ') {
-                                            return;
-                                        }
-
-                                        event.preventDefault();
-                                        event.stopPropagation();
-
-                                        if (isTestLoading || isAgentTestLoading) {
-                                            return;
-                                        }
-
-                                        handleTestAgent(agentKey);
-                                    }}
-                                    role="button"
-                                    tabIndex={isTestLoading || isAgentTestLoading ? -1 : 0}
-                                >
-                                    {isAgentTestLoading && currentAgentKey === agentKey ? (
-                                        <Spinner variant="circle" />
-                                    ) : (
-                                        <Play />
-                                    )}
-                                    <span className="no-underline! hover:no-underline!">
-                                        {isAgentTestLoading && currentAgentKey === agentKey
-                                            ? uiText('Testing...')
-                                            : uiText('Test')}
-                                    </span>
+                                {isAgentTestLoading && currentAgentKey === agentKey ? (
+                                    <Spinner variant="circle" />
+                                ) : (
+                                    <Play />
+                                )}
+                                <span className="no-underline! hover:no-underline!">
+                                    {isAgentTestLoading && currentAgentKey === agentKey
+                                        ? uiText('Testing...')
+                                        : uiText('Test')}
                                 </span>
                             </Button>
-                        </div>
+                        }
+                        className="group text-left hover:no-underline"
+                    >
+                        <span className="group-hover:underline">{getName(agentKey)}</span>
                     </AccordionTrigger>
                     <AccordionContent className="flex flex-col gap-4 pt-4">
                         <div className="grid grid-cols-1 gap-4 p-px md:grid-cols-2">

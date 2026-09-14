@@ -35,9 +35,21 @@ function AccordionItem({ className, ...props }: React.ComponentProps<typeof Acco
     );
 }
 
-function AccordionTrigger({ children, className, ...props }: React.ComponentProps<typeof AccordionPrimitive.Trigger>) {
+function AccordionTrigger({
+    actions,
+    children,
+    className,
+    ...props
+}: React.ComponentProps<typeof AccordionPrimitive.Trigger> & {
+    /**
+     * Controls that belong to the header row but must not live inside the trigger:
+     * a button nested in the trigger's own button is invalid markup and hides both
+     * from assistive technology (axe `nested-interactive`).
+     */
+    actions?: React.ReactNode;
+}) {
     return (
-        <AccordionPrimitive.Header className="flex">
+        <AccordionPrimitive.Header className="flex items-center">
             <AccordionPrimitive.Trigger
                 className={cn(
                     'flex flex-1 items-center justify-between py-4 text-left text-sm font-medium transition-all hover:underline [&[data-state=open]>svg]:rotate-180',
@@ -49,6 +61,7 @@ function AccordionTrigger({ children, className, ...props }: React.ComponentProp
                 {children}
                 <ChevronDown className="text-muted-foreground h-4 w-4 shrink-0 transition-transform duration-200" />
             </AccordionPrimitive.Trigger>
+            {actions}
         </AccordionPrimitive.Header>
     );
 }

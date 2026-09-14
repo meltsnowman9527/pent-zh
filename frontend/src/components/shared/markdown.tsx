@@ -217,17 +217,26 @@ function Markdown({ children, className, searchValue }: MarkdownProps) {
                 (components as Record<string, ReturnType<typeof createComponentRenderer>>)[element] =
                     createComponentRenderer(element);
             });
-
-            // Code blocks pass through untouched — highlighting injected `<span>`s into a `<code>`
-            // breaks rehype-highlight's tokenization and the rendered listing.
-            components.code = ({ children: nodeChildren, ...props }) => {
-                return <code {...props}>{nodeChildren}</code>;
-            };
-
-            components.pre = ({ children: nodeChildren, ...props }) => {
-                return <pre {...props}>{nodeChildren}</pre>;
-            };
         }
+
+        // Code blocks pass through untouched — highlighting injected `<span>`s into a `<code>`
+        // breaks rehype-highlight's tokenization and the rendered listing.
+        components.code = ({ children: nodeChildren, ...props }) => {
+            return <code {...props}>{nodeChildren}</code>;
+        };
+
+        // A long block scrolls: without a tab stop its content is unreachable by keyboard
+        // (axe `scrollable-region-focusable`).
+        components.pre = ({ children: nodeChildren, ...props }) => {
+            return (
+                <pre
+                    tabIndex={0}
+                    {...props}
+                >
+                    {nodeChildren}
+                </pre>
+            );
+        };
 
         components.table = ({ children: nodeChildren, ...props }) => (
             <div className="overflow-x-auto">

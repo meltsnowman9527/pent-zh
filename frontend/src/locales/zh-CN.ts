@@ -894,6 +894,7 @@ const messages = {
     'Short title or question this document answers': '简短标题，或该文档回答的问题',
     'Show all matching {title}': '显示全部匹配的{title}',
     'Show details': '展开详情',
+    'Show details for {name}': '展开「{name}」的详情',
     'Showing {start}–{end} of {total}': '第 {start}–{end} 条，共 {total} 条',
     'Show password': '显示密码',
     'Show raw diagnostics': '查看原始诊断',

@@ -170,6 +170,44 @@
 - **真机走查**（Playwright 驱动已部署实例，真实后端 + flow #1 真实数据）：助手模式流程顶部出现「报告」按钮，菜单为 打开网页视图/复制到剪贴板/下载 MD/下载 PDF；网页视图标题层级为 H1 流程 → H2 消息 → H3/H4 正文，DOM 中确认 `**交互助手**` 行已渲染；MD 导出 126,513 字符、PDF 704,511 字节，PDF 结构复核为 100 页 / 7,294 处文字绘制 / 6 个内嵌字体子集（排除「空白 PDF 换个后缀」的情况）。
 - 说明：`frontend/e2e/specs/**` 里的按钮名仍是英文（`Report`、`Download MD` 等），与现在的全中文文案表不一致，mocked e2e 套件因此不能直接用作本次回归手段（本次改用真实部署走查）。该套件的英文断言属于早前中文化批次的遗留，本次未修。
 
+### P0/P0A 验收补齐：受理时延基线、故障注入、全站走查（2026-09-14 晚）
+
+用户选择的下一批工作是「先补回归门禁与 P0 验收，P1 及之后不急」。
+
+**1. 受理路径 p95 基线（后端，`backend/pkg/controller/flows_latency_test.go`）**
+
+新增测试，用注入式故障测「请求受理」这一段（不含后台执行完成时间），并断言计划里的 2 秒目标：
+
+- `TestFlowAcceptanceLatencyUnderSlowInitialization`：在**一个慢初始化作业持有生命周期锁**（模拟慢模型 / 慢 Docker 的准备阶段）的同时，对读列表、读单个流程、创建、结束、删除各跑 120 次；给假数据库每次调用注入 2ms 往返延迟，任务文本逐次不同以绕开 30 秒内的重复提交去重。实测（`-race`）：
+
+  | 操作 | p50 | p95 | p99 |
+  |---|---|---|---|
+  | 创建受理 | 7.27ms | **7.54ms** | 7.66ms |
+  | 结束受理 | 4.72ms | **4.97ms** | 5.04ms |
+  | 删除受理 | 4.57ms | **4.69ms** | 4.76ms |
+  | 读（GetFlow+ListFlows，n=240） | 7.5µs | **16.3µs** | 28.1µs |
+
+  即：慢初始化在飞行中时，受理路径 p95 仍比 2 秒预算低两个数量级。
+- **真实栈读路径 p95**（Playwright 驱动已部署实例，用 App 自己的 GraphQL 文档 + 会话 Cookie，每个查询预热 3 次后测 30 次，只读、无副作用）：`flows` p95 7.6ms、`flow`（详情，响应 378KB）p95 34.4ms、`assistants` p95 7.3ms、`assistantLogs`（219 条、响应 1.17MB）p95 50.5ms、`knowledgeDocuments` 5.4ms、`providers` 4.8ms、`flowsStatsTotal` 4.6ms、`flowsStatsByPeriod` 6.2ms、`usageStatsTotal` 6.9ms、`toolcallsStatsTotal` 7.6ms、SPA 外壳 `GET /` 4.2ms。**结论：当前成本由响应体大小主导（详情页 378KB、会话 1.17MB），不在锁或数据库上。**
+- **故障注入测试并发现两个已知限制（已用测试钉住，未在本批修复）**：
+  - `TestSlowInitializationDelaysOtherLifecycleRequests`：`executeCreate` 在初始化期间持有 `lifecycleMX`，所以**慢初始化会阻塞另一个流程的「停止」请求**（停止是请求内等待的）。
+  - `TestSingleFlightRunnerSerializesLifecycleJobs`：`flowJobRunner.loop` 单飞执行作业，所以**一个流程的慢初始化会推迟另一个流程的生命周期作业**（创建/结束/删除的排队）。
+  - 两者都不影响**查询**（计划书的验收口径是「创建/删除不阻塞其他任务查询」，该口径本身成立）。修复方向：把 provider/docker 准备移出生命周期锁，或把作业执行改成「每流程串行 + 跨流程有限并发」；属于下一批的独立改动。
+
+**2. 全站页面走查与无障碍（P0A 验收）**
+
+用 Playwright 驱动已部署实例，登录后逐路由走查 27 条路由（含流程详情 9 个页签、报告页、设置各页），每页检查：中文截断/挤压、文档横向溢出、axe（wcag2a/2aa/21a/21aa/22aa，critical+serious）、控制台与页面错误，并截图存档。
+
+- 结果：**0 处截断、0 处横向溢出、0 个控制台/页面错误**；登录页在**未登录上下文**单独复扫（走查时会因已登录被重定向到 /flows/new），同样干净。
+- 修复了 4 个真实无障碍缺陷（均为 axe critical/serious，且未被现有豁免覆盖）：
+  1. `/templates/new`：11 个预设折叠按钮只有图标，无无障碍名（`button-name`）→ 加 `aria-label`（新增文案词条 `Show details for {name}`）。
+  2. `/settings/providers/:id` 与 `/new`：13 个智能体折叠标题把「测试」按钮嵌在折叠按钮内部（`nested-interactive`）→ 给共享 `AccordionTrigger` 增加 `actions` 插槽，测试按钮移到标题行内、折叠按钮之外的真实 `<button>`（原先用 `span role="button"` 绕开无效嵌套，现一并去掉）。截图复核布局仍为「名称 …… ⌄ [测试]」。
+  3. `/settings/prompts/:name`：变量出现次数徽标 `opacity-70` 导致对比度 3.41:1（`color-contrast`）→ 去掉透明并把该装饰性数字标记 `aria-hidden`（次数已在按钮无障碍名里）。
+  4. 报告页 `<pre>` 代码块不可聚焦（`scrollable-region-focusable`）→ Markdown 渲染器的 `pre` 加 `tabIndex={0}`（原来只在「带搜索高亮」时才替换 `pre`，现改为始终生效）。
+- 剩余项（**已知债务，本次未修**）：`aria-valid-attr-value` 出现在 `/dashboard` 与 `/flows/new` 的模式切换上——根因是把 `Tabs` 当分段选择器用却不渲染 `TabsContent`，`aria-controls` 指向不存在的元素；`/dashboard` 早已在 `e2e/routes.ts` 里豁免，`/flows/new` 同源同因，修法是改用单选组（radiogroup）或补上内容区；报告页的 `link-name` 来自智能体抓取的网页正文里两个空链接，属于内容而非界面控件；流程详情的 `color-contrast` 与 `scrollable-region-focusable` 已在既有豁免清单里。
+
+验证：`eslint --max-warnings 0`、`tsc -b`、生产构建通过；前端全量 `vitest` **1399 通过 / 16 跳过 / 0 失败**；镜像重建并部署（容器 16:12:07，构建过程内含 `go test -race ./pkg/controller`，新增的时延测试在其中通过），`http://localhost:8443` 返回 200，容器内 `index.html` 与本地 `dist` 一致（md5 `718172aeda642b6a4551f7ff123e9e3b`）；修复后用 axe 复扫三条路由均为 0 违规。
+
 
 ## 扫描口径说明
 

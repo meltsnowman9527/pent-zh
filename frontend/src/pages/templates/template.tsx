@@ -627,6 +627,7 @@ function TemplateForm({ templateId }: { templateId?: string }) {
                             </Button>
                             <CollapsibleTrigger asChild>
                                 <Button
+                                    aria-label={uiText('Show details for {name}', { name: preset.title })}
                                     className={cn(
                                         'h-auto shrink-0 rounded-none rounded-tr-[0.6875rem] border-l px-2 py-2',
                                         expandedPresetIndex !== index && 'rounded-br-[0.6875rem]',

@@ -40,6 +40,16 @@ type fakeFlowJobStore struct {
 
 	// createFlowWait is the injected fault for the "slow database" case.
 	createFlowWait func() error
+	// latency adds a round-trip cost to the calls on the request paths, so the
+	// acceptance-latency baseline is measured against a database that is not free.
+	latency time.Duration
+}
+
+// slow applies the injected round-trip latency, if any.
+func (s *fakeFlowJobStore) slow() {
+	if s.latency > 0 {
+		time.Sleep(s.latency)
+	}
 }
 
 func newFakeFlowJobStore() *fakeFlowJobStore {
@@ -65,6 +75,8 @@ func jobActiveKey(flowID int64, kind string) string {
 }
 
 func (s *fakeFlowJobStore) CreateFlow(_ context.Context, arg database.CreateFlowParams) (database.Flow, error) {
+	s.slow()
+
 	if s.createFlowWait != nil {
 		if err := s.createFlowWait(); err != nil {
 			return database.Flow{}, err
@@ -89,6 +101,8 @@ func (s *fakeFlowJobStore) CreateFlow(_ context.Context, arg database.CreateFlow
 }
 
 func (s *fakeFlowJobStore) GetFlow(_ context.Context, id int64) (database.Flow, error) {
+	s.slow()
+
 	s.mx.Lock()
 	defer s.mx.Unlock()
 
@@ -101,6 +115,8 @@ func (s *fakeFlowJobStore) GetFlow(_ context.Context, id int64) (database.Flow, 
 }
 
 func (s *fakeFlowJobStore) GetActiveFlowJob(_ context.Context, arg database.GetActiveFlowJobParams) (database.FlowJob, error) {
+	s.slow()
+
 	s.mx.Lock()
 	defer s.mx.Unlock()
 	id, ok := s.active[jobActiveKey(arg.FlowID, arg.Kind)]
@@ -115,6 +131,8 @@ func (s *fakeFlowJobStore) DeleteFlowDocuments(context.Context, sql.NullString) 
 }
 
 func (s *fakeFlowJobStore) DeleteFlow(_ context.Context, id int64) (database.Flow, error) {
+	s.slow()
+
 	s.mx.Lock()
 	defer s.mx.Unlock()
 
@@ -125,6 +143,8 @@ func (s *fakeFlowJobStore) DeleteFlow(_ context.Context, id int64) (database.Flo
 }
 
 func (s *fakeFlowJobStore) UpdateFlowStatus(_ context.Context, arg database.UpdateFlowStatusParams) (database.Flow, error) {
+	s.slow()
+
 	s.mx.Lock()
 	defer s.mx.Unlock()
 
@@ -145,6 +165,8 @@ func (s *fakeFlowJobStore) GetFlowContainers(context.Context, int64) ([]database
 }
 
 func (s *fakeFlowJobStore) CreateFlowJob(_ context.Context, arg database.CreateFlowJobParams) (database.FlowJob, error) {
+	s.slow()
+
 	s.mx.Lock()
 	defer s.mx.Unlock()
 
@@ -174,6 +196,8 @@ func (s *fakeFlowJobStore) CreateFlowJob(_ context.Context, arg database.CreateF
 }
 
 func (s *fakeFlowJobStore) ClaimFlowJob(_ context.Context, id int64) (database.FlowJob, error) {
+	s.slow()
+
 	s.mx.Lock()
 	defer s.mx.Unlock()
 

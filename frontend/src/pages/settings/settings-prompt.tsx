@@ -1148,7 +1148,14 @@ function VariablesContent({ currentTemplate, onVariableClick, variables }: Varia
                             {isUsed ? <Check className="size-3" /> : null}
                             {`{{.${variable}}}`}
                             {count > 1 ? (
-                                <span className="ml-0.5 text-[10px] tabular-nums opacity-70">×{count}</span>
+                                // The count is already part of the button's accessible name, and
+                                // `opacity-70` pushed it below the AA contrast floor.
+                                <span
+                                    aria-hidden="true"
+                                    className="ml-0.5 text-[10px] tabular-nums"
+                                >
+                                    ×{count}
+                                </span>
                             ) : null}
                         </button>
                     </Badge>
