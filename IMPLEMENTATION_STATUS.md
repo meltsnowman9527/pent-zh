@@ -117,7 +117,9 @@
 - 根因：详情页的三个查询 `FlowDocument` / `AssistantsDocument` / `AssistantLogsDocument` 都用 `cache-first` + `nextFetchPolicy: 'cache-first'`，消息与状态更新只依赖 14 个 WebSocket 订阅；而 `FlowProvider` 只包在流程详情路由上，切页即卸载并关闭订阅。于是**离开页面期间产生的数据不会进入 Apollo 缓存**，返回时 `cache-first` 命中旧缓存就不再发请求，界面停留在空/旧数据。列表页此前已用 `cache-and-network` + 5 秒轮询，详情页没有跟上。
 - 修复：三个查询改为 `fetchPolicy/nextFetchPolicy: 'cache-and-network'`——先用缓存秒开，同时向服务端取一次真值。`FlowDocument` 同时承载自动模式的消息记录，所以自动模式"消息不刷新"一并修复。
 - 验证：`pnpm test` 1383 通过 / 16 跳过 / 0 失败；`eslint`、`tsc -b`、生产构建通过；镜像重建并部署（容器 13:40:48），`http://localhost:8443` 返回 200，容器内 `index.html` 与本地 `dist` 一致（md5 `463529d3bfa22203f5e4041e0d5b5c0c`）。
-- 已知同类问题（本次未改）：侧边栏「最近任务流程」的 `SidebarFlowsProvider` 同样是 `cache-first`，而轮询在只包流程路由的 `FlowsProvider` 上，所以长时间停留在仪表盘等页面时侧边栏列表可能偏旧。
+- 同类问题一并修掉（侧边栏）：`SidebarFlowsProvider` 是全局挂载、位于流程路由之外，而轮询只存在于包流程路由的 `FlowsProvider` 上，之前它又用 `cache-first`，所以在仪表盘/设置/知识库等页面停留较久时，侧边栏「最近任务流程」会偏旧。现改为 `cache-and-network`（缓存秒开 + 每次挂载向服务端核对），并新增 `online`/`focus` 时 `refetch`——不加全局轮询，避免非流程页面持续请求。全量排查结果：前端所有显式 `fetchPolicy` 覆盖中，只剩这一处是 `cache-first`（`resources-provider` 的 `cache-only` 是刻意设计：它从 REST 灌缓存并监听 WS 重连），全局默认本就是 `cache-and-network`。
+  - 测试：新增 `sidebar-flows-provider.test.tsx`（2 项：必须请求 `cache-and-network` 而不能是 `cache-first`；`focus`/`online` 触发 `refetch`，卸载后不再触发）。
+- 验证：`pnpm test` **1385 通过 / 16 跳过 / 0 失败**；`eslint`、`tsc -b`、生产构建通过；镜像重建并部署（容器 13:50:17），`http://localhost:8443` 返回 200，容器内 `index.html` 与本地 `dist` 一致（md5 `e007eb81ef2a3e1b5d41be0ec2b4f253`）。
 
 ## 扫描口径说明
 
