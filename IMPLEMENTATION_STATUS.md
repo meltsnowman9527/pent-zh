@@ -102,7 +102,7 @@
 
 - **撤销序号**：按用户要求，任务流程列表与回收站的「序号」列已移除，侧边栏「最近任务流程 / 收藏的任务流程」也恢复显示原始 `flow.id`；`frontend/src/pages/flows/flow-row-number.ts` 及其测试、`Row number` 文案词条一并删除。此前的「新增序号列」「侧边栏改用序号」两条记录自本条起失效，界面统一使用数据库 ID。回收站、恢复、彻底删除三项功能保持不变。
 - **清空任务数据**：按用户要求删除数据库中的全部任务数据。执行顺序为先备份、再走应用自身的删除路径（而非直接 SQL），以保证容器与向量记忆一并清理：
-  1. 备份：`build/pentagidb-backup-20260914-114555.sql`（`pg_dump` 全库，约 9.4 MB，`build/` 不入库；含用户配置，确认无需回退后可自行删除）。
+  1. 备份：删除前先用 `pg_dump` 全库备份到 `build/`（约 9.4 MB，`build/` 不入库）。该文件已按用户要求于同日删除，因此本次清库**不可回退**。
   2. 删除：对唯一在用的 #3 调 `deleteFlow`（持久作业 2 秒内完成清理并进入回收站），随后对回收站中的 #1、#2、#3 逐个调 `purgeFlow`。
   3. 结果：`flows` / `tasks` / `subtasks` / `toolcalls` / `msglogs` / `msgchains` / `screenshots` / `containers` / `assistants` / `flow_jobs` 全部为 **0 行**；`langchain_pg_embedding` 中 `doc_type='memory'` 的向量记忆为 **0 条**。
   4. 保留：`users`(1)、`providers`(1)、`user_preferences`(1) 等账户与模型服务配置未受影响；`favoriteFlows` 为空，无需清理。
