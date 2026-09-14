@@ -1,7 +1,7 @@
 import type { ColumnDef } from '@tanstack/react-table';
 
-import { useMutation } from '@apollo/client/react';
-import { Ellipsis, Eye, GitFork, Pause, Pencil, PencilLine, Plus, Star, Trash } from 'lucide-react';
+import { useMutation, useQuery } from '@apollo/client/react';
+import { ArchiveRestore, Ellipsis, Eye, GitFork, Pause, Pencil, PencilLine, Plus, Star, Trash } from 'lucide-react';
 import { CheckCircle2, XCircle } from 'lucide-react';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -36,7 +36,13 @@ import { Spinner } from '@/components/ui/spinner';
 import { Toggle } from '@/components/ui/toggle';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { FlowJobStatus, isFlowJobPending } from '@/features/flows/flow-job-status';
-import { RenameFlowDocument, ResultType, StatusType, type TerminalFragmentFragment } from '@/graphql/types';
+import {
+    DeletedFlowsDocument,
+    RenameFlowDocument,
+    ResultType,
+    StatusType,
+    type TerminalFragmentFragment,
+} from '@/graphql/types';
 import { useTableState } from '@/hooks/use-table-state';
 import { localizeUiErrorText } from '@/lib/errors';
 import { routes } from '@/lib/routes';
@@ -74,10 +80,93 @@ const statusConfig: Record<
     },
 };
 
+// Display-only row number, shared by the flow list and the recycle bin. Flow
+// ids come from a PostgreSQL sequence and are never reused, so soft-deleting a
+// flow leaves a gap in the `id` column; this numbers the rows that are actually
+// on screen (current page, current sort/filter order).
+const rowNumberColumn: ColumnDef<Flow> = {
+    cell: ({ row, table }) => {
+        const { pageIndex, pageSize } = table.getState().pagination;
+        const position = table.getRowModel().rows.findIndex((item) => item.id === row.id);
+
+        return (
+            <div className="text-muted-foreground font-mono text-sm">
+                {flowRowNumber(pageIndex, pageSize, position)}
+            </div>
+        );
+    },
+    enableHiding: false,
+    enableSorting: false,
+    header: () => <span className="text-muted-foreground text-xs">{uiText('Row number')}</span>,
+    id: 'rowNumber',
+    maxSize: 70,
+    minSize: 48,
+    size: 56,
+};
+
+const idColumn: ColumnDef<Flow> = {
+    accessorKey: 'id',
+    cell: ({ row }) => <div className="font-mono text-sm">{row.getValue('id')}</div>,
+    enableHiding: false,
+    header: ({ column }) => (
+        <DataTableColumnHeader
+            column={column}
+            title="ID"
+        />
+    ),
+    maxSize: 80,
+    meta: { searchable: true },
+    minSize: 60,
+    size: 70,
+};
+
+const titleColumn: ColumnDef<Flow> = {
+    accessorKey: 'title',
+    cell: ({ row }) => <div className="truncate font-medium">{row.getValue('title') as string}</div>,
+    enableHiding: false,
+    header: ({ column }) => (
+        <DataTableColumnHeader
+            column={column}
+            title={uiText('Title')}
+        />
+    ),
+    meta: { searchable: true },
+    minSize: 200,
+    size: 300,
+};
+
+const statusCellColumn: ColumnDef<Flow> = {
+    accessorKey: 'status',
+    cell: ({ row }) => {
+        const status = row.getValue('status') as StatusType;
+        const config = statusConfig[status];
+
+        return (
+            <Badge variant={config.variant}>
+                <FlowStatusIcon
+                    className="size-3"
+                    status={status}
+                />
+                {config.label}
+            </Badge>
+        );
+    },
+    header: ({ column }) => (
+        <DataTableColumnHeader
+            column={column}
+            title={uiText('Status')}
+        />
+    ),
+    maxSize: 130,
+    meta: { searchable: true },
+    minSize: 80,
+    size: 100,
+};
+
 function Flows() {
     const navigate = useNavigate();
     const location = useLocation();
-    const { deleteFlow, finishFlow, flows, flowsError, isLoading, refetch } = useFlows();
+    const { deleteFlow, finishFlow, flows, flowsError, isLoading, refetch, restoreFlow } = useFlows();
     const { isFavoriteFlow, toggleFavoriteFlow } = useFavorites();
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [deletingFlow, setDeletingFlow] = useState<Flow | null>(null);
@@ -86,6 +175,38 @@ function Flows() {
     const [editingFlowId, setEditingFlowId] = useState<null | string>(null);
     const editingInputRef = useRef<HTMLInputElement>(null);
     const [renameFlowMutation, { loading: isRenameLoading }] = useMutation(RenameFlowDocument);
+
+    // Recycle bin. The query only runs while the bin is open, and it polls like
+    // the main list so a flow whose delete job is still finishing shows up
+    // without a manual refresh.
+    const [showDeleted, setShowDeleted] = useState(false);
+    const [isRestoreDialogOpen, setIsRestoreDialogOpen] = useState(false);
+    const [restoringFlow, setRestoringFlow] = useState<Flow | null>(null);
+    const { data: deletedFlowsData, loading: isDeletedLoading } = useQuery(DeletedFlowsDocument, {
+        pollInterval: 5000,
+        skip: !showDeleted,
+    });
+    const deletedFlows = useMemo(() => deletedFlowsData?.deletedFlows ?? [], [deletedFlowsData?.deletedFlows]);
+    const isRecycleBin = showDeleted;
+    const tableFlows = isRecycleBin ? deletedFlows : flows;
+    const tableLoading = isRecycleBin ? isDeletedLoading && deletedFlows.length === 0 : isLoading;
+
+    const handleFlowRestoreDialogOpen = useCallback((flow: Flow) => {
+        setRestoringFlow(flow);
+        setIsRestoreDialogOpen(true);
+    }, []);
+
+    const handleFlowRestore = async () => {
+        if (!restoringFlow) {
+            return;
+        }
+
+        const success = await restoreFlow(restoringFlow);
+
+        if (success) {
+            setRestoringFlow(null);
+        }
+    };
 
     const { filter, pageIndex: currentPage, setFilter, setPage: handlePageChange } = useTableState();
 
@@ -178,44 +299,8 @@ function Flows() {
 
     const columns: ColumnDef<Flow>[] = useMemo(
         () => [
-            {
-                // Display-only row number. Flow ids come from a PostgreSQL
-                // sequence and are never reused, so soft-deleting a flow leaves a
-                // gap in the `id` column; this column numbers the rows that are
-                // actually on screen (current page, current sort/filter order).
-                cell: ({ row, table }) => {
-                    const { pageIndex, pageSize } = table.getState().pagination;
-                    const position = table.getRowModel().rows.findIndex((item) => item.id === row.id);
-
-                    return (
-                        <div className="text-muted-foreground font-mono text-sm">
-                            {flowRowNumber(pageIndex, pageSize, position)}
-                        </div>
-                    );
-                },
-                enableHiding: false,
-                enableSorting: false,
-                header: () => <span className="text-muted-foreground text-xs">{uiText('Row number')}</span>,
-                id: 'rowNumber',
-                maxSize: 70,
-                minSize: 48,
-                size: 56,
-            },
-            {
-                accessorKey: 'id',
-                cell: ({ row }) => <div className="font-mono text-sm">{row.getValue('id')}</div>,
-                enableHiding: false,
-                header: ({ column }) => (
-                    <DataTableColumnHeader
-                        column={column}
-                        title="ID"
-                    />
-                ),
-                maxSize: 80,
-                meta: { searchable: true },
-                minSize: 60,
-                size: 70,
-            },
+            rowNumberColumn,
+            idColumn,
             {
                 accessorKey: 'title',
                 cell: ({ row }) => {
@@ -253,14 +338,17 @@ function Flows() {
                 size: 300,
             },
             {
+                // Same badge as the recycle bin, plus the durable-job override: a
+                // flow whose create/delete job is still queued or retrying shows
+                // that instead of a status it does not have yet.
                 accessorKey: 'status',
                 cell: ({ row }) => {
-                    const status = row.getValue('status') as StatusType;
-                    const config = statusConfig[status];
-
                     if (row.original.lifecycleJob && row.original.lifecycleJob.status !== 'succeeded') {
                         return <FlowJobStatus job={row.original.lifecycleJob} />;
                     }
+
+                    const status = row.getValue('status') as StatusType;
+                    const config = statusConfig[status];
 
                     return (
                         <Badge variant={config.variant}>
@@ -555,6 +643,66 @@ function Flows() {
         ],
     );
 
+    // Recycle-bin columns: no favourites, no rename/finish/delete, and the row
+    // itself is not navigable — a deleted flow has no detail page.
+    const deletedColumns: ColumnDef<Flow>[] = useMemo(
+        () => [
+            rowNumberColumn,
+            idColumn,
+            titleColumn,
+            statusCellColumn,
+            {
+                accessorKey: 'deletedAt',
+                cell: ({ row }) => {
+                    const dateString = row.getValue('deletedAt') as null | string;
+
+                    return <div className="text-sm">{dateString ? formatDate(new Date(dateString)) : '—'}</div>;
+                },
+                header: ({ column }) => (
+                    <DataTableColumnHeader
+                        column={column}
+                        title={uiText('Deleted at')}
+                    />
+                ),
+                maxSize: 140,
+                meta: { columnMenuLabel: uiText('Deleted at') },
+                minSize: 100,
+                size: 120,
+                sortingFn: (rowA, rowB) => {
+                    const dateA = new Date((rowA.getValue('deletedAt') as null | string) ?? 0);
+                    const dateB = new Date((rowB.getValue('deletedAt') as null | string) ?? 0);
+
+                    return dateA.getTime() - dateB.getTime();
+                },
+            },
+            {
+                cell: ({ row }) => (
+                    <div className="flex items-center justify-end">
+                        <Button
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                handleFlowRestoreDialogOpen(row.original);
+                            }}
+                            size="sm"
+                            variant="outline"
+                        >
+                            <ArchiveRestore />
+                            {uiText('Restore')}
+                        </Button>
+                    </div>
+                ),
+                enableHiding: false,
+                header: () => null,
+                id: 'restore',
+                maxSize: 120,
+                meta: { preventRowClick: true },
+                minSize: 100,
+                size: 110,
+            },
+        ],
+        [handleFlowRestoreDialogOpen],
+    );
+
     const renderRowContextMenu = useCallback(
         (flow: Flow) => {
             const isRunning = ![StatusType.Failed, StatusType.Finished].includes(flow.status);
@@ -635,6 +783,12 @@ function Flows() {
             </AppHeaderContent>
             <AppHeaderActions>
                 <AppHeaderAction
+                    icon={isRecycleBin ? <GitFork /> : <ArchiveRestore />}
+                    label={isRecycleBin ? uiText('Back to flows') : uiText('Recycle bin')}
+                    onClick={() => setShowDeleted((previous) => !previous)}
+                    variant="outline"
+                />
+                <AppHeaderAction
                     icon={<Plus />}
                     label={uiText('New Flow')}
                     onClick={() => navigate(routes.newFlow)}
@@ -644,14 +798,14 @@ function Flows() {
         </AppHeader>
     );
 
-    if (isLoading) {
+    if (tableLoading) {
         return (
             <>
                 {pageHeader}
                 <div className="flex flex-1 flex-col gap-4 p-4">
                     <LoadingState
                         description={uiText('Please wait while we fetch your conversation flows')}
-                        title={uiText('Loading flows...')}
+                        title={isRecycleBin ? uiText('Loading deleted flows...') : uiText('Loading flows...')}
                     />
                 </div>
             </>
@@ -659,7 +813,7 @@ function Flows() {
     }
 
     // Error surface only when there's no data — a failed background refetch must not blank a working list.
-    if (flowsError && flows.length === 0) {
+    if (!isRecycleBin && flowsError && flows.length === 0) {
         return (
             <>
                 {pageHeader}
@@ -674,7 +828,28 @@ function Flows() {
         );
     }
 
-    if (flows.length === 0) {
+    if (isRecycleBin && deletedFlows.length === 0) {
+        return (
+            <>
+                {pageHeader}
+                <div className="flex flex-1 flex-col gap-4 p-4">
+                    <Empty>
+                        <EmptyHeader>
+                            <EmptyMedia variant="icon">
+                                <ArchiveRestore />
+                            </EmptyMedia>
+                            <EmptyTitle>{uiText('No deleted flows')}</EmptyTitle>
+                            <EmptyDescription>
+                                {uiText('Deleted flows are listed here and can be restored.')}
+                            </EmptyDescription>
+                        </EmptyHeader>
+                    </Empty>
+                </div>
+            </>
+        );
+    }
+
+    if (!isRecycleBin && flows.length === 0) {
         return (
             <>
                 {pageHeader}
@@ -709,17 +884,17 @@ function Flows() {
             {pageHeader}
             <div className="flex flex-col gap-4 p-4 pt-0">
                 <DataTable<Flow>
-                    columns={columns}
-                    data={flows}
-                    empty={{ entityName: 'flows' }}
+                    columns={isRecycleBin ? deletedColumns : columns}
+                    data={tableFlows}
+                    empty={{ entityName: isRecycleBin ? 'deleted flows' : 'flows' }}
                     filterPlaceholder={uiText('Filter flows...')}
                     filterValue={filter}
                     isVirtualized
                     onFilterChange={setFilter}
                     onPageChange={handlePageChange}
-                    onRowClick={handleRowClick}
+                    onRowClick={isRecycleBin ? undefined : handleRowClick}
                     pageIndex={currentPage}
-                    renderRowContextMenu={renderRowContextMenu}
+                    renderRowContextMenu={isRecycleBin ? undefined : renderRowContextMenu}
                 />
 
                 <ConfirmationDialog
@@ -730,6 +905,22 @@ function Flows() {
                     isOpen={isDeleteDialogOpen}
                     itemName={deletingFlow?.title}
                     itemType={uiText('flow')}
+                />
+
+                <ConfirmationDialog
+                    cancelText={uiText('Cancel')}
+                    confirmIcon={<ArchiveRestore />}
+                    confirmText={uiText('Restore')}
+                    confirmVariant="default"
+                    description={uiText(
+                        'The flow returns to the list with its history. Files and vector memory removed during deletion are not restored.',
+                    )}
+                    handleConfirm={handleFlowRestore}
+                    handleOpenChange={setIsRestoreDialogOpen}
+                    isOpen={isRestoreDialogOpen}
+                    itemName={restoringFlow?.title}
+                    itemType={uiText('flow')}
+                    title={uiText('Restore {name}', { name: restoringFlow?.title ?? '' })}
                 />
             </div>
         </>

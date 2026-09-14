@@ -2,6 +2,7 @@ package converter
 
 import (
 	"encoding/json"
+	"time"
 
 	"pentagi/pkg/database"
 	"pentagi/pkg/graph/model"
@@ -34,6 +35,11 @@ func ConvertFlow(flow database.Flow, containers []database.Container) *model.Flo
 		Name: flow.ModelProviderName,
 		Type: model.ProviderType(flow.ModelProviderType),
 	}
+	var deletedAt *time.Time
+	if flow.DeletedAt.Valid {
+		deleted := flow.DeletedAt.Time
+		deletedAt = &deleted
+	}
 	return &model.Flow{
 		ID:        flow.ID,
 		Title:     flow.Title,
@@ -42,6 +48,7 @@ func ConvertFlow(flow database.Flow, containers []database.Container) *model.Flo
 		Provider:  provider,
 		CreatedAt: flow.CreatedAt.Time,
 		UpdatedAt: flow.UpdatedAt.Time,
+		DeletedAt: deletedAt,
 	}
 }
 

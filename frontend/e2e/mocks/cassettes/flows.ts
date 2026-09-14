@@ -51,6 +51,7 @@ const terminal = (id: string) =>
 export const makeFlow = (id: string, title: string, status: StatusType = StatusType.Running): FlowFragmentFragment =>
     entity('Flow', {
         createdAt: T,
+        deletedAt: null,
         id,
         lifecycleJob: null,
         provider: PROVIDER,

@@ -319,6 +319,7 @@ export type FlowFragmentFragment = {
     status: StatusType;
     createdAt: string;
     updatedAt: string;
+    deletedAt: string | null;
     lifecycleJob: {
         id: string;
         kind: string;
@@ -721,6 +722,10 @@ export type FlowsQueryVariables = Exact<{ [key: string]: never }>;
 
 export type FlowsQuery = { flows: Array<FlowFragmentFragment> | null };
 
+export type DeletedFlowsQueryVariables = Exact<{ [key: string]: never }>;
+
+export type DeletedFlowsQuery = { deletedFlows: Array<FlowFragmentFragment> };
+
 export type ProvidersQueryVariables = Exact<{ [key: string]: never }>;
 
 export type ProvidersQuery = { providers: Array<ProviderFragmentFragment> };
@@ -1063,6 +1068,12 @@ export type DeleteFlowMutationVariables = Exact<{
 }>;
 
 export type DeleteFlowMutation = { deleteFlow: ResultType };
+
+export type RestoreFlowMutationVariables = Exact<{
+    flowId: string | number;
+}>;
+
+export type RestoreFlowMutation = { restoreFlow: ResultType };
 
 export type PutUserInputMutationVariables = Exact<{
     flowId: string | number;
@@ -1530,6 +1541,7 @@ export const FlowFragmentFragmentDoc = {
                     },
                     { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'deletedAt' } },
                 ],
             },
         },
@@ -3493,11 +3505,112 @@ export const FlowsDocument = {
                     },
                     { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'deletedAt' } },
                 ],
             },
         },
     ],
 } as unknown as DocumentNode<FlowsQuery, FlowsQueryVariables>;
+export const DeletedFlowsDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'query',
+            name: { kind: 'Name', value: 'deletedFlows' },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'deletedFlows' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [{ kind: 'FragmentSpread', name: { kind: 'Name', value: 'flowFragment' } }],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'terminalFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'Terminal' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'type' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'image' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'connected' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'providerFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'Provider' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'type' } },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'flowFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'Flow' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'lifecycleJob' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'kind' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'status' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'step' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'attempts' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'maxAttempts' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'error' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'correlationId' } },
+                            ],
+                        },
+                    },
+                    { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'title' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'status' } },
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'terminals' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [{ kind: 'FragmentSpread', name: { kind: 'Name', value: 'terminalFragment' } }],
+                        },
+                    },
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'provider' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [{ kind: 'FragmentSpread', name: { kind: 'Name', value: 'providerFragment' } }],
+                        },
+                    },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'deletedAt' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<DeletedFlowsQuery, DeletedFlowsQueryVariables>;
 export const ProvidersDocument = {
     kind: 'Document',
     definitions: [
@@ -5279,6 +5392,7 @@ export const FlowDocument = {
                     },
                     { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'deletedAt' } },
                 ],
             },
         },
@@ -5912,6 +6026,7 @@ export const FlowReportDocument = {
                     },
                     { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'deletedAt' } },
                 ],
             },
         },
@@ -7879,6 +7994,7 @@ export const CreateFlowDocument = {
                     },
                     { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'deletedAt' } },
                 ],
             },
         },
@@ -7917,6 +8033,39 @@ export const DeleteFlowDocument = {
         },
     ],
 } as unknown as DocumentNode<DeleteFlowMutation, DeleteFlowMutationVariables>;
+export const RestoreFlowDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'mutation',
+            name: { kind: 'Name', value: 'restoreFlow' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'restoreFlow' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'flowId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<RestoreFlowMutation, RestoreFlowMutationVariables>;
 export const PutUserInputDocument = {
     kind: 'Document',
     definitions: [
@@ -8270,6 +8419,7 @@ export const CreateAssistantDocument = {
                     },
                     { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'deletedAt' } },
                 ],
             },
         },
@@ -11089,6 +11239,7 @@ export const FlowCreatedDocument = {
                     },
                     { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'deletedAt' } },
                 ],
             },
         },
@@ -11188,6 +11339,7 @@ export const FlowDeletedDocument = {
                     },
                     { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'deletedAt' } },
                 ],
             },
         },
@@ -11287,6 +11439,7 @@ export const FlowUpdatedDocument = {
                     },
                     { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'deletedAt' } },
                 ],
             },
         },

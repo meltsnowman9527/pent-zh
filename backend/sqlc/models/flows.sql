@@ -88,6 +88,34 @@ SET deleted_at = CURRENT_TIMESTAMP
 WHERE id = $1
 RETURNING *;
 
+-- name: RestoreFlow :one
+-- Undo a soft delete. The container and vector memory the delete job removed
+-- are gone for good, so a restored flow is read-only history.
+UPDATE flows
+SET deleted_at = NULL
+WHERE id = $1 AND deleted_at IS NOT NULL
+RETURNING *;
+
+-- name: RestoreUserFlow :one
+UPDATE flows
+SET deleted_at = NULL
+WHERE id = $1 AND user_id = $2 AND deleted_at IS NOT NULL
+RETURNING *;
+
+-- name: GetDeletedFlows :many
+SELECT
+  f.*
+FROM flows f
+WHERE f.deleted_at IS NOT NULL
+ORDER BY f.deleted_at DESC;
+
+-- name: GetUserDeletedFlows :many
+SELECT
+  f.*
+FROM flows f
+WHERE f.user_id = $1 AND f.deleted_at IS NOT NULL
+ORDER BY f.deleted_at DESC;
+
 -- ==================== Flows Analytics Queries ====================
 
 -- name: GetFlowStats :one

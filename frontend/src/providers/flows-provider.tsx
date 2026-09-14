@@ -8,12 +8,14 @@ import type { FlowFragmentFragment, FlowsQuery } from '@/graphql/types';
 import {
     CreateAssistantDocument,
     CreateFlowDocument,
+    DeletedFlowsDocument,
     DeleteFlowDocument,
     FinishFlowDocument,
     FlowCreatedDocument,
     FlowDeletedDocument,
     FlowsDocument,
     FlowUpdatedDocument,
+    RestoreFlowDocument,
 } from '@/graphql/types';
 import { localizeUiErrorText } from '@/lib/errors';
 import { Log } from '@/lib/log';
@@ -31,6 +33,7 @@ interface FlowsContextValue {
     flowsError: Error | undefined;
     isLoading: boolean;
     refetch: () => unknown;
+    restoreFlow: (flow: Flow) => Promise<boolean>;
 }
 
 const FlowsContext = createContext<FlowsContextValue | undefined>(undefined);
@@ -77,6 +80,7 @@ export function FlowsProvider({ children }: FlowsProviderProps) {
     const [createAssistantMutation] = useMutation(CreateAssistantDocument);
     const [deleteFlowMutation] = useMutation(DeleteFlowDocument);
     const [finishFlowMutation] = useMutation(FinishFlowDocument);
+    const [restoreFlowMutation] = useMutation(RestoreFlowDocument);
 
     const createFlow = useCallback(
         async (values: FlowFormValues) => {
@@ -248,6 +252,49 @@ export function FlowsProvider({ children }: FlowsProviderProps) {
         [finishFlowMutation],
     );
 
+    const restoreFlow = useCallback(
+        async (flow: Flow) => {
+            const { id: flowId, title } = flow;
+
+            if (!flowId) {
+                return false;
+            }
+
+            const flowDescription = `${title || uiText('Unknown')} (ID: ${flowId})`;
+
+            const loadingToastId = toast.loading(uiText('Restoring flow...'), {
+                description: flowDescription,
+            });
+
+            try {
+                await restoreFlowMutation({
+                    refetchQueries: [DeletedFlowsDocument, FlowsDocument],
+                    variables: { flowId },
+                });
+
+                toast.success(uiText('Flow restored'), {
+                    description: flowDescription,
+                    id: loadingToastId,
+                });
+
+                return true;
+            } catch (error) {
+                const errorMessage =
+                    error instanceof Error
+                        ? localizeUiErrorText(error.message)
+                        : uiText('An error occurred while restoring flow');
+                toast.error(errorMessage, {
+                    description: flowDescription,
+                    id: loadingToastId,
+                });
+                Log.error('Error restoring flow:', error);
+
+                return false;
+            }
+        },
+        [restoreFlowMutation],
+    );
+
     const value = useMemo(
         () => ({
             createFlow,
@@ -259,8 +306,20 @@ export function FlowsProvider({ children }: FlowsProviderProps) {
             flowsError,
             isLoading,
             refetch,
+            restoreFlow,
         }),
-        [createFlow, createFlowWithAssistant, deleteFlow, finishFlow, flows, flowsData, flowsError, isLoading, refetch],
+        [
+            createFlow,
+            createFlowWithAssistant,
+            deleteFlow,
+            finishFlow,
+            flows,
+            flowsData,
+            flowsError,
+            isLoading,
+            refetch,
+            restoreFlow,
+        ],
     );
 
     return <FlowsContext.Provider value={value}>{children}</FlowsContext.Provider>;

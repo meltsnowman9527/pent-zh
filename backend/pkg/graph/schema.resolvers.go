@@ -225,6 +225,51 @@ func (r *mutationResolver) DeleteFlow(ctx context.Context, flowID int64) (model.
 	return model.ResultTypeSuccess, nil
 }
 
+// RestoreFlow is the resolver for the restoreFlow field.
+func (r *mutationResolver) RestoreFlow(ctx context.Context, flowID int64) (model.ResultType, error) {
+	// A deleted flow is invisible to GetFlow, so validatePermissionWithFlowID
+	// cannot be used here: the ownership check happens inside the UPDATE itself
+	// (RestoreUserFlow).
+	uid, admin, err := validatePermission(ctx, "flows.delete")
+	if err != nil {
+		return model.ResultTypeError, err
+	}
+
+	r.Logger.WithFields(logrus.Fields{
+		"uid":  uid,
+		"flow": flowID,
+	}).Debug("restore flow")
+
+	var flow database.Flow
+	if admin {
+		flow, err = r.DB.RestoreFlow(ctx, flowID)
+	} else {
+		flow, err = r.DB.RestoreUserFlow(ctx, database.RestoreUserFlowParams{
+			ID:     flowID,
+			UserID: uid,
+		})
+	}
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			// Either the flow does not exist, belongs to someone else, or is not
+			// deleted — all three are "nothing to restore".
+			return model.ResultTypeError, fmt.Errorf("flow %d is not in the recycle bin", flowID)
+		}
+
+		return model.ResultTypeError, err
+	}
+
+	containers, err := r.DB.GetFlowContainers(ctx, flow.ID)
+	if err != nil {
+		r.Logger.WithError(err).Warn("failed to load containers of the restored flow")
+		containers = nil
+	}
+
+	r.Subscriptions.NewFlowPublisher(flow.UserID, flow.ID).FlowUpdated(ctx, flow, containers)
+
+	return model.ResultTypeSuccess, nil
+}
+
 // RenameFlow is the resolver for the renameFlow field.
 func (r *mutationResolver) RenameFlow(ctx context.Context, flowID int64, title string) (model.ResultType, error) {
 	uid, err := validatePermissionWithFlowID(ctx, "flows.edit", flowID, r.DB)
@@ -1352,6 +1397,32 @@ func (r *queryResolver) Flows(ctx context.Context) ([]*model.Flow, error) {
 	}
 
 	return converter.ConvertFlows(flows, containers), nil
+}
+
+// DeletedFlows is the resolver for the deletedFlows field.
+func (r *queryResolver) DeletedFlows(ctx context.Context) ([]*model.Flow, error) {
+	uid, admin, err := validatePermission(ctx, "flows.view")
+	if err != nil {
+		return nil, err
+	}
+
+	r.Logger.WithFields(logrus.Fields{
+		"uid": uid,
+	}).Debug("get deleted flows")
+
+	var flows []database.Flow
+
+	if admin {
+		flows, err = r.DB.GetDeletedFlows(ctx)
+	} else {
+		flows, err = r.DB.GetUserDeletedFlows(ctx, uid)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	// The delete job removes the containers, so there is nothing to join here.
+	return converter.ConvertFlows(flows, nil), nil
 }
 
 // Flow is the resolver for the flow field.

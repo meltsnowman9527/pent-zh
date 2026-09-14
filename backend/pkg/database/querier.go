@@ -11,7 +11,6 @@ import (
 )
 
 type Querier interface {
-	CreateFlowWithJob(context.Context, CreateFlowWithJobParams) (CreateFlowWithJobRow, error)
 	AddFavoriteFlow(ctx context.Context, arg AddFavoriteFlowParams) (UserPreference, error)
 	ClaimFlowJob(ctx context.Context, id int64) (FlowJob, error)
 	CompleteFlowJob(ctx context.Context, arg CompleteFlowJobParams) (FlowJob, error)
@@ -23,6 +22,8 @@ type Querier interface {
 	CreateFlow(ctx context.Context, arg CreateFlowParams) (Flow, error)
 	CreateFlowJob(ctx context.Context, arg CreateFlowJobParams) (FlowJob, error)
 	CreateFlowTemplate(ctx context.Context, arg CreateFlowTemplateParams) (FlowTemplate, error)
+	// Both records commit together; a failed job insert cannot leave an orphan flow.
+	CreateFlowWithJob(ctx context.Context, arg CreateFlowWithJobParams) (CreateFlowWithJobRow, error)
 	CreateMsgChain(ctx context.Context, arg CreateMsgChainParams) (Msgchain, error)
 	CreateMsgLog(ctx context.Context, arg CreateMsgLogParams) (Msglog, error)
 	CreateProvider(ctx context.Context, arg CreateProviderParams) (Provider, error)
@@ -89,6 +90,7 @@ type Querier interface {
 	GetCallToolcall(ctx context.Context, callID string) (Toolcall, error)
 	GetContainerTermLogs(ctx context.Context, containerID int64) ([]Termlog, error)
 	GetContainers(ctx context.Context) ([]Container, error)
+	GetDeletedFlows(ctx context.Context) ([]Flow, error)
 	GetFlow(ctx context.Context, id int64) (Flow, error)
 	GetFlowAgentLog(ctx context.Context, arg GetFlowAgentLogParams) (Agentlog, error)
 	GetFlowAgentLogs(ctx context.Context, flowID int64) ([]Agentlog, error)
@@ -216,6 +218,7 @@ type Querier interface {
 	GetUserAPITokens(ctx context.Context, userID int64) ([]ApiToken, error)
 	GetUserByHash(ctx context.Context, hash string) (GetUserByHashRow, error)
 	GetUserContainers(ctx context.Context, userID int64) ([]Container, error)
+	GetUserDeletedFlows(ctx context.Context, userID int64) ([]Flow, error)
 	GetUserFlow(ctx context.Context, arg GetUserFlowParams) (Flow, error)
 	GetUserFlowAgentLogs(ctx context.Context, arg GetUserFlowAgentLogsParams) ([]Agentlog, error)
 	GetUserFlowAssistant(ctx context.Context, arg GetUserFlowAssistantParams) (Assistant, error)
@@ -262,7 +265,7 @@ type Querier interface {
 	ListAllKnowledgeDocuments(ctx context.Context) ([]ListAllKnowledgeDocumentsRow, error)
 	// List non-memory knowledge documents belonging to a specific flow (admin scoped).
 	ListFlowKnowledgeDocuments(ctx context.Context, flowID sql.NullString) ([]ListFlowKnowledgeDocumentsRow, error)
-	ListPendingFlowJobs(ctx context.Context, limit int64) ([]FlowJob, error)
+	ListPendingFlowJobs(ctx context.Context, dollar_1 int64) ([]FlowJob, error)
 	// List all non-memory knowledge documents owned by a specific user (user-scoped view).
 	ListUserKnowledgeDocuments(ctx context.Context, userID sql.NullString) ([]ListUserKnowledgeDocumentsRow, error)
 	// A job left running belongs to a process that died. It goes back to the queue
@@ -270,6 +273,10 @@ type Querier interface {
 	// rather than leaving it "running" forever.
 	RecoverInterruptedFlowJobs(ctx context.Context) ([]FlowJob, error)
 	RequeueFlowJob(ctx context.Context, arg RequeueFlowJobParams) (FlowJob, error)
+	// Undo a soft delete. The container and vector memory the delete job removed
+	// are gone for good, so a restored flow is read-only history.
+	RestoreFlow(ctx context.Context, id int64) (Flow, error)
+	RestoreUserFlow(ctx context.Context, arg RestoreUserFlowParams) (Flow, error)
 	// Vector similarity search over all knowledge documents (admin view, no user filter).
 	// Returns rows ordered by cosine similarity descending (highest score first).
 	// embedding    query vector as a PostgreSQL vector literal, e.g. '[0.1,0.2,...]'

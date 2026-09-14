@@ -270,6 +270,64 @@ func TestFlowJobsAgainstRealPostgres(t *testing.T) {
 		require.ErrorIs(t, err, sql.ErrNoRows,
 			"GetFlow filters deleted_at, which is what stops a leftover job from initializing a deleted flow")
 	})
+
+	t.Run("a deleted flow shows up in the recycle bin and can be restored", func(t *testing.T) {
+		restorable := hardDeleteFlow(t, q, db, userID)
+
+		_, err := q.DeleteFlow(ctx, restorable)
+		require.NoError(t, err)
+
+		deleted, err := q.GetUserDeletedFlows(ctx, userID)
+		require.NoError(t, err)
+		require.True(t, containsFlow(deleted, restorable), "the bin lists the soft-deleted flow")
+
+		restored, err := q.RestoreUserFlow(ctx, database.RestoreUserFlowParams{ID: restorable, UserID: userID})
+		require.NoError(t, err)
+		require.False(t, restored.DeletedAt.Valid, "restoring clears deleted_at")
+
+		back, err := q.GetFlow(ctx, restorable)
+		require.NoError(t, err, "the flow is visible again")
+		require.Equal(t, restorable, back.ID)
+
+		again, err := q.GetUserDeletedFlows(ctx, userID)
+		require.NoError(t, err)
+		require.False(t, containsFlow(again, restorable), "a restored flow leaves the bin")
+	})
+
+	t.Run("restore is scoped to the owner and rejects live flows", func(t *testing.T) {
+		other := insertUser(t, db)
+		foreign := hardDeleteFlow(t, q, db, other)
+
+		_, err := q.DeleteFlow(ctx, foreign)
+		require.NoError(t, err)
+
+		_, err = q.RestoreUserFlow(ctx, database.RestoreUserFlowParams{ID: foreign, UserID: userID})
+		require.ErrorIs(t, err, sql.ErrNoRows, "another user cannot restore the flow")
+		require.False(t, containsFlow(mustDeletedFlows(t, q, userID), foreign))
+
+		own := hardDeleteFlow(t, q, db, userID)
+		_, err = q.RestoreUserFlow(ctx, database.RestoreUserFlowParams{ID: own, UserID: userID})
+		require.ErrorIs(t, err, sql.ErrNoRows, "a flow that is not deleted cannot be restored twice")
+	})
+}
+
+func containsFlow(flows []database.Flow, id int64) bool {
+	for _, flow := range flows {
+		if flow.ID == id {
+			return true
+		}
+	}
+
+	return false
+}
+
+func mustDeletedFlows(t *testing.T, q *database.Queries, userID int64) []database.Flow {
+	t.Helper()
+
+	flows, err := q.GetUserDeletedFlows(context.Background(), userID)
+	require.NoError(t, err)
+
+	return flows
 }
 
 func insertUser(t *testing.T, db *sql.DB) int64 {

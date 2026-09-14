@@ -95,6 +95,52 @@ func (q *Queries) DeleteFlow(ctx context.Context, id int64) (Flow, error) {
 	return i, err
 }
 
+const getDeletedFlows = `-- name: GetDeletedFlows :many
+SELECT
+  f.id, f.status, f.title, f.model, f.model_provider_name, f.language, f.functions, f.user_id, f.created_at, f.updated_at, f.deleted_at, f.trace_id, f.model_provider_type, f.tool_call_id_template
+FROM flows f
+WHERE f.deleted_at IS NOT NULL
+ORDER BY f.deleted_at DESC
+`
+
+func (q *Queries) GetDeletedFlows(ctx context.Context) ([]Flow, error) {
+	rows, err := q.db.QueryContext(ctx, getDeletedFlows)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Flow
+	for rows.Next() {
+		var i Flow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Status,
+			&i.Title,
+			&i.Model,
+			&i.ModelProviderName,
+			&i.Language,
+			&i.Functions,
+			&i.UserID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+			&i.TraceID,
+			&i.ModelProviderType,
+			&i.ToolCallIDTemplate,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getFlow = `-- name: GetFlow :one
 SELECT
   f.id, f.status, f.title, f.model, f.model_provider_name, f.language, f.functions, f.user_id, f.created_at, f.updated_at, f.deleted_at, f.trace_id, f.model_provider_type, f.tool_call_id_template
@@ -360,6 +406,52 @@ func (q *Queries) GetFlowsStatsByDayLastWeek(ctx context.Context, userID int64) 
 	return items, nil
 }
 
+const getUserDeletedFlows = `-- name: GetUserDeletedFlows :many
+SELECT
+  f.id, f.status, f.title, f.model, f.model_provider_name, f.language, f.functions, f.user_id, f.created_at, f.updated_at, f.deleted_at, f.trace_id, f.model_provider_type, f.tool_call_id_template
+FROM flows f
+WHERE f.user_id = $1 AND f.deleted_at IS NOT NULL
+ORDER BY f.deleted_at DESC
+`
+
+func (q *Queries) GetUserDeletedFlows(ctx context.Context, userID int64) ([]Flow, error) {
+	rows, err := q.db.QueryContext(ctx, getUserDeletedFlows, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Flow
+	for rows.Next() {
+		var i Flow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Status,
+			&i.Title,
+			&i.Model,
+			&i.ModelProviderName,
+			&i.Language,
+			&i.Functions,
+			&i.UserID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+			&i.TraceID,
+			&i.ModelProviderType,
+			&i.ToolCallIDTemplate,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getUserFlow = `-- name: GetUserFlow :one
 SELECT
   f.id, f.status, f.title, f.model, f.model_provider_name, f.language, f.functions, f.user_id, f.created_at, f.updated_at, f.deleted_at, f.trace_id, f.model_provider_type, f.tool_call_id_template
@@ -471,6 +563,71 @@ func (q *Queries) GetUserTotalFlowsStats(ctx context.Context, userID int64) (Get
 		&i.TotalTasksCount,
 		&i.TotalSubtasksCount,
 		&i.TotalAssistantsCount,
+	)
+	return i, err
+}
+
+const restoreFlow = `-- name: RestoreFlow :one
+UPDATE flows
+SET deleted_at = NULL
+WHERE id = $1 AND deleted_at IS NOT NULL
+RETURNING id, status, title, model, model_provider_name, language, functions, user_id, created_at, updated_at, deleted_at, trace_id, model_provider_type, tool_call_id_template
+`
+
+// Undo a soft delete. The container and vector memory the delete job removed
+// are gone for good, so a restored flow is read-only history.
+func (q *Queries) RestoreFlow(ctx context.Context, id int64) (Flow, error) {
+	row := q.db.QueryRowContext(ctx, restoreFlow, id)
+	var i Flow
+	err := row.Scan(
+		&i.ID,
+		&i.Status,
+		&i.Title,
+		&i.Model,
+		&i.ModelProviderName,
+		&i.Language,
+		&i.Functions,
+		&i.UserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.TraceID,
+		&i.ModelProviderType,
+		&i.ToolCallIDTemplate,
+	)
+	return i, err
+}
+
+const restoreUserFlow = `-- name: RestoreUserFlow :one
+UPDATE flows
+SET deleted_at = NULL
+WHERE id = $1 AND user_id = $2 AND deleted_at IS NOT NULL
+RETURNING id, status, title, model, model_provider_name, language, functions, user_id, created_at, updated_at, deleted_at, trace_id, model_provider_type, tool_call_id_template
+`
+
+type RestoreUserFlowParams struct {
+	ID     int64 `json:"id"`
+	UserID int64 `json:"user_id"`
+}
+
+func (q *Queries) RestoreUserFlow(ctx context.Context, arg RestoreUserFlowParams) (Flow, error) {
+	row := q.db.QueryRowContext(ctx, restoreUserFlow, arg.ID, arg.UserID)
+	var i Flow
+	err := row.Scan(
+		&i.ID,
+		&i.Status,
+		&i.Title,
+		&i.Model,
+		&i.ModelProviderName,
+		&i.Language,
+		&i.Functions,
+		&i.UserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.TraceID,
+		&i.ModelProviderType,
+		&i.ToolCallIDTemplate,
 	)
 	return i, err
 }

@@ -226,6 +226,7 @@ type ComplexityRoot struct {
 
 	Flow struct {
 		CreatedAt    func(childComplexity int) int
+		DeletedAt    func(childComplexity int) int
 		ID           func(childComplexity int) int
 		LifecycleJob func(childComplexity int) int
 		Provider     func(childComplexity int) int
@@ -395,6 +396,7 @@ type ComplexityRoot struct {
 		PutUserInput            func(childComplexity int, flowID int64, input string, modelProvider *string, resourceIds []int64) int
 		RenameFlow              func(childComplexity int, flowID int64, title string) int
 		RenameKnowledgeDocument func(childComplexity int, id string, question string) int
+		RestoreFlow             func(childComplexity int, flowID int64) int
 		StopAssistant           func(childComplexity int, flowID int64, assistantID int64) int
 		StopFlow                func(childComplexity int, flowID int64) int
 		TestAgent               func(childComplexity int, typeArg model.ProviderType, agentType model.AgentConfigType, agent model.AgentConfig) int
@@ -496,6 +498,7 @@ type ComplexityRoot struct {
 		AgentLogs                       func(childComplexity int, flowID int64) int
 		AssistantLogs                   func(childComplexity int, flowID int64, assistantID int64) int
 		Assistants                      func(childComplexity int, flowID int64) int
+		DeletedFlows                    func(childComplexity int) int
 		Flow                            func(childComplexity int, flowID int64) int
 		FlowFiles                       func(childComplexity int, flowID int64) int
 		FlowStatsByFlow                 func(childComplexity int, flowID int64) int
@@ -775,6 +778,7 @@ type MutationResolver interface {
 	StopFlow(ctx context.Context, flowID int64) (model.ResultType, error)
 	FinishFlow(ctx context.Context, flowID int64) (model.ResultType, error)
 	DeleteFlow(ctx context.Context, flowID int64) (model.ResultType, error)
+	RestoreFlow(ctx context.Context, flowID int64) (model.ResultType, error)
 	RenameFlow(ctx context.Context, flowID int64, title string) (model.ResultType, error)
 	CreateAssistant(ctx context.Context, flowID int64, modelProvider string, input string, useAgents bool, resourceIds []int64) (*model.FlowAssistant, error)
 	CallAssistant(ctx context.Context, flowID int64, assistantID int64, input string, useAgents bool, resourceIds []int64) (model.ResultType, error)
@@ -807,6 +811,7 @@ type QueryResolver interface {
 	Providers(ctx context.Context) ([]*model.Provider, error)
 	Assistants(ctx context.Context, flowID int64) ([]*model.Assistant, error)
 	Flows(ctx context.Context) ([]*model.Flow, error)
+	DeletedFlows(ctx context.Context) ([]*model.Flow, error)
 	Flow(ctx context.Context, flowID int64) (*model.Flow, error)
 	Tasks(ctx context.Context, flowID int64) ([]*model.Task, error)
 	FlowFiles(ctx context.Context, flowID int64) ([]*model.FlowFile, error)
@@ -1748,6 +1753,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Flow.CreatedAt(childComplexity), true
 
+	case "Flow.deletedAt":
+		if e.complexity.Flow.DeletedAt == nil {
+			break
+		}
+
+		return e.complexity.Flow.DeletedAt(childComplexity), true
+
 	case "Flow.id":
 		if e.complexity.Flow.ID == nil {
 			break
@@ -2684,6 +2696,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.RenameKnowledgeDocument(childComplexity, args["id"].(string), args["question"].(string)), true
 
+	case "Mutation.restoreFlow":
+		if e.complexity.Mutation.RestoreFlow == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_restoreFlow_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.RestoreFlow(childComplexity, args["flowId"].(int64)), true
+
 	case "Mutation.stopAssistant":
 		if e.complexity.Mutation.StopAssistant == nil {
 			break
@@ -3250,6 +3274,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.Assistants(childComplexity, args["flowId"].(int64)), true
+
+	case "Query.deletedFlows":
+		if e.complexity.Query.DeletedFlows == nil {
+			break
+		}
+
+		return e.complexity.Query.DeletedFlows(childComplexity), true
 
 	case "Query.flow":
 		if e.complexity.Query.Flow == nil {
@@ -6281,6 +6312,38 @@ func (ec *executionContext) field_Mutation_renameKnowledgeDocument_argsQuestion(
 	}
 
 	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_restoreFlow_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	arg0, err := ec.field_Mutation_restoreFlow_argsFlowID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["flowId"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_restoreFlow_argsFlowID(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (int64, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["flowId"]
+	if !ok {
+		var zeroVal int64
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("flowId"))
+	if tmp, ok := rawArgs["flowId"]; ok {
+		return ec.unmarshalNID2int64(ctx, tmp)
+	}
+
+	var zeroVal int64
 	return zeroVal, nil
 }
 
@@ -15046,6 +15109,47 @@ func (ec *executionContext) fieldContext_Flow_updatedAt(_ context.Context, field
 	return fc, nil
 }
 
+func (ec *executionContext) _Flow_deletedAt(ctx context.Context, field graphql.CollectedField, obj *model.Flow) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Flow_deletedAt(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.DeletedAt, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*time.Time)
+	fc.Result = res
+	return ec.marshalOTime2ᚖtimeᚐTime(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Flow_deletedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Flow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _FlowAssistant_flow(ctx context.Context, field graphql.CollectedField, obj *model.FlowAssistant) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_FlowAssistant_flow(ctx, field)
 	if err != nil {
@@ -15101,6 +15205,8 @@ func (ec *executionContext) fieldContext_FlowAssistant_flow(_ context.Context, f
 				return ec.fieldContext_Flow_createdAt(ctx, field)
 			case "updatedAt":
 				return ec.fieldContext_Flow_updatedAt(ctx, field)
+			case "deletedAt":
+				return ec.fieldContext_Flow_deletedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Flow", field.Name)
 		},
@@ -19084,6 +19190,8 @@ func (ec *executionContext) fieldContext_Mutation_createFlow(ctx context.Context
 				return ec.fieldContext_Flow_createdAt(ctx, field)
 			case "updatedAt":
 				return ec.fieldContext_Flow_updatedAt(ctx, field)
+			case "deletedAt":
+				return ec.fieldContext_Flow_deletedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Flow", field.Name)
 		},
@@ -19316,6 +19424,61 @@ func (ec *executionContext) fieldContext_Mutation_deleteFlow(ctx context.Context
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_deleteFlow_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_restoreFlow(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_restoreFlow(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().RestoreFlow(rctx, fc.Args["flowId"].(int64))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(model.ResultType)
+	fc.Result = res
+	return ec.marshalNResultType2pentagiᚋpkgᚋgraphᚋmodelᚐResultType(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_restoreFlow(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ResultType does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_restoreFlow_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -24039,6 +24202,72 @@ func (ec *executionContext) fieldContext_Query_flows(_ context.Context, field gr
 				return ec.fieldContext_Flow_createdAt(ctx, field)
 			case "updatedAt":
 				return ec.fieldContext_Flow_updatedAt(ctx, field)
+			case "deletedAt":
+				return ec.fieldContext_Flow_deletedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Flow", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_deletedFlows(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_deletedFlows(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().DeletedFlows(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Flow)
+	fc.Result = res
+	return ec.marshalNFlow2ᚕᚖpentagiᚋpkgᚋgraphᚋmodelᚐFlowᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_deletedFlows(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "lifecycleJob":
+				return ec.fieldContext_Flow_lifecycleJob(ctx, field)
+			case "id":
+				return ec.fieldContext_Flow_id(ctx, field)
+			case "title":
+				return ec.fieldContext_Flow_title(ctx, field)
+			case "status":
+				return ec.fieldContext_Flow_status(ctx, field)
+			case "terminals":
+				return ec.fieldContext_Flow_terminals(ctx, field)
+			case "provider":
+				return ec.fieldContext_Flow_provider(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Flow_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Flow_updatedAt(ctx, field)
+			case "deletedAt":
+				return ec.fieldContext_Flow_deletedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Flow", field.Name)
 		},
@@ -24101,6 +24330,8 @@ func (ec *executionContext) fieldContext_Query_flow(ctx context.Context, field g
 				return ec.fieldContext_Flow_createdAt(ctx, field)
 			case "updatedAt":
 				return ec.fieldContext_Flow_updatedAt(ctx, field)
+			case "deletedAt":
+				return ec.fieldContext_Flow_deletedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Flow", field.Name)
 		},
@@ -27955,6 +28186,8 @@ func (ec *executionContext) fieldContext_Subscription_flowCreated(_ context.Cont
 				return ec.fieldContext_Flow_createdAt(ctx, field)
 			case "updatedAt":
 				return ec.fieldContext_Flow_updatedAt(ctx, field)
+			case "deletedAt":
+				return ec.fieldContext_Flow_deletedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Flow", field.Name)
 		},
@@ -28031,6 +28264,8 @@ func (ec *executionContext) fieldContext_Subscription_flowDeleted(_ context.Cont
 				return ec.fieldContext_Flow_createdAt(ctx, field)
 			case "updatedAt":
 				return ec.fieldContext_Flow_updatedAt(ctx, field)
+			case "deletedAt":
+				return ec.fieldContext_Flow_deletedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Flow", field.Name)
 		},
@@ -28107,6 +28342,8 @@ func (ec *executionContext) fieldContext_Subscription_flowUpdated(_ context.Cont
 				return ec.fieldContext_Flow_createdAt(ctx, field)
 			case "updatedAt":
 				return ec.fieldContext_Flow_updatedAt(ctx, field)
+			case "deletedAt":
+				return ec.fieldContext_Flow_deletedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Flow", field.Name)
 		},
@@ -39395,6 +39632,8 @@ func (ec *executionContext) _Flow(ctx context.Context, sel ast.SelectionSet, obj
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "deletedAt":
+			out.Values[i] = ec._Flow_deletedAt(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -40398,6 +40637,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "restoreFlow":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_restoreFlow(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "renameFlow":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_renameFlow(ctx, field)
@@ -41224,6 +41470,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_flows(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "deletedFlows":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_deletedFlows(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
 				return res
 			}
 
@@ -44351,6 +44619,50 @@ func (ec *executionContext) marshalNFloat2float64(ctx context.Context, sel ast.S
 
 func (ec *executionContext) marshalNFlow2pentagiᚋpkgᚋgraphᚋmodelᚐFlow(ctx context.Context, sel ast.SelectionSet, v model.Flow) graphql.Marshaler {
 	return ec._Flow(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNFlow2ᚕᚖpentagiᚋpkgᚋgraphᚋmodelᚐFlowᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Flow) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNFlow2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐFlow(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
 }
 
 func (ec *executionContext) marshalNFlow2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐFlow(ctx context.Context, sel ast.SelectionSet, v *model.Flow) graphql.Marshaler {

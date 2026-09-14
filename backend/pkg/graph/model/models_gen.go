@@ -211,6 +211,7 @@ type Flow struct {
 	Provider     *Provider         `json:"provider"`
 	CreatedAt    time.Time         `json:"createdAt"`
 	UpdatedAt    time.Time         `json:"updatedAt"`
+	DeletedAt    *time.Time        `json:"deletedAt,omitempty"`
 }
 
 type FlowAssistant struct {

@@ -31,6 +31,7 @@ fragment flowFragment on Flow {
     }
     createdAt
     updatedAt
+    deletedAt
 }
 
 fragment terminalFragment on Terminal {
@@ -549,6 +550,12 @@ fragment knowledgeDocumentWithScoreFragment on KnowledgeDocumentWithScore {
 
 query flows {
     flows {
+        ...flowFragment
+    }
+}
+
+query deletedFlows {
+    deletedFlows {
         ...flowFragment
     }
 }
@@ -1086,6 +1093,10 @@ mutation deleteFlow($flowId: ID!) {
     deleteFlow(flowId: $flowId)
 }
 
+mutation restoreFlow($flowId: ID!) {
+    restoreFlow(flowId: $flowId)
+}
+
 mutation putUserInput($flowId: ID!, $input: String!, $modelProvider: String, $resourceIds: [ID!]) {
     putUserInput(flowId: $flowId, input: $input, modelProvider: $modelProvider, resourceIds: $resourceIds)
 }
@@ -1102,8 +1113,20 @@ mutation renameFlow($flowId: ID!, $title: String!) {
     renameFlow(flowId: $flowId, title: $title)
 }
 
-mutation createAssistant($flowId: ID!, $modelProvider: String!, $input: String!, $useAgents: Boolean!, $resourceIds: [ID!]) {
-    createAssistant(flowId: $flowId, modelProvider: $modelProvider, input: $input, useAgents: $useAgents, resourceIds: $resourceIds) {
+mutation createAssistant(
+    $flowId: ID!
+    $modelProvider: String!
+    $input: String!
+    $useAgents: Boolean!
+    $resourceIds: [ID!]
+) {
+    createAssistant(
+        flowId: $flowId
+        modelProvider: $modelProvider
+        input: $input
+        useAgents: $useAgents
+        resourceIds: $resourceIds
+    ) {
         flow {
             ...flowFragment
         }
@@ -1114,7 +1137,13 @@ mutation createAssistant($flowId: ID!, $modelProvider: String!, $input: String!,
 }
 
 mutation callAssistant($flowId: ID!, $assistantId: ID!, $input: String!, $useAgents: Boolean!, $resourceIds: [ID!]) {
-    callAssistant(flowId: $flowId, assistantId: $assistantId, input: $input, useAgents: $useAgents, resourceIds: $resourceIds)
+    callAssistant(
+        flowId: $flowId
+        assistantId: $assistantId
+        input: $input
+        useAgents: $useAgents
+        resourceIds: $resourceIds
+    )
 }
 
 mutation stopAssistant($flowId: ID!, $assistantId: ID!) {

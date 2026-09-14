@@ -81,6 +81,15 @@
 - 侧边栏「最近任务流程」（以及「收藏的任务流程」）同样改为显示序号：此前 `FlowMenuItem` 直接打印 `flow.id`，两处都会显示如 `#3` 的物理编号。现在按各自列表的显示顺序编号（最近列表 1＝最新，收藏列表 1＝最新），折叠态与展开态的角标都改；`main-sidebar.test.tsx` 新增用例断言渲染的是 1、2 而不是原始 id 7、4。链接仍指向真实 `flow.id`，导航不受影响。
 - 验证：`pnpm test` **1383 通过 / 16 跳过 / 0 失败**（新增 11 项）；`eslint --max-warnings 0` 退出码 0；`tsc -b` 通过；`vite build` 通过；`pentagi-local:latest` 重建并于 11:09:20 替换 `pentagi` 容器，容器内 `/opt/pentagi/fe/index.html` 与本地 `frontend/dist/index.html` 校验值一致（md5 `918598e5522fe61b6c1de65c50354d15`），`http://localhost:8443` 返回 200。
 
+### 回收站与恢复（2026-09-14 下午）
+
+删除是软删除（`flows.deleted_at`），此前没有任何恢复入口，用户一旦删错只能放弃。本批补上回收站：
+
+- 后端：新增 sqlc 查询 `GetDeletedFlows` / `GetUserDeletedFlows` / `RestoreFlow` / `RestoreUserFlow`（用 `sqlc generate` 重新生成 `pkg/database`，未手改生成文件）；GraphQL 新增 `deletedFlows` 查询与 `restoreFlow` 变更，`Flow` 类型增加 `deletedAt`（供界面显示删除时间）；恢复走 `flows.delete` 权限，非管理员的所有权校验内联在 `RestoreUserFlow` 的 UPDATE 条件里（被删除的流程对 `GetFlow` 不可见，无法沿用 `validatePermissionWithFlowID`）。恢复后推送一次 `FlowUpdated`。
+- 前端：任务流程页头部新增「回收站 / 返回任务流程」切换；回收站列表只有序号、ID、标题、状态、删除时间与「恢复」按钮，行不可点击、无右键菜单（已删除流程没有详情页）；恢复前有确认对话框，明确写出"删除时已清理的容器文件与向量记忆不会恢复"。
+- 验证：真库集成测试新增 2 个用例（回收站列出软删除流程并可恢复、恢复正常流程与越权恢复都被拒绝），`TestFlowJobsAgainstRealPostgres` 共 17 个子测试全部通过；`go test -race` 覆盖 controller / services / graph / database / converter 全部通过。接口实测：插入一条合成软删除流程 → `deletedFlows` 列出（含 `deletedAt`）→ `restoreFlow` 返回 success → 回收站不再包含它、正常列表出现它 → 重复恢复返回 `flow N is not in the recycle bin` → 删除合成数据。用户自己的 1、2 号流程仍留在回收站，可自行恢复。
+- 边界：恢复只还原记录与历史（可查看、可导出报告），不会重建容器与向量记忆；`deleted_at` 由序列化的物理 `id` 无关，恢复后不会改变原有编号。
+
 ## 扫描口径说明
 
 统计“还剩多少英文文案”时必须扫描 `frontend/src` 下的**全部**非测试 `.ts` 与 `.tsx`（只扫 `.tsx` 会漏掉路由标题注册表、API 层、上传校验与资源/文件操作 hook 里的用户可见文案），并把已出现的 `uiText(...)` 调用遮蔽后再匹配，不能跳过已接入文案表的文件：早期版本跳过这些文件，导致 `flow-files.tsx`、`flow-assistant-messages.tsx`、`flows.tsx` 等已接入文案表的文件里剩余的英文没有被统计，进度被高估。匹配要覆盖五类：JSX 文本节点（单行与多行）、常见属性值（含自定义属性）、字符串字面量、**反引号模板字面量**（toast 描述、无障碍名、确认句大量藏在这里），以及把选项名拼进 `aria-label` 的位置。另外两类第九批仍未覆盖，统计时不能省：一是被行内 `<code>` 切开的描述句，`>` 规则只能匹配紧跟标签后的第一段，`</code>` 之后的英文尾巴要单独搜索；二是徽标、下拉项里由数据驱动的显示标签（如令牌状态 `active`/`revoked`/`expired`），它们不是“大写单词开头的句子”，需要按“界面可能出现的英文单词”回查。匹配 `>` 时还要排除箭头函数与注释：前一字符是 `=` 或 `-` 的候选要剔除，否则 `() => ...` 与行内注释里的英文会淹没结果。加入新文案时，词条去重要同时检查 `'Key':` 与裸标识符 `Key:` 两种写法，否则会写出重复键，`tsc` 会以 TS1117 报错。
