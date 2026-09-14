@@ -22,8 +22,9 @@
 
 - `.env` 中 `PENTAGI_IMAGE=pentagi-local:latest`，本地镜像由 `Dockerfile.local` 从当前源码构建，构建过程包含 `go test -race ./pkg/controller`。
 - 入口为 HTTP：`.env` 中 `SERVER_USE_SSL=false`、`SERVER_PORT=8443`，`PUBLIC_URL` 与 `CORS_ORIGINS` 均为 `http://localhost:8443`；`PENTAGI_LISTEN_IP=127.0.0.1` 只监听本机。登录 Cookie 的 `Secure` 标志取自 `c.Request.TLS != nil`，HTTP 下自动省略。
-- `pentagi` 应用容器最近一次重建于 2026-09-14 11:41:07（用户反馈修复：分析页周/月/季补零与区间文案、流程列表与侧边栏序号、回收站与恢复、彻底删除），运行 `pentagi-local:latest`；`pgvector`、`scraper`、`pgexporter` 仍为原配套容器，原数据库卷未替换。
-- 容器内 `/opt/pentagi/fe/index.html` 与本地 `frontend/dist/index.html` 校验值一致（md5 `ec09af00f0e9f6c5ed7956b9d663b6ac`），说明运行界面就是当前源码的构建产物。
+- `pentagi` 应用容器最近一次重建于 2026-09-14 11:46:26（撤销序号列改用 ID、回收站与恢复、彻底删除），运行 `pentagi-local:latest`；`pgvector`、`scraper`、`pgexporter` 仍为原配套容器，原数据库卷未替换。
+- 容器内 `/opt/pentagi/fe/index.html` 与本地 `frontend/dist/index.html` 校验值一致（md5 `0191a547055ec99d2bb7dac761a31a29`），说明运行界面就是当前源码的构建产物。
+- 任务数据已于 2026-09-14 按用户要求清空（flows 及其全部子表与向量记忆均为 0 行），账户与模型配置保留；备份见 `build/pentagidb-backup-20260914-114555.sql`。
 - http://localhost:8443 返回 200，HTTPS 不再监听；数据库 `pentagidb` 中保留原有 provider 配置与历史任务。
 
 ## 复核方式

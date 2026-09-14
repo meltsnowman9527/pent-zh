@@ -821,7 +821,6 @@ const messages = {
     'Rich editor': '富文本',
     Right: '右对齐',
     'Row actions': '行操作',
-    'Row number': '序号',
     'Rows per page': '每页行数',
     Running: '执行中',
     Save: '保存',

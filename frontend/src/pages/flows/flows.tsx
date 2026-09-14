@@ -52,8 +52,6 @@ import { uiText } from '@/locales/zh-CN';
 import { useFavorites } from '@/providers/favorites-provider';
 import { type Flow, useFlows } from '@/providers/flows-provider';
 
-import { flowRowNumber } from './flow-row-number';
-
 const statusConfig: Record<
     StatusType,
     { label: string; variant: 'default' | 'destructive' | 'outline' | 'secondary' }
@@ -78,30 +76,6 @@ const statusConfig: Record<
         label: uiText('Waiting'),
         variant: 'outline',
     },
-};
-
-// Display-only row number, shared by the flow list and the recycle bin. Flow
-// ids come from a PostgreSQL sequence and are never reused, so soft-deleting a
-// flow leaves a gap in the `id` column; this numbers the rows that are actually
-// on screen (current page, current sort/filter order).
-const rowNumberColumn: ColumnDef<Flow> = {
-    cell: ({ row, table }) => {
-        const { pageIndex, pageSize } = table.getState().pagination;
-        const position = table.getRowModel().rows.findIndex((item) => item.id === row.id);
-
-        return (
-            <div className="text-muted-foreground font-mono text-sm">
-                {flowRowNumber(pageIndex, pageSize, position)}
-            </div>
-        );
-    },
-    enableHiding: false,
-    enableSorting: false,
-    header: () => <span className="text-muted-foreground text-xs">{uiText('Row number')}</span>,
-    id: 'rowNumber',
-    maxSize: 70,
-    minSize: 48,
-    size: 56,
 };
 
 const idColumn: ColumnDef<Flow> = {
@@ -318,7 +292,6 @@ function Flows() {
 
     const columns: ColumnDef<Flow>[] = useMemo(
         () => [
-            rowNumberColumn,
             idColumn,
             {
                 accessorKey: 'title',
@@ -666,7 +639,6 @@ function Flows() {
     // itself is not navigable — a deleted flow has no detail page.
     const deletedColumns: ColumnDef<Flow>[] = useMemo(
         () => [
-            rowNumberColumn,
             idColumn,
             titleColumn,
             statusCellColumn,

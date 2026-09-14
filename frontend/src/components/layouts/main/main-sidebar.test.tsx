@@ -74,12 +74,12 @@ describe('MainSidebar settings entry points', () => {
     });
 });
 
-describe('MainSidebar recent flow numbering', () => {
+describe('MainSidebar recent flow entries', () => {
     afterEach(() => {
         mockSidebarFlows.flows = [];
     });
 
-    it('numbers the recent entries instead of printing the raw flow id', () => {
+    it('shows the flow id on each recent entry', () => {
         mockSidebarFlows.flows = [
             { createdAt: '2026-09-14T02:00:00Z', id: '7', title: '最新任务' },
             { createdAt: '2026-09-12T02:00:00Z', id: '4', title: '较早任务' },
@@ -87,10 +87,9 @@ describe('MainSidebar recent flow numbering', () => {
 
         renderSidebar();
 
-        // Each entry renders its number twice (collapsed rail + expanded badge).
-        expect(screen.getAllByText('1')).toHaveLength(2);
-        expect(screen.getAllByText('2')).toHaveLength(2);
-        expect(screen.queryByText('7')).not.toBeInTheDocument();
-        expect(screen.queryByText('4')).not.toBeInTheDocument();
+        // The id renders twice per entry: collapsed rail + expanded badge.
+        expect(screen.getAllByText('7')).toHaveLength(2);
+        expect(screen.getAllByText('4')).toHaveLength(2);
+        expect(screen.getByText('最新任务')).toBeInTheDocument();
     });
 });
