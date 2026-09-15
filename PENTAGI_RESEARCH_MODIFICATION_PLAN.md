@@ -1,4 +1,6 @@
-# PentAGI 按研究报告架构改造计划
+# PentAGI 按研究报告架构改造计划（历史需求来源）
+
+> 2026-09-15：后续开发改用 [研究平台开发方案](docs/research-platform/PLAN.md) 和 [开发契约](docs/research-platform/CONTRACTS.md)。保留本文用于追溯早期 P1–P5 需求；其中页面顺序、图服务选型和旧进度不再作为当前执行依据。
 
 ## 最新部署与进度基线（2026-09-15）
 
