@@ -20,7 +20,6 @@ function InputPassword(props: InputPasswordProps) {
                     aria-label={visible ? uiText('Hide password') : uiText('Show password')}
                     onClick={() => setVisible((prev) => !prev)}
                     size="icon-sm"
-                    tabIndex={-1}
                 >
                     {visible ? <EyeOff /> : <Eye />}
                 </InputGroupButton>

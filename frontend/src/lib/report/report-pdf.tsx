@@ -217,6 +217,31 @@ const pdfStyles = StyleSheet.create({
         marginBottom: 8,
         textAlign: 'justify',
     },
+    table: {
+        borderColor: '#cbd5e1',
+        borderLeftWidth: 1,
+        borderTopWidth: 1,
+        marginBottom: 10,
+        marginTop: 6,
+    },
+    tableCell: {
+        borderBottomWidth: 1,
+        borderColor: '#cbd5e1',
+        borderRightWidth: 1,
+        flex: 1,
+        fontSize: 8.5,
+        lineHeight: 1.35,
+        padding: 5,
+    },
+    tableHeaderCell: {
+        backgroundColor: '#e2e8f0',
+        color: '#0f172a',
+        fontWeight: 'bold',
+    },
+    tableRow: {
+        display: 'flex',
+        flexDirection: 'row',
+    },
 });
 
 // @react-pdf/renderer has spotty emoji glyph support — substitute readable text tags instead.
@@ -263,10 +288,12 @@ interface InlineToken {
 
 interface ParsedContent {
     content?: string;
+    headers?: InlineToken[][];
     inlineTokens?: InlineToken[];
     items?: Array<{ inlineTokens: InlineToken[]; raw: string }>;
     level?: number;
     ordered?: boolean;
+    rows?: InlineToken[][][];
     type: string;
 }
 
@@ -348,7 +375,7 @@ const parseInlineTokens = (text: string): InlineToken[] => {
     return tokens;
 };
 
-const parseMarkdownTokens = (markdown: string): ParsedContent[] => {
+export const parseMarkdownTokens = (markdown: string): ParsedContent[] => {
     const tokens = marked.lexer(markdown);
     const result: ParsedContent[] = [];
 
@@ -399,6 +426,23 @@ const parseMarkdownTokens = (markdown: string): ParsedContent[] => {
             }
 
             case 'space': {
+                break;
+            }
+
+            case 'table': {
+                const parseCell = (cell: unknown): InlineToken[] => {
+                    if (typeof cell === 'object' && cell !== null && 'text' in cell) {
+                        return parseInlineTokens(String((cell as { text?: unknown }).text || ''));
+                    }
+
+                    return parseInlineTokens(String(cell || ''));
+                };
+
+                const headers = (Array.isArray(token.header) ? token.header : []).map(parseCell);
+                const rows = (Array.isArray(token.rows) ? token.rows : []).map((row) =>
+                    (Array.isArray(row) ? row : []).map(parseCell),
+                );
+                result.push({ headers, rows, type: 'table' });
                 break;
             }
 
@@ -454,7 +498,9 @@ export const renderTextWithCJK = (
                 key={`${keyPrefix}-cjk-${idx}`}
                 style={style}
             >
-                {seg.text}
+                {/* React PDF treats a continuous CJK run as one unbreakable word.
+				    Zero-width break opportunities keep long table cells inside their borders. */}
+                {seg.isCJK ? Array.from(seg.text).join('\u200B') : seg.text}
             </Text>
         );
     });
@@ -610,6 +656,54 @@ const renderPDFContent = (parsed: ParsedContent[]) => {
                         >
                             {renderInlineTokens(item.inlineTokens, `para-${index}`)}
                         </Text>
+                    );
+                }
+
+                case 'table': {
+                    if (!item.headers || item.headers.length === 0) {
+                        return null;
+                    }
+
+                    const renderRow = (cells: InlineToken[][], rowKey: string, header = false) => (
+                        <View
+                            key={rowKey}
+                            style={pdfStyles.tableRow}
+                            wrap={false}
+                        >
+                            {cells.map((cell, cellIndex) => (
+                                <Text
+                                    key={`${rowKey}-${cellIndex}`}
+                                    style={[pdfStyles.tableCell, ...(header ? [pdfStyles.tableHeaderCell] : [])]}
+                                >
+                                    {renderInlineTokens(cell, `${rowKey}-${cellIndex}`)}
+                                </Text>
+                            ))}
+                        </View>
+                    );
+
+                    // React PDF does not repeat a table header when a View splits over a
+                    // page boundary. Bounded, unsplittable chunks avoid orphaned rows and
+                    // deliberately repeat the header on every continuation block.
+                    const rows = item.rows ?? [];
+                    const chunks = Array.from({ length: Math.max(1, Math.ceil(rows.length / 14)) }, (_, chunkIndex) =>
+                        rows.slice(chunkIndex * 14, (chunkIndex + 1) * 14),
+                    );
+
+                    return (
+                        <View key={`table-${index}`}>
+                            {chunks.map((chunk, chunkIndex) => (
+                                <View
+                                    key={`table-${index}-chunk-${chunkIndex}`}
+                                    style={pdfStyles.table}
+                                    wrap={false}
+                                >
+                                    {renderRow(item.headers!, `table-${index}-header-${chunkIndex}`, true)}
+                                    {chunk.map((row, rowIndex) =>
+                                        renderRow(row, `table-${index}-row-${chunkIndex}-${rowIndex}`),
+                                    )}
+                                </View>
+                            ))}
+                        </View>
                     );
                 }
 

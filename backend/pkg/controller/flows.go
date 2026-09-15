@@ -72,25 +72,29 @@ type FlowController interface {
 const reassignProviderTimeout = 30 * time.Second
 
 type flowController struct {
-	// lifecycleMX preserves mutation ordering while mx only protects the registry.
-	// Model calls and worker shutdown must never hold the registry lock: list and
-	// lookup requests need to remain responsive while those operations wait.
+	// lifecycleMX only covers startup and creation before a new assistant flow has
+	// an id. Established flows use flowLifecycleMX; mx only protects the registry.
+	// Slow model and worker operations must never hold the registry lock.
 	lifecycleMX sync.Mutex
-	db          database.Querier
-	mx          *sync.Mutex
-	cfg         *config.Config
-	flows       map[int64]FlowWorker
-	docker      docker.DockerClient
-	provs       providers.ProviderController
-	subs        subscriptions.SubscriptionsController
-	alc         AgentLogController
-	mlc         MsgLogController
-	aslc        AssistantLogController
-	slc         SearchLogController
-	tlc         TermLogController
-	vslc        VectorStoreLogController
-	tclc        ToolCallLogController
-	sc          ScreenshotController
+	// flowLifecycleMX serializes lifecycle mutations per flow. A sync.Map keeps
+	// the common path lock-free while allowing unrelated flows to initialize,
+	// stop and clean up concurrently.
+	flowLifecycleMX sync.Map
+	db              database.Querier
+	mx              *sync.Mutex
+	cfg             *config.Config
+	flows           map[int64]FlowWorker
+	docker          docker.DockerClient
+	provs           providers.ProviderController
+	subs            subscriptions.SubscriptionsController
+	alc             AgentLogController
+	mlc             MsgLogController
+	aslc            AssistantLogController
+	slc             SearchLogController
+	tlc             TermLogController
+	vslc            VectorStoreLogController
+	tclc            ToolCallLogController
+	sc              ScreenshotController
 	// jobs runs create/stop/finish work in the background and keeps the record of
 	// it. Guarded by its own mutex, not by lifecycleMX: the whole point is that a
 	// request returns before the slow part starts.
@@ -98,6 +102,16 @@ type flowController struct {
 	submitMX  sync.Mutex
 	recentMX  sync.Mutex
 	recentSub map[string]recentFlowCreate
+}
+
+// lockFlowLifecycle preserves mutation ordering for one flow without making a
+// slow provider probe or Docker operation hold up every other flow.
+func (fc *flowController) lockFlowLifecycle(flowID int64) func() {
+	value, _ := fc.flowLifecycleMX.LoadOrStore(flowID, &sync.Mutex{})
+	mx := value.(*sync.Mutex)
+	mx.Lock()
+
+	return mx.Unlock
 }
 
 // recentFlowCreate remembers a create submission for flowJobSubmitWindow, so a
@@ -320,8 +334,16 @@ func (fc *flowController) CreateAssistant(
 	functions *tools.Functions,
 	resources []database.UserResource,
 ) (AssistantWorker, error) {
-	fc.lifecycleMX.Lock()
-	defer fc.lifecycleMX.Unlock()
+	var unlock func()
+	if flowID == 0 {
+		// A new assistant flow has no id to key by until its row is created.
+		// It is not externally visible before this call returns.
+		fc.lifecycleMX.Lock()
+		unlock = fc.lifecycleMX.Unlock
+	} else {
+		unlock = fc.lockFlowLifecycle(flowID)
+	}
+	defer unlock()
 
 	var (
 		fw  FlowWorker
@@ -483,8 +505,8 @@ func (fc *flowController) GetFlow(ctx context.Context, flowID int64) (FlowWorker
 }
 
 func (fc *flowController) StopFlow(ctx context.Context, flowID int64) error {
-	fc.lifecycleMX.Lock()
-	defer fc.lifecycleMX.Unlock()
+	unlock := fc.lockFlowLifecycle(flowID)
+	defer unlock()
 
 	flow, err := fc.GetFlow(ctx, flowID)
 	if err != nil {
@@ -547,8 +569,13 @@ func (fc *flowController) DeleteFlow(ctx context.Context, flowID int64) error {
 // tasks, finish the assistants, release the executor and only then mark the flow
 // finished.
 func (fc *flowController) finishFlow(ctx context.Context, flowID int64) error {
-	fc.lifecycleMX.Lock()
-	defer fc.lifecycleMX.Unlock()
+	unlock := fc.lockFlowLifecycle(flowID)
+	defer unlock()
+
+	return fc.finishFlowLocked(ctx, flowID)
+}
+
+func (fc *flowController) finishFlowLocked(ctx context.Context, flowID int64) error {
 
 	flow, err := fc.GetFlow(ctx, flowID)
 	if err != nil {
@@ -631,8 +658,8 @@ func (fc *flowController) createLifecycleJob(
 }
 
 func (fc *flowController) RenameFlow(ctx context.Context, flowID int64, title string) error {
-	fc.lifecycleMX.Lock()
-	defer fc.lifecycleMX.Unlock()
+	unlock := fc.lockFlowLifecycle(flowID)
+	defer unlock()
 
 	flow, err := fc.GetFlow(ctx, flowID)
 	if err != nil {

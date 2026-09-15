@@ -45,6 +45,9 @@ const (
 	flowJobPollInterval = 5 * time.Second
 	// Upper bound on rows fetched per poll.
 	flowJobDrainLimit = 32
+	// Independent flows may perform lifecycle work concurrently. Ordering for a
+	// single flow is preserved by the scheduler and the per-flow lifecycle lock.
+	flowJobMaxConcurrency = 4
 	// A duplicate create submitted inside this window is answered with the flow
 	// that is already being initialized instead of starting a second one.
 	flowJobSubmitWindow = 30 * time.Second
@@ -293,10 +296,9 @@ func (p flowJobPayload) functions() (*tools.Functions, error) {
 // every executor receives the real recorder for its job.
 type flowJobExecutor func(ctx context.Context, job database.FlowJob, rec *lifecycleRecorder) error
 
-// flowJobRunner executes lifecycle jobs one at a time. Serializing them keeps
-// the ordering the controller had when the caller held lifecycleMX, without
-// making unrelated requests wait for a slow initialization: the registry lock is
-// only taken around the short map mutation.
+// flowJobRunner executes a bounded number of independent flows concurrently.
+// Jobs for the same flow stay FIFO, while a slow provider or Docker operation
+// cannot head-of-line block unrelated flows.
 type flowJobRunner struct {
 	fc        *flowController
 	executors map[string]flowJobExecutor
@@ -304,6 +306,7 @@ type flowJobRunner struct {
 	ctx       context.Context
 	cancel    context.CancelFunc
 	wg        sync.WaitGroup
+	workerWG  sync.WaitGroup
 	startOnce sync.Once
 
 	inFlightMX sync.Mutex
@@ -359,6 +362,7 @@ func (r *flowJobRunner) Start(ctx context.Context) {
 func (r *flowJobRunner) Stop() {
 	r.cancel()
 	r.wg.Wait()
+	r.workerWG.Wait()
 }
 
 // enqueue hands a job to the runner. The queue is bounded, so a wedged runner
@@ -377,13 +381,72 @@ func (r *flowJobRunner) loop() {
 
 	ticker := time.NewTicker(flowJobPollInterval)
 	defer ticker.Stop()
+	type completedJob struct {
+		flowID int64
+		jobID  int64
+	}
+	done := make(chan completedJob, flowJobMaxConcurrency)
+	pending := make(map[int64][]int64)
+	active := make(map[int64]bool)
+	queued := make(map[int64]struct{})
+	running := 0
+
+	startReady := func() {
+		for running < flowJobMaxConcurrency {
+			var flowID int64
+			var jobID int64
+			for candidate, jobs := range pending {
+				if active[candidate] || len(jobs) == 0 {
+					continue
+				}
+				flowID, jobID = candidate, jobs[0]
+				pending[candidate] = jobs[1:]
+				break
+			}
+			if jobID == 0 {
+				return
+			}
+
+			active[flowID] = true
+			running++
+			r.workerWG.Add(1)
+			go func(flowID, jobID int64) {
+				defer r.workerWG.Done()
+				r.execute(r.ctx, jobID)
+				select {
+				case done <- completedJob{flowID: flowID, jobID: jobID}:
+				case <-r.ctx.Done():
+				}
+			}(flowID, jobID)
+		}
+	}
+
+	schedule := func(jobID int64) {
+		if _, exists := queued[jobID]; exists {
+			return
+		}
+		job, err := r.fc.db.GetFlowJob(r.ctx, jobID)
+		if err != nil || job.Status != FlowJobStatusQueued {
+			return
+		}
+		queued[jobID] = struct{}{}
+		pending[job.FlowID] = append(pending[job.FlowID], jobID)
+		startReady()
+	}
 
 	for {
 		select {
 		case <-r.ctx.Done():
 			return
 		case jobID := <-r.queue:
-			r.execute(r.ctx, jobID)
+			schedule(jobID)
+		case completed := <-done:
+			active[completed.flowID] = false
+			running--
+			// Retried jobs are enqueued by their timer and may therefore enter
+			// the scheduler again after this completed attempt leaves the set.
+			delete(queued, completed.jobID)
+			startReady()
 		case <-ticker.C:
 			r.drainQueued(r.ctx)
 		}
@@ -517,8 +580,8 @@ func (r *flowJobRunner) executeCreate(ctx context.Context, job database.FlowJob,
 		return nil // A queued cleanup may have completed while creation was waiting to retry.
 	}
 
-	r.fc.lifecycleMX.Lock()
-	defer r.fc.lifecycleMX.Unlock()
+	unlock := r.fc.lockFlowLifecycle(job.FlowID)
+	defer unlock()
 
 	if _, err := r.fc.GetFlow(ctx, job.FlowID); err == nil {
 		rec.Mark(ctx, "already_initialized")
@@ -570,8 +633,8 @@ func (r *flowJobRunner) executeFinish(ctx context.Context, job database.FlowJob,
 }
 
 func (r *flowJobRunner) executeStop(ctx context.Context, job database.FlowJob, rec *lifecycleRecorder) error {
-	r.fc.lifecycleMX.Lock()
-	defer r.fc.lifecycleMX.Unlock()
+	unlock := r.fc.lockFlowLifecycle(job.FlowID)
+	defer unlock()
 	fw, err := r.fc.GetFlow(ctx, job.FlowID)
 	if err != nil {
 		return err
@@ -580,7 +643,12 @@ func (r *flowJobRunner) executeStop(ctx context.Context, job database.FlowJob, r
 }
 
 func (r *flowJobRunner) executeDelete(ctx context.Context, job database.FlowJob, rec *lifecycleRecorder) error {
-	if err := r.executeFinish(ctx, job, rec); err != nil {
+	unlock := r.fc.lockFlowLifecycle(job.FlowID)
+	defer unlock()
+
+	if err := rec.Step(ctx, "cleanup", "cleaning_up", func(ctx context.Context) error {
+		return r.fc.finishFlowLocked(ctx, job.FlowID)
+	}); err != nil {
 		return err
 	}
 	flow, err := r.fc.db.GetFlow(ctx, job.FlowID)

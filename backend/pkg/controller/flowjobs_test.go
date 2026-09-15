@@ -126,6 +126,19 @@ func (s *fakeFlowJobStore) GetActiveFlowJob(_ context.Context, arg database.GetA
 	return s.jobs[id], nil
 }
 
+func (s *fakeFlowJobStore) GetFlowJob(_ context.Context, id int64) (database.FlowJob, error) {
+	s.slow()
+
+	s.mx.Lock()
+	defer s.mx.Unlock()
+	job, ok := s.jobs[id]
+	if !ok {
+		return database.FlowJob{}, sql.ErrNoRows
+	}
+
+	return job, nil
+}
+
 func (s *fakeFlowJobStore) DeleteFlowDocuments(context.Context, sql.NullString) error {
 	return nil
 }

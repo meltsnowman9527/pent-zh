@@ -64,8 +64,8 @@ func (o *opLatencies) report(t *testing.T, label string) time.Duration {
 	return durationPercentile(sorted, 95)
 }
 
-// slowInitialization puts a create job in flight that holds the lifecycle lock for
-// as long as the real one does while it probes the provider and prepares
+// slowInitialization puts a create job in flight that holds its flow's lifecycle
+// lock for as long as the real one does while it probes the provider and prepares
 // containers — the injected fault for the "slow model / slow docker" case.
 func slowInitialization(t *testing.T, fc *flowController, store *fakeFlowJobStore) (release func()) {
 	t.Helper()
@@ -81,8 +81,8 @@ func slowInitialization(t *testing.T, fc *flowController, store *fakeFlowJobStor
 	t.Cleanup(release)
 
 	fc.jobs.executors[FlowJobKindCreate] = func(context.Context, database.FlowJob, *lifecycleRecorder) error {
-		fc.lifecycleMX.Lock()
-		defer fc.lifecycleMX.Unlock()
+		unlock := fc.lockFlowLifecycle(1)
+		defer unlock()
 
 		close(entered)
 		<-done
@@ -178,12 +178,9 @@ func TestFlowAcceptanceLatencyUnderSlowInitialization(t *testing.T) {
 	}
 }
 
-// Known limitation, pinned so it cannot drift silently: the lifecycle lock is
-// held across the slow half of an initialization, so a stop request for *another*
-// flow waits for it to finish. Moving the provider/docker work out of the lock
-// (or turning stop into a queued job) is the fix; until then this test documents
-// the coupling and the single-flight runner behind it.
-func TestSlowInitializationDelaysOtherLifecycleRequests(t *testing.T) {
+// A slow initialization keeps ordering for its own flow but must not delay a
+// stop request for an unrelated flow.
+func TestSlowInitializationDoesNotDelayOtherLifecycleRequests(t *testing.T) {
 	fc, store := newLatencyTestController(t)
 	// The flow being stopped needs a registry worker of its own.
 	fc.flows[2] = &waitingFlowWorker{id: 2, wait: func() error { return nil }}
@@ -197,25 +194,17 @@ func TestSlowInitializationDelaysOtherLifecycleRequests(t *testing.T) {
 
 	select {
 	case err := <-stopped:
-		t.Fatalf("stop of another flow completed (%v) while the initialization held the lifecycle lock", err)
-	case <-time.After(200 * time.Millisecond):
-		t.Log("stop of another flow waits for the in-flight initialization (known limitation)")
+		require.NoError(t, err)
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("stop of another flow was delayed by an unrelated initialization")
 	}
 
 	release()
-
-	select {
-	case err := <-stopped:
-		require.NoError(t, err)
-	case <-time.After(5 * time.Second):
-		t.Fatal("stop did not complete after the initialization was released")
-	}
 }
 
-// The runner's loop executes one job at a time, so a slow initialization delays
-// the next flow's lifecycle job even when the two flows are unrelated. Same known
-// limitation as above, from the queue's point of view.
-func TestSingleFlightRunnerSerializesLifecycleJobs(t *testing.T) {
+// The scheduler runs unrelated flows concurrently and keeps jobs for the same
+// flow in FIFO order.
+func TestFlowJobRunnerIsConcurrentAcrossFlowsAndSerialWithinFlow(t *testing.T) {
 	fc, store := newLatencyTestController(t)
 	store.flows[2] = database.Flow{ID: 2, UserID: 1, Status: database.FlowStatusRunning}
 
@@ -226,20 +215,21 @@ func TestSingleFlightRunnerSerializesLifecycleJobs(t *testing.T) {
 	defer unblock()
 	defer fc.jobs.Stop()
 
-	started := make(chan int64, 2)
+	started := make(chan int64, 3)
 
 	fc.jobs.Start(context.Background())
 	// Set after Start, which installs the real executors.
 	fc.jobs.executors[FlowJobKindCreate] = func(_ context.Context, job database.FlowJob, _ *lifecycleRecorder) error {
 		started <- job.FlowID
 
-		if job.FlowID == 1 {
+		if job.FlowID == 1 && job.Kind == FlowJobKindCreate {
 			close(entered)
 			<-release
 		}
 
 		return nil
 	}
+	fc.jobs.executors[FlowJobKindFinish] = fc.jobs.executors[FlowJobKindCreate]
 
 	first, err := store.CreateFlowJob(context.Background(), database.CreateFlowJobParams{
 		FlowID: 1, UserID: 1, Kind: FlowJobKindCreate, CorrelationID: "first", MaxAttempts: flowJobMaxAttempts,
@@ -247,6 +237,10 @@ func TestSingleFlightRunnerSerializesLifecycleJobs(t *testing.T) {
 	require.NoError(t, err)
 	second, err := store.CreateFlowJob(context.Background(), database.CreateFlowJobParams{
 		FlowID: 2, UserID: 1, Kind: FlowJobKindCreate, CorrelationID: "second", MaxAttempts: flowJobMaxAttempts,
+	})
+	require.NoError(t, err)
+	third, err := store.CreateFlowJob(context.Background(), database.CreateFlowJobParams{
+		FlowID: 1, UserID: 1, Kind: FlowJobKindFinish, CorrelationID: "third", MaxAttempts: flowJobMaxAttempts,
 	})
 	require.NoError(t, err)
 
@@ -259,6 +253,7 @@ func TestSingleFlightRunnerSerializesLifecycleJobs(t *testing.T) {
 	}
 
 	fc.jobs.enqueue(second.ID)
+	fc.jobs.enqueue(third.ID)
 
 	select {
 	case flowID := <-started:
@@ -271,17 +266,23 @@ func TestSingleFlightRunnerSerializesLifecycleJobs(t *testing.T) {
 
 	select {
 	case flowID := <-started:
-		t.Fatalf("flow %d started while flow 1 was still initializing (single-flight runner)", flowID)
+		require.Equal(t, int64(2), flowID, "an unrelated flow should start concurrently")
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("the second flow was head-of-line blocked by the first")
+	}
+
+	select {
+	case flowID := <-started:
+		t.Fatalf("same-flow job %d started before the preceding job completed", flowID)
 	case <-time.After(100 * time.Millisecond):
-		t.Log("the second flow's lifecycle job waits for the first (known limitation)")
 	}
 
 	unblock()
 
 	select {
 	case flowID := <-started:
-		require.Equal(t, int64(2), flowID)
+		require.Equal(t, int64(1), flowID)
 	case <-time.After(5 * time.Second):
-		t.Fatal("the second job never started after the first was released")
+		t.Fatal("the next same-flow job never started after the first was released")
 	}
 }

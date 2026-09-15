@@ -41,6 +41,19 @@ beforeEach(() => {
 });
 
 describe('LoginForm validation convention', () => {
+    it('includes the password visibility control in keyboard focus order', async () => {
+        const user = userEvent.setup();
+        renderLogin();
+
+        const login = screen.getByRole('button', { name: '登录' });
+        const password = screen.getByPlaceholderText('请输入密码');
+        password.focus();
+        await user.tab();
+        expect(screen.getByRole('button', { name: '显示密码' })).toHaveFocus();
+        await user.tab();
+        expect(login).toHaveFocus();
+    });
+
     it('stays silent until the first submit, even after typing and blurring', async () => {
         const user = userEvent.setup();
         renderLogin();

@@ -2,7 +2,7 @@ import type { ReactElement } from 'react';
 
 import { describe, expect, it } from 'vitest';
 
-import { renderTextWithCJK, splitByCJK } from './report-pdf';
+import { parseMarkdownTokens, renderTextWithCJK, splitByCJK } from './report-pdf';
 
 type CJKElement = ReactElement<{ style: Record<string, string | undefined> }>;
 
@@ -41,6 +41,16 @@ describe('splitByCJK', () => {
 
     it('falls back to a single empty non-CJK segment for empty input', () => {
         expect(splitByCJK('')).toEqual([{ isCJK: false, text: '' }]);
+    });
+});
+
+describe('parseMarkdownTokens', () => {
+    it('keeps Markdown table headers and cells for PDF rendering', () => {
+        const parsed = parseMarkdownTokens('| 风险 | 等级 |\n| --- | --- |\n| SQL 注入 | 高 |');
+        const table = parsed.find((item) => item.type === 'table');
+
+        expect(table?.headers?.map((cell) => cell.map((token) => token.text).join(''))).toEqual(['风险', '等级']);
+        expect(table?.rows?.[0]?.map((cell) => cell.map((token) => token.text).join(''))).toEqual(['SQL 注入', '高']);
     });
 });
 
