@@ -295,6 +295,38 @@
 
 后续记录格式：开发项 / 提交与实际文件 / 验收命令及结果 / 未完成项 / 是否迁移或部署。设计写完、代码写完、测试通过和部署完成分别记录。
 
+## 文档修订（2026-09-16）
+
+**开发项**：按第二、三轮评审意见校正研究平台设计文档，产出 `docs/research-platform/PLAN.md` v1.2 与 `docs/research-platform/CONTRACTS.md` v1.2，并把报告引用从行号改为章节/表号锚点（附件身份登记入库，需求原文不入库）。本轮只改文档与引用材料，未改任何代码。
+
+**实际文件**：设计内容修改两份（`docs/research-platform/PLAN.md`、`docs/research-platform/CONTRACTS.md`）；新增 `docs/research-platform/references/README.md`（脱敏：只含附件编号、文件名、大小、SHA-256、章节 ↔ 行号对照）与 `docs/research-platform/references/extract_midterm_docx.py`（改为参数化、去掉本机绝对路径）；并同步更新本实施状态记录。需求原文 `midterm-report-extracted.md` 与 `requirements-checklist.md` **不进入本次提交**，仅本机保留，已写入 `.git/info/exclude`（连同 `tmp/`）。
+
+**改动内容**
+
+- 两份文档互相对齐：表名统一为 `research_projects`/`project_scopes`/`outbox_events`；A7 补 `verification_facts`；K 阶段输出名改为 `knowledge_documents`；任务状态补 `queued`、`completed → running` 重算（新建运行修订）与 `terminated` 不可逆终态，并补完整任务状态转移表；阶段转移补 `pending → ready` 与 `skipped → ready`。
+- `research.*` 权限种子由 A9 移入 A1，使 A 阶段 API 与 B 阶段页面在第一批即可授权（PLAN §4 与 CONTRACTS §6 同步）。
+- 对照代码修正事实：`DisableFunction.Context` 的 oneof 在 `backend/pkg/tools/tools.go:59`（此前误写 `:49`）；compose 表述改为"同一可选 compose 栈（`docker-compose-graphiti.yml`，未配置 Compose profiles），需拆分启动单元或增加 profile"；goose 版本解析改为格式风险描述，并注明 `20250103_1215631_*.sql` 的 7 位时间位位于版本号之后的名称部分、不影响解析（版本仍取 `20250103`）；A1–A9 示例文件名全部换成合法 14 位时间戳（`20260916100000_research_core.sql` … `20260924100000_research_privileges_indexes.sql`）。
+- 补回评审中漏掉的约束与映射：阶段内 PentAGI 对象只读且不得以 `subtask_id` 作键、证据沿用 `pkg/flowfiles`；CONTRACTS 新增 §5.4 执行边界与出站限制（三处容器命令面、研究 runner 禁挂完整 socket、出站白名单须在 E 阶段完成）；PLAN 新增 §8.1 报告八模块与五权限域覆盖矩阵、§6 Skill/MCP 与现有注册表映射、§8 中文化数字/日期与路由登记、§1.4"未来扩展影响记录"（不建 `activity_log`、不加 `ground_truth_ref`，不留占位字段）。
+- 报告引用改为章节/表号锚点：`报告 §7.1`、`报告表 6.4` 等；确需行号时写"`REF-MIDTERM-0830` 抽取版本行 N"。`docs/research-platform/references/README.md` 登记附件编号、文件名、大小、SHA-256（`916915D6…0274`）与章节 ↔ 行号对照；抽取脚本改为参数化并去掉本机路径后入库。需求原文与逐条清单不入库：两份文件写入 `.git/info/exclude`，仅本机保留（原因：本地提交对象仍可能被误推、合并或打包）。同时修正了原 `报告 123` 的错误锚点——该行号落在目录区，实际规则位于 §4.2.3（抽取版本行 416）。
+- 第三轮复核修正（对应评审 5 条核心问题）：① 撤回"所有容器命令收敛到两个咽喉点"的表述——进程内容器命令面实为 `ContainerCreate`、`ContainerExecCreate`、`ContainerExecAttach` 三处，且 `DOCKER_INSIDE=true` 时宿主 `docker.sock` 会挂进 worker 容器、可直接访问 Docker daemon，故改为"三处命令面整体受控 + 研究 runner 禁挂完整 socket，必要时用受限 Docker API 代理"；② 网络部分改为"按任务独立网络只解决任务间不串扰，不限制公网/宿主/局域网"，出站白名单（目标 IP/CIDR、端口、协议、DNS 一致性、重定向再校验）提前到 E 阶段主动扫描前完成；③ E 阶段出口条件由"研究流程无法调用 `terminal`/`file`"改为"模型不能直接调用通用 `terminal`/`file`，允许网关白名单命令与受限证据文件接口"；④ `terminated` 改为**不可逆终态**，`completed` 重算改为**新建运行修订并关联原任务**，不重开完成快照；⑤ 报告引用改为章节/表号锚点并脱敏入库（需求原文不入库，见上一条）。
+
+**验收命令及结果**（只读核对，未执行构建、迁移或测试）
+
+- 迁移与表：`backend/migrations/sql/*.sql` 共 32 个文件、26 张既有表，无重复版本；研究域迁移与 `backend/pkg/research` 均不存在。
+- 工具与死代码：`pkg/tools/registry.go` 有 42 个工具名常量；`Functions.Disabled` 只有定义（`tools.go:41`）与 `SetFunctions`（`tools.go:442-444`）赋值，全 `pkg/` 无读取点。
+- 容器命令面（**只核对代码位置，不能证明不存在旁路**）：`pkg/docker/client.go` 有 `ContainerCreate`（`:433` 起）、`ContainerExecCreate`（`:907`）、`ContainerExecAttach`（`:915`）三处；现有 exec 调用方为 `terminal.go:225/269`、`tools.go:656/665`、`server/services/flow_files.go:1336/1345`，`executor.go:242`（`customExecutor.Execute`）是工具分发点。此前文档称"两个咽喉点覆盖所有容器命令出口"与代码不符（漏算 `ContainerCreate` 与 `ContainerExecAttach`），已改写为三处命令面并整体受控。另核实 `DOCKER_INSIDE=true` 且未设 `DOCKER_INSIDE_HOST` 时，宿主 `docker.sock` 会被 bind-mount 进 worker 容器（`pkg/docker/client.go:337-342`，判定见 `Config.WorkerDockerSocket()`，`pkg/config/config.go:402-423`；默认 `DOCKER_INSIDE=false` 见 `:34`）。旁路是否存在需等 E 阶段负向测试，本项不是设计正确性验收。
+- compose：`docker-compose-graphiti.yml` 含 `neo4j`（第 12 行）与 `graphiti`（第 60 行），文件中无 `profiles:` 键。
+- 文档自检：两份文档均为纯 LF；替换后 `\d{8}_100000` 匹配数为 0；A1–A9 文件名全部为 14 位；`git check-ignore` 确认需求原文与 `tmp/` 被本地排除，`git status` 待提交列表中不含它们。
+
+**未完成项**
+
+- `activity_log` 与 `ground_truth_ref` 按 D1 不做，不留占位字段；反转成本见 PLAN §1.4。
+- A9 批次名是否改为 `20260924100000_research_indexes.sql`，待定。
+- `docs/research-platform/references/` 的 README 为脱敏版本；需求原文只在本机保留，若后续需要变更来源（新版本附件），先更新 README 的附件编号与哈希，再复核全部引用。
+- 出站限制、socket 禁挂与"白名单命令/受限证据接口"三项均为设计约束，需在 E 阶段用负向测试落地验证（本轮只改文档）。
+
+**是否迁移或部署**：均否，本轮仅文档修订。
+
 ## 部署方式
 
 只使用原 Compose 项目及其数据库等配套服务。`scripts/update.ps1` 从当前源码构建并替换同名 `pentagi` 应用；不新增第二套展示容器，不制作旧版备份。当前部署实况与复核命令见 `DEPLOYMENT.md`。

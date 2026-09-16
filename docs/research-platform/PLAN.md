@@ -1,7 +1,7 @@
-# PentAGI 研究平台后续开发方案 v1.1
+# PentAGI 研究平台后续开发方案 v1.2
 
 
-日期：2026-09-15 · 代码核对基线：分支 `codex/research-development`，HEAD `f4e300a`
+日期：2026-09-16 · 代码基线：分支 `codex/research-development`，代码提交 `f4e300a`，文档提交 `80f3e68`
 
 状态：本文是后续开发依据。当前只有设计文档，研究平台新增迁移、服务、网关和页面均未落地。原文中的“65 张表、358 个查询、T2–T4 完成及测试通过”缺少当前代码支撑，本版撤回这些完成声明；不据此推断其他目录或环境的工作情况。
 文档关系：
@@ -12,6 +12,8 @@
 - `PENTAGI_PLAN_REVISION_DRAFT_zh.md` = 修订讨论过程（D1–D13 决策来源）。
 - `docs/research-platform/CONTRACTS.md` = 开发契约（ID、状态词表、状态机转移表、阶段接口、事件与 reason_code、范围判定规则、能力策略、迁移清单），A 阶段的设计与实现验收依据，当前尚未通过代码验证。
 - `docs/research-platform/README.md` = 导读（一页总览、文档地图、当前进度、验证回路）。
+
+**v1.2 变更（2026-09-16）**：与 `CONTRACTS.md` 对齐——表名统一为 `research_projects`/`project_scopes`/`outbox_events`，补齐 `verification_facts`，任务状态补 `queued` 与完成后的重算出口，`research.*` 权限种子移入 A1；修正 goose 同名冲突判断与"五阶段/七阶段"计数口径；补回被漏掉的约束（阶段内对象只读、`subtask_id` 不得作键、执行边界与出站限制、`skipped`/`pending` 转移、任务终态语义）；补 Skill/MCP 与现有注册表的映射、报告八模块覆盖矩阵、中文化格式与路由登记、未来扩展影响记录、报告引用来源（已归档到 `docs/research-platform/references/` 并附哈希），以及对照代码的事实更正（`tools.go:59`、compose 栈表述、goose 版本解析、14 位迁移文件名）。
 
 **目录**：0 讨论要点 · 1 范围 · 2 架构 · 3 阶段契约 · 4 数据领域 · 5 图谱 · 6 能力与网关 · 7 采集 · 8 页面 · 9 开发顺序 · 10 迁移与工程约束 · 11 验收细节 · 12 决策追溯
 
@@ -35,7 +37,7 @@
 | D11 | 图谱可视化 + 上 Neo4j |
 | D12 | 能直接做好的就做到最优：不可逆项一次到位，可逆项持续加深 |
 | D13 | Neo4j 用**自有 schema** 承载领域图谱（PostgreSQL 确定性投影）；Graphiti 仅用于智能体消息/经验记忆 |
-| D14 | Neo4j 作为本机常驻领域图服务；堆 2–3G 为待实测配置，还需计入 page cache/容器总内存。Graphiti 按需启动 |
+| D14 | Neo4j 作为本机常驻领域图服务；现有默认堆 2G + pagecache 1G、容器限额 4G（`docker-compose-graphiti.yml`），调整按实测配置并计入容器总内存。Graphiti 按需启动。当前 neo4j（第 12 行）与 graphiti（第 60 行）放在同一个可选 compose 栈中（该文件未配置 Compose profiles），需拆分启动单元或增加 profile 才能实现"Neo4j 常驻、Graphiti 按需" |
 | D15 | 交互助手模式与自动执行模式**共用同一个研究任务**与同一批阶段行 |
 | D16 | 自定义能力（Skill/MCP）审核通过后才可用于 R2 及以上流程 |
 | D17 | 被动流量先做 Zeek 日志，pcap 作为补充 |
@@ -57,12 +59,24 @@
 ### 1.3 成功标准（可验收）
 
 1. 五个业务页面 + 任务中心可从第一页走到最后一页，跨页切换/刷新/深链接不丢范围；
-2. 自动执行模式一键跑完五阶段，遇审批点暂停并可中途接管；交互助手模式可驱动同样的阶段并产出落库；
+2. 自动执行模式一键跑完七个阶段（按五页呈现），遇审批点暂停并可中途接管；交互助手模式可驱动同样的阶段并产出落库；
 3. 知识图谱可视化（三条关系链 + 链/证据关系），可由 PostgreSQL 重建；
 4. 精度夹具全绿：版本比较三生态、资产归并冲突场景、候选匹配别名与缺失、利用链合成图、七类验证结论、确定性（关模型仍可出路径）；
 5. 证据链完整：原文不可变 + SHA-256 + 来源/解析版本可追溯，报告缺证据不可发布，断模型可重建报告；
 6. 零容忍项测试为 0：越权目标、禁止动作、由测试引起的服务中断；
 7. 既有功能不退化：Flow、助手、知识库、资源、模板、模型服务、报告导出、中文化、P0 生命周期全部保留。
+
+### 1.4 未来扩展影响记录（本轮不实现）
+
+按 D1，本轮不做实验指标。下表只记录"如果以后反转决定，需要动什么、代价在哪"，**不产生任何当前接口、字段或占位代码**：
+
+| 项目 | 本轮决定 | 反转时需要补的东西 |
+|---|---|---|
+| 人工工时/活动埋点 | 不做（不建 `activity_log`） | 新增 `activity_log`（主体、阶段、活动类型、分钟数、对象 ID）并在各阶段入口写点；事后日志无法重建，若需历史数据只能补做实验 |
+| 真值与证据门槛标记 | 不做（`ground_truth_ref` 不进入业务迁移） | 在 `asset_vulnerabilities` 上加真值/证据门槛列与判定规则；已有数据需重新判定 |
+| 场景参数版本化 | 做到 | 深度/分支/时限等作为 `policy_versions.rules` 中的带版本参数（§11.2），已可配置、可审计、可复算 |
+
+机器学习与研究内容 2（资产分类、历史扫描预测、误报过滤）按 D3 弱化：规则 + 统计 + 置信度，保留模型版本字段，报告不宣称已实现；若结题要求，需另行补偏差说明或最小实现。这些均不进入 §11.1 的当前验收。
 
 ---
 
@@ -94,6 +108,8 @@
 运行依赖为 A 与 K 独立准备、M 同时引用 A×K 的指定版本，随后 S→R→V→P。K 是持续服务，任务里的 K 表示选用/生成一个知识快照；采集永不结束不会阻塞任务。无发现、无链或受限未验证时仍可生成说明完整的报告，跳过状态须经依赖规则审核。
 
 页面顺序按 D5：漏洞收集与知识图谱 / 资产发现与漏洞扫描 / 利用链推理 / 渗透测试 / 报告输出。M 与 S 合并在一页（左：疑似集合与确认状态；右：扫描计划与证据）。
+
+**计数口径**：业务阶段共七个（K 漏洞收集 / A 资产发现 / M 疑似集合 / S 定向扫描 / R 利用链推理 / V 受控验证 / P 报告输出），界面按五页组织（M 与 S 合并）；任务中心、审批、审计、能力管理是辅助页面。本文中"五阶段/五页"一律指界面口径，"七阶段"指阶段行口径。
 
 ### 2.2 三个入口，一份状态
 
@@ -136,7 +152,7 @@
 | 能力策略 | `backend/pkg/tools/tools.go`、`executor.go`；新增策略模块 | 现有 Functions 字段接线；研究执行采用显式允许集合，工具列表与执行入口同时校验；所有角色与派生助手继承策略 |
 | 阶段编排 | 新增 `backend/pkg/research` | 持久任务、阶段运行、条件更新、审计与 outbox；服务 API 作为三种入口共用入口 |
 | 数据与权限 | `backend/migrations/sql`、`backend/sqlc/models` | 按本阶段领域建立表、查询、复合外键与权限过滤；生成代码随迁移提交 |
-| 图谱 | 新增领域图客户端及投影消费者 | 当前 Graphiti 客户端是 Graphiti 服务封装，不能直接当作 Neo4j 领域图客户端；需接入 Neo4j 驱动和自有 schema |
+| 图谱 | 新增领域图客户端及投影消费者 | 当前 Graphiti 客户端是 Graphiti 服务封装，不能直接当作 Neo4j 领域图客户端；需接入 Neo4j 驱动和自有 schema；并把现有 graphiti compose 栈（`docker-compose-graphiti.yml`）中的 neo4j 拆为常驻启动单元（D14） |
 | 前端 | 现有路由、侧栏、中文文案、Flow 详情组件 | 任务中心、五页、审批/审计/能力页面随功能逐批交付 |
 | 报告 | `backend/pkg/reports`、`frontend/src/lib/report` | 保存正文、事实与证据快照，发布门禁与只读导出；保留现有报告功能 |
 | 后台作业 | 参考 `flow_jobs`，新增 `research_jobs` | 现有 flow_jobs 绑定 flow_id 且负责生命周期；知识采集/投影不能伪造 Flow 或直接扩充其 kind 混跑 |
@@ -158,7 +174,9 @@ stale ────┘        │
                    └─► blocked ────────► ready（前置修复后）
 ```
 
-**任务状态**（`research_tasks.status`）：`draft → running →（completed ｜ awaiting_input ｜ awaiting_approval ｜ error ｜ paused ｜ terminated）`。
+（`skipped` 未画入简化路径：仅当人工请求且服务确认该阶段可跳过时由 `ready` 进入并记录原因，之后可从 `skipped` 回到 `ready`；授权与审批校验不可跳过。`pending → ready` 表示依赖产物与修订已满足，与 `stale → running` 直连等价。）
+
+**任务状态**（`research_tasks.status`）：`draft → queued → running →（completed ｜ awaiting_input ｜ awaiting_approval ｜ error ｜ paused ｜ terminated）`；`completed` 触发重算时**创建新的 `stage_run` 与 `OutputRevision`**（原完成运行与已发布快照保持只读，不复用），`paused` 可显式恢复到 `running`，`terminated` 是**不可逆终态**（继续工作需新建任务并关联原任务）；转移细节见 CONTRACTS §2.1/§2.2。
 
 **不变式**
 
@@ -178,6 +196,14 @@ stale ────┘        │
 | 交互助手 | 现有 Assistant 链路 + 研究工具 | 新增 `run_stage`、`stage_status`、`match_vulnerabilities`、`propose_chain`、`request_verification` 等工具注册进现有工具注册表；助手驱动阶段，但产出同样落库落证据 |
 
 三种入口都只调用同一个 `research.Service`，**都不直接写阶段状态**；因此演示时可以一键启动、中途接管、再回到助手追问，状态始终一致。
+
+**执行对象映射（冻结约束，A-01 定稿）**
+
+- 研究侧：`research_task` 是根，`research_stage` 是逻辑阶段，`stage_run` 是每次尝试；需要智能体或工具执行的 `stage_run` 关联一个 PentAGI Flow（纯导入、规则计算与投影不建 Flow），`flow_id`、可选 `assistant_id` 与策略版本记在 `stage_run` 上。
+- 阶段内的 PentAGI `task`/`subtask`/`toolcall`/`msglog`/`termlog` 只作为该阶段的**只读执行轨迹**展示，不作为研究业务对象，也不作为阶段状态来源。
+- **禁止以 PentAGI `subtask_id` 作为新表键或依赖边**：`RefineSubtasks` 会删除并重建计划行，id 不稳定。验证任务图与全部依赖关系存于新业务表，使用自有稳定标识。
+- 证据二进制沿用现有 `pkg/flowfiles` 内容寻址存储，`evidence` 行保存 SHA-256、来源与解析版本；文件发布与数据库引用不在同一事务，按 §10 的恢复步骤处理。
+- 阶段并发与现有作业执行器共存：研究阶段与知识采集/投影分配独立并发预算（§7），不占满执行槽。
 
 ### 2.8 权限与角色
 
@@ -261,17 +287,17 @@ stale ────┘        │
 
 | 批次 | 迁移文件（`backend/migrations/sql/`） | 主要内容 |
 |---|---|---|
-| A1 | `20260916_100000_research_core.sql` | projects、scopes、authorizations、policy_versions、research_tasks、research_stages、stage_runs、stage_events、research_jobs、project_members、audit_events、outbox、idempotency_keys |
-| A2 | `20260917_100000_research_assets.sql` | assets、asset_identifiers、asset_merges、observations、services、components、reachability |
-| A3 | `20260918_100000_research_evidence.sql` | evidence、evidence_parsed、evidence_links、capabilities、capability_reviews、execution_requests、policy_decisions、approvals、execution_records |
-| A4 | `20260919_100000_research_knowledge.sql` | intel_sources、intel_collection_runs、intel_snapshots、knowledge_revisions、vulnerabilities、affected_ranges、weaknesses、attack_techniques、conditions、detection_features、device_constraints、knowledge_documents |
-| A5 | `20260920_100000_research_detection.sql` | scan_jobs、shared_detections、detection_items、detection_dependencies、detection_coverage、findings、asset_vulnerabilities、finding_evidence |
-| A6 | `20260921_100000_research_chains.sql` | candidate_chains、chain_nodes、chain_edges、chain_scores、chain_analysis_runs |
-| A7 | `20260922_100000_research_verification.sql` | verification_tasks、task_dependencies、verification_runs、verification_results、feedback_events |
-| A8 | `20260923_100000_research_report.sql` | report_versions、report_sections、report_evidence_refs、remediations、retests |
-| A9 | `20260924_100000_research_privileges_indexes.sql` | 新的 privileges 种子（research.*）、关键索引、图谱投影版本表 |
+| A1 | `20260916100000_research_core.sql` | research_projects、project_scopes、authorizations、policy_versions、research_tasks、research_stages、stage_runs、stage_events、research_jobs、project_members、audit_events、outbox_events、idempotency_keys，以及 `research.*` 权限种子 |
+| A2 | `20260917100000_research_assets.sql` | assets、asset_identifiers、asset_merges、observations、services、components、reachability |
+| A3 | `20260918100000_research_evidence.sql` | evidence、evidence_parsed、evidence_links、capabilities、capability_reviews、execution_requests、policy_decisions、approvals、execution_records |
+| A4 | `20260919100000_research_knowledge.sql` | intel_sources、intel_collection_runs、intel_snapshots、knowledge_revisions、vulnerabilities、affected_ranges、weaknesses、attack_techniques、conditions、detection_features、device_constraints、knowledge_documents |
+| A5 | `20260920100000_research_detection.sql` | scan_jobs、shared_detections、detection_items、detection_dependencies、detection_coverage、findings、asset_vulnerabilities、finding_evidence |
+| A6 | `20260921100000_research_chains.sql` | candidate_chains、chain_nodes、chain_edges、chain_scores、chain_analysis_runs |
+| A7 | `20260922100000_research_verification.sql` | verification_tasks、task_dependencies、verification_runs、verification_results、verification_facts、feedback_events |
+| A8 | `20260923100000_research_report.sql` | report_versions、report_sections、report_evidence_refs、remediations、retests |
+| A9 | `20260924100000_research_privileges_indexes.sql` | 关键索引、图谱投影版本表（`graph_projection_state`）。`research.*` 权限种子已在 A1；实施时该批次可改名 `20260924100000_research_indexes.sql` |
 
-按依赖将核心/权限/证据放在首批，其余随 C–H 服务一起实现；A1–A9 是领域批次，不代表 A 阶段要一次落完全部表。
+按依赖将核心/权限/证据放在首批——含 A1 内的 `research.*` 权限种子，使 A 阶段的阶段服务 API 与 B 阶段页面从第一批起就能授权，不等到 A9；其余随 C–H 服务一起实现。A1–A9 是领域批次，不代表 A 阶段要一次落完全部表。
 
 要求：每个迁移必须写 `-- +goose Down`；A1–A9 在独立测试库 `pentagidb_dev` 演练前后向各一次；生成代码通过 sqlc/gqlgen 流程（见 §10）。
 
@@ -296,9 +322,23 @@ stale ────┘        │
 
 - **能力注册表**：名称、说明、参数 JSON Schema、证据类型、交互强度、风险等级（R0–R4）、适用阶段/角色、工具版本、审核状态（`draft/pending_review/approved/deprecated`）、超时与限频。
 - **能力来源**：内置工具（现有 42 个）、用户自定义 HTTP 能力（接上现有 `Functions.Function`）、MCP Streamable HTTP 优先、旧 HTTP/SSE 按需兼容（第二步）、stdio MCP（第三步，需进程隔离与审批）。
-- **网关**：包装 `customExecutor.Execute`（`pkg/tools/executor.go:242`）与容器执行点（`pkg/docker/client.go:907`）；每次执行前重新校验项目授权、规范化目标、策略版本、参数摘要、窗口、能力版本、审批状态；拒绝也写审计；模型不能改授权规则或绕过网关。
+- **与报告工具分层的映射**（报告 §5.2；`REF-MIDTERM-0830` 抽取版本行 498、504–513）：智能体决策层 = 现有 primary agent + 研究工具（`run_stage`、`stage_status`、`match_vulnerabilities`、`propose_chain`、`request_verification`）；能力接入层（内部 Skill / 外部 MCP）= 现有 `registryDefinitions` + `ExecutorHandler` + `IsAvailable()` 与 `ExternalFunction`（HTTP 能力），不引入平行适配器接口；功能处理层按映射落地：
+
+| 报告 §5.2 功能处理层组件（抽取版本行 504–513） | 落点 | 新旧 |
+|---|---|---|
+| 任务调度 | `pkg/research` 编排器 + `research_jobs` | 新建 |
+| 数据采集 | §7 采集器（NVD/KEV/ATT&CK/CWE/厂商公告/上传） | 新建 |
+| 智能解析 | 解析流水线 + 智能体抽取（`evidence_parsed`、`intel_snapshots`） | 新建（复用现有 LLM provider） |
+| 数据治理 | 归并、版本、冲突与状态规则（程序侧） | 新建 |
+| 关系构建 | Neo4j 自有 schema 投影 | 新建 |
+| 知识存储 | PostgreSQL 结构化表 + pgvector 文档索引 | 复用现有存储 |
+| 服务与反馈 | 阶段服务 API + GraphQL 订阅 + 反馈事件 | 部分复用现有 API/订阅框架 |
+
+- **网关**：包装 `customExecutor.Execute`（`pkg/tools/executor.go:242`）与容器命令面（`pkg/docker/client.go:433` 的 `ContainerCreate`、`:907` 的 `ContainerExecCreate`、`:915` 的 `ContainerExecAttach`）；每次执行前重新校验项目授权、规范化目标、策略版本、参数摘要、窗口、能力版本、审批状态；拒绝也写审计；模型不能改授权规则或绕过网关。
 - **能力策略**：接通 Functions.Disabled 兼容旧调用；研究任务额外使用服务端生成的显式允许集合，缺少策略则拒绝执行。所有代理/助手继承同一请求范围；新增工具不会因为未在禁用列表中就自动获准。
 - **审批**：`approvals` 绑定请求内容（目标 + 参数摘要 + 能力版本 + 有效期）；参数/策略变更即失效；R2 单审、R3 两名不同审批者；支持撤回与紧急停止。
+- **执行边界**：PentAGI 进程内的容器命令面由三处组成——`docker/client.go:433` 起的 `ContainerCreate`（容器的启动命令）、`:907` 的 `ContainerExecCreate` 与 `:915` 的 `ContainerExecAttach`（配套使用；现有调用方为 `terminal.go:225/269`、`tools.go:656/665`、`flow_files.go:1336/1345`），网关必须整体覆盖，新增通路也要经网关。**但这不等于"容器命令唯一出口"**：`DOCKER_INSIDE=true` 且未设 `DOCKER_INSIDE_HOST` 时，宿主 `docker.sock` 会被 bind-mount 进 worker 容器（`pkg/docker/client.go:337-342`、`Config.WorkerDockerSocket()`），容器内进程可直接访问 Docker daemon 绕过上述三处。因此研究 runner 的硬约束是：不挂载完整 socket（`DOCKER_INSIDE=false` 且不设 `DOCKER_SOCKET`），确需容器化能力时改用受限 Docker API 代理，网关是唯一签发者。socket 挂载分三种情况：PentAGI 应用容器固定挂载宿主 socket（`docker-compose.yml:206,211`），worker 容器仅在 `DOCKER_INSIDE=true` 且未设 `DOCKER_INSIDE_HOST` 时挂载（`pkg/docker/client.go:337-342`），研究 runner **禁止挂载**。容器以 root 运行，不能当作权限边界。
+- **出站限制（E 阶段主动扫描前必须完成）**：按任务创建的独立 Docker 网络只解决任务之间不串扰，**不限制公网、宿主和局域网访问**。主动能力放行前必须在宿主侧实现出站策略：目标 IP/CIDR、端口与协议白名单（由 §11.2 范围判定结果生成）、DNS 解析结果与被连接地址一致、重定向与重连再校验、越界即拒并写审计。
 - **输入安全**：外部资料、工具输出、MCP 返回一律按数据（不可信）处理，不得改写策略/状态或触发新调用。
 
 ---
@@ -326,7 +366,7 @@ stale ────┘        │
 
 | 页面 | 路由（建议） | 主要内容 |
 |---|---|---|
-| 任务中心 | `/research` | 建任务、范围/授权、五阶段进度、三种入口、反馈轮次、待人工事项 |
+| 任务中心 | `/research` | 建任务、范围/授权、七阶段进度（按五页呈现）、三种入口、反馈轮次、待人工事项 |
 | 漏洞收集与知识图谱 | `/research/:taskId/knowledge` | 知识源、采集运行、资料上传解析、漏洞列表/详情、图谱视图、检索、按当前资产重新匹配 |
 | 资产发现与漏洞扫描 | `/research/:taskId/assets` | 导入、被动观测与拓扑、资产详情/归并确认、疑似集合、扫描计划与执行、证据与状态 |
 | 利用链推理 | `/research/:taskId/chains` | 发起分析、路径列表、关系图、节点条件与证据、未知项、提交验证 |
@@ -337,6 +377,33 @@ stale ────┘        │
 | 能力与 MCP | `/settings/capabilities` | 能力注册/审核、Skill、MCP 服务配置 |
 
 复用：现有路由/侧栏/DataTable/Radix 组件、Apollo 订阅、`uiText` 中文文案表、Flow 详情组件（终端/消息）、报告页与 MD/PDF 导出。现有页面入口全部保留。
+
+新页面必须同步登记侧栏入口、面包屑与 `frontend/src/lib/route-titles/` 条目。中文化范围包含数字/日期/时长格式：`frontend/src/lib/utils/format.ts:22` 目前固定 `Intl.NumberFormat('en-US')`，`formatDuration` 直接输出 `h/m/s`，一并纳入本阶段。
+
+### 8.1 报告八模块 ↔ 首版覆盖矩阵
+
+报告要求八个功能模块（报告 §7.1）与五个权限域（报告表 7.1）。引用的附件身份与章节 ↔ 行号对照见 `docs/research-platform/references/README.md`；确需行号时写"`REF-MIDTERM-0830` 抽取版本行 N"。首版覆盖与明确延后如下，未列入的模块不承诺实现：
+
+| 报告模块 | 首版落点 | 状态 |
+|---|---|---|
+| 仪表盘 | 任务中心 `/research` 的进度与待人工事项（不做独立仪表盘；扫描告警不得计入已确认漏洞，报告 §7.2） | 部分覆盖 |
+| 资产管理 | 资产发现与漏洞扫描页 | 覆盖 |
+| 漏洞管理 | 漏洞收集与知识图谱页 | 覆盖 |
+| 漏洞利用链查看 | 利用链推理页 | 覆盖 |
+| 任务管理 | 任务中心 + 三种入口 | 覆盖 |
+| Agent 管理 | 能力与 MCP 页（`/settings/capabilities`）；模型与角色沿用现有设置页 | 部分覆盖 |
+| 报告管理 | 报告输出页 + 发布门禁 | 覆盖 |
+| 系统设置 | 沿用现有设置页，新增研究权限与审计 | 覆盖 |
+
+| 报告权限域 | 对应研究权限 | 落点 |
+|---|---|---|
+| 系统管理 | `research.capability.manage` | 能力与 MCP 页 |
+| 任务管理 | `research.task.*`（查询/编辑/执行） | 任务中心与五页 |
+| 测评执行 | 阶段执行权限（`research.stage.run` 等） | 阶段服务 API 与页面 |
+| 审核批准 | `research.approve` | 审批队列（R2 单审、R3 双审） |
+| 审计查看 | `research.audit` | 审计页 |
+
+延后项：独立仪表盘图表、Agent 管理中的提示词/模型编排扩展、报告模板可视化编辑器、报告发布权限（`research.report.publish`）的独立页面入口。延后不等于取消，接口按上表保留。
 
 ---
 
@@ -351,9 +418,9 @@ stale ────┘        │
 | B 任务中心与三种入口 | 任务中心、五页导航、项目上下文、阶段服务 API/订阅；手动入口、自动调度、助手 run_stage/status 工具接到同一服务 | 同一个任务可自动启动、暂停、用助手补输入、再手动继续；刷新/深链接状态一致；未实现处理器显式返回 capability_unavailable |
 | C 知识收集与图谱 | 知识域迁移；先 NVD/KEV 和文档上传，再 CWE/ATT&CK 与其他许可来源；周期同步、文档引用、Neo4j 自有 schema/投影/重建及图组件 | 公告到漏洞/范围/条件可追溯；同源重试不重复；旧事件不覆盖新图版本；可离线导入样例并显示图；Neo4j 常驻资源测试通过 |
 | D 资产发现与匹配 | 资产域与检测候选表；Zeek conn/dns/http/ssl 日志优先，台账/Nmap XML；pcap 在受限解析器转换；归并/拆分、拓扑、CPE/PURL 和三生态比较 | 地址复用、MAC 冲突、别名、版本边界/未知、网络方向夹具通过；A×K 生成候选；观测关系不冒充当前可达性 |
-| E 定向扫描与能力配置 | 检测依赖、共享检测、覆盖快照；完成网关/运行器限制；首批 Nmap 指定探测与只读 HTTP/TLS；能力注册与自定义 HTTP 配置 | 指定授权测试目标上的执行记录可追溯；不完整检测保持待确认；超范围/窗口/参数拒绝；停止取消运行器；HTTP 自定义能力有版本和审核 |
+| E 定向扫描与能力配置 | 检测依赖、共享检测、覆盖快照；完成网关与执行边界（三处进程内容器命令面、研究 runner 禁挂 Docker socket、E 阶段前落地出站白名单：目标 IP/CIDR、端口、协议、重定向再校验）；首批 Nmap 指定探测与只读 HTTP/TLS；能力注册与自定义 HTTP 配置 | 指定授权测试目标上的执行记录可追溯；不完整检测保持待确认；超范围/窗口/参数拒绝；模型不能直接调用通用 `terminal`/`file`（网关白名单命令与受限证据文件接口可用）；容器内无法访问 Docker daemon；越出站目标被拒并写审计；停止取消运行器；HTTP 自定义能力有版本和审核 |
 | F 利用链 | 链领域表、条件/效果、固定快照、有界搜索、评分、受影响重算、图/列表与补证任务 | 合成图 golden tests 通过；条件未知与假设效果分层；同冻结快照及规则得到同签名；无链/截断原因可见 |
-| G 多智能体受控验证 | 验证任务 DAG、决策/检索/执行/评估职责、审批队列、前中后证据、七类结论、限次反馈；MCP 远程接入，再完成 stdio 隔离接入 | 独立授权环境中选定验证能力完成闭环；同任务三入口权限一致；R2 单审、R3 双审与恢复；七类结论夹具通过；Skill/MCP 无绕过路径 |
+| G 多智能体受控验证 | 验证任务 DAG、决策/检索/执行/评估职责、审批队列、前中后证据、七类结论、限次反馈；MCP 远程接入，再完成 stdio 隔离接入；若 E 阶段的"独立网络 + 出站白名单"仍不足，升级为受限 Docker API 代理或独立受限 runner | 独立授权环境中选定验证能力完成闭环；同任务三入口权限一致；R2 单审、R3 双审与恢复；七类结论夹具通过；Skill/MCP 无绕过路径；出站与隔离方案已定案并有负向测试 |
 | H 报告与整体交付 | 报告/整改/复测域、正文与事实快照、发布门禁、MD/PDF、一键流程回归、软著材料收口 | 可操作完整五页；助手/自动产物一致入库；断开模型仍可重新导出保存正文与引用；中文/PDF/键盘回归通过；操作说明和截图来自实际页面 |
 
 ### 9.1 下一批直接执行的 A 阶段任务
@@ -385,11 +452,11 @@ A-01 → A-02 → A-03 → A-04 → A-05 → A-06 → A-07。版本比较在 D �
 ## 10. 工程约束与迁移方式
 
 
-当前以单套应用为开发目标，历史部署入口为 http://localhost:8443。靶场位于独立环境，本轮不部署靶场。代码使用本地分支管理；Neo4j 按 C 阶段配置加入现有配套服务，不新建第二套应用。
+当前以单套应用为开发目标，历史部署入口为 http://localhost:8443。靶场位于独立环境，本轮不部署靶场。代码使用本地分支管理；Neo4j 按 C 阶段配置加入现有配套服务，并把现有 graphiti compose 栈（`docker-compose-graphiti.yml`）中的 neo4j 拆为常驻启动单元（D14），不新建第二套应用。
 
-- 固定 Go、sqlc、前端生成工具版本并记录实际可用运行方式；可复用 Docker 工具链。原文“本机无 pnpm”等只属于当次观察，不作为永久约束。
+- 固定 Go、sqlc、前端生成工具版本并记录实际可用运行方式；可复用 Docker 工具链。原文“本机无 pnpm”等只属于当次观察，不作为永久约束。版本必须落在仓库内可执行入口（脚本或 Makefile），不能只写在说明文档的命令示例里——当前 sqlc 1.27.0 仅出现在 `README.md` 与 `backend/docs/database.md`。
 - sqlc 当前配置含 database.uri；分析库必须与目标迁移一致，实际解析路径和版本兼容性通过生成零差异及新查询测试确认，不笼统承诺仅依赖真实库。
-- goose 解析文件名首个下划线前的数字作为版本。现有 YYYYMMDD_HHMMSS 形式确实同日冲突；未来可采用唯一的 YYYYMMDDHHMMSS 前缀，同日可以多批。实施前列出所有解析版本检查重复与排序，示例日期不是排期承诺。
+- goose 解析文件名首个下划线前的数字作为版本，因此现有 YYYYMMDD_HHMMSS 形式把"同一天的第二个迁移"变成版本冲突风险（当前 32 个文件的日期版本互不重复，尚未触发）。新迁移采用唯一的 YYYYMMDDHHMMSS 前缀（14 位，如 `20260916100000_research_core.sql`），同日可以多批。历史文件 `20250103_1215631_*.sql` 的时间位是 7 位笔误，但它位于版本号之后的名称部分，不影响 goose 解析（版本仍取 `20250103`），仅作命名记录。实施前列出所有解析版本检查重复与排序，示例日期不是排期承诺。
 - 每批先在指定测试库走当前版本升级与空库安装，再测试该批回退/再升级及跨项目约束。历史 assistants Down 顺序尚未修复，应单独提交修正和测试；未涉及历史版本的批次回退不必全库 reset。
 - 新迁移会随应用启动自动执行，因此仅在当前批次通过验收后进入部署。已产生用户数据后优先采用兼容旧读路径和向前修复；没有备份时不能把破坏性 Down 当作无损回滚。
 - PostgreSQL 与文件无法一个事务提交：文件发布/元数据引用/孤立对象清理需有恢复步骤；已有证据不得覆盖或以级联删除移除。
@@ -405,7 +472,7 @@ A-01 → A-02 → A-03 → A-04 → A-05 → A-06 → A-07。版本比较在 D �
 
 每批交付代码、迁移/API、可操作页面或明确 API 样例、异常恢复说明、相关测试输出和软著功能材料。软著从 A 记录功能和模块，页面完成后补真实截图，不提前宣称已登记或完成。
 
-必须覆盖：跨项目访问、无证据结论、禁止能力、未知版本、部分检测、过期审批、停止/恢复、索引落后、同一阶段并发请求和旧运行晚返回。对照实验、真值集和人工工时采集不进入当前验收。
+必须覆盖：跨项目访问、无证据结论、提示注入（外部资料/工具输出/MCP 返回不得改写策略或触发调用）、禁止能力、未知版本、部分检测、过期审批、停止/恢复、索引落后、同一阶段并发请求和旧运行晚返回。对照实验、真值集和人工工时采集不进入当前验收。
 
 ### 11.2 规则与资源边界
 
@@ -424,4 +491,4 @@ A-01 → A-02 → A-03 → A-04 → A-05 → A-06 → A-07。版本比较在 D �
 
 本方案保留讨论中的 D1–D18 产品方向：知识优先页面、Neo4j 可视化、三入口同状态、多智能体、Zeek 优先、可配置 Skill/MCP、独立靶场、按需审批、精度优先、软著材料同步。讨论稿中的部分编号与正式方案不同，引用时同时注明决策文字。
 
-讨论中的“保留人工工时/真值字段”是建议，按用户“先不考虑实验”不进入当前迁移；业务操作主体/时间、执行证据门槛仍因审计和判定需要保留。讨论稿、评审稿保留原文用于追溯，其中曾经的实现声明不构成当前完成证据。后续开发按本文及 CONTRACTS.md 执行，进度只记入 IMPLEMENTATION_STATUS.md 并附可核验产物。
+讨论中的“保留人工工时/真值字段”是建议，按用户“先不考虑实验”不进入当前迁移（反转成本与落点见 §1.4）；业务操作主体/时间、执行证据门槛仍因审计和判定需要保留。讨论稿、评审稿保留原文用于追溯，其中曾经的实现声明不构成当前完成证据。后续开发按本文及 CONTRACTS.md 执行，进度只记入 IMPLEMENTATION_STATUS.md 并附可核验产物。
