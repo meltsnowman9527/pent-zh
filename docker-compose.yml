@@ -204,9 +204,9 @@ services:
       - ${PENTAGI_SSL_DIR:-pentagi-ssl}:/opt/pentagi/ssl
       - ${PENTAGI_OLLAMA_DIR:-pentagi-ollama}:/root/.ollama
       - ${PENTAGI_DOCKER_SOCKET:-/var/run/docker.sock}:/var/run/docker.sock
-      - ${PENTAGI_LLM_SERVER_CONFIG_PATH:-./example.custom.provider.yml}:/opt/pentagi/conf/custom.provider.yml
-      - ${PENTAGI_OLLAMA_SERVER_CONFIG_PATH:-./example.ollama.provider.yml}:/opt/pentagi/conf/ollama.provider.yml
-      - ${PENTAGI_BEDROCK_CONFIG_PATH:-./example.bedrock.provider.yml}:/opt/pentagi/conf/bedrock.provider.yml
+      - ${PENTAGI_LLM_SERVER_CONFIG_PATH:-./examples/configs/custom-openai.provider.yml}:/opt/pentagi/conf/custom.provider.yml
+      - ${PENTAGI_OLLAMA_SERVER_CONFIG_PATH:-./examples/configs/ollama-llama318b.provider.yml}:/opt/pentagi/conf/ollama.provider.yml
+      - ${PENTAGI_BEDROCK_CONFIG_PATH:-./examples/configs/bedrock-glm-flash.provider.yml}:/opt/pentagi/conf/bedrock.provider.yml
       - ${PENTAGI_DOCKER_CERT_PATH:-./docker-ssl}:/opt/pentagi/docker/ssl
     user: root:root # while using docker.sock
     networks:

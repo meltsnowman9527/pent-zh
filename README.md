@@ -731,12 +731,14 @@ mkdir pentagi && cd pentagi
 curl -o .env https://raw.githubusercontent.com/vxcontrol/pentagi/master/.env.example
 ```
 
-3. Touch examples files (`example.custom.provider.yml`, `example.ollama.provider.yml`) or download it:
+3. Provider config files need no manual step: `docker-compose.yml` mounts the in-repo
+   `examples/configs/custom-openai.provider.yml`, `examples/configs/ollama-llama318b.provider.yml`
+   and `examples/configs/bedrock-glm-flash.provider.yml` by default.
 
-```bash
-curl -o example.custom.provider.yml https://raw.githubusercontent.com/vxcontrol/pentagi/master/examples/configs/custom-openai.provider.yml
-curl -o example.ollama.provider.yml https://raw.githubusercontent.com/vxcontrol/pentagi/master/examples/configs/ollama-llama318b.provider.yml
-```
+   To use your own declarative provider configs instead, set the host path in `.env`
+   (e.g. `PENTAGI_LLM_SERVER_CONFIG_PATH=./my.custom.provider.yml`) and point the matching
+   in-container variable at the mount target (`LLM_SERVER_CONFIG_PATH=/opt/pentagi/conf/custom.provider.yml`).
+   Mount sources must be existing files: a missing path makes Docker create a directory in its place.
 
 4. Fill in the required API keys in `.env` file.
 

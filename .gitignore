@@ -45,3 +45,7 @@ Thumbs.db
 /PENTAGI_*.md
 /docs/research-platform/
 
+# 可选叠加栈的运行时目录：Neo4j 由容器创建（数据/日志），Graphiti 由安装器安装。
+/neo4j/
+/graphiti/
+
