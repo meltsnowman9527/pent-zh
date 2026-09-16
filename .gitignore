@@ -39,3 +39,9 @@ data/*
 # OS
 Thumbs.db
 
+# 非系统文件（规划、评审、设计与实施状态文档）：不随交付仓库跟踪，保留在本机。
+# 交付物只包含系统本身的代码、配置与运维说明。
+/IMPLEMENTATION_STATUS.md
+/PENTAGI_*.md
+/docs/research-platform/
+
