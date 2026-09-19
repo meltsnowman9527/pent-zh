@@ -20,12 +20,16 @@ const { RULES } = (await import(pathToFileURL(join(__dirname, 'mock-llm', 'scena
  */
 const EXCLUDED: Record<string, string> = {
     '/': 'redirects to /dashboard',
+    '/exploit-chains': 'requires vulnerability-scan REST fixtures and force-graph visual baselines',
     '/flows/new': 'create form; no stable list/detail ready-state to sweep',
+    '/intelligence': 'requires intelligence-source REST fixtures and visual baselines',
     '/knowledges/new': 'create-mode variant of the knowledge detail page',
     '/oauth/result': 'OAuth popup landing; only meaningful mid-OAuth-roundtrip',
+    '/security-assessments': 'requires assessment-run REST fixtures and visual baselines',
     '/settings': 'redirects to /settings/account',
     '/settings/account': 'needs an account cassette + visual baseline before joining the sweep',
     '/templates/new': 'create-mode variant of the template detail page',
+    '/vulnerability-scans': 'requires vulnerability-scan REST fixtures and visual baselines',
 };
 
 /** Route builders are functions, so the static walk below cannot see them. */

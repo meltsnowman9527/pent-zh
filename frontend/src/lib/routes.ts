@@ -18,10 +18,14 @@ function withQuery(path: string, params: Record<string, string | undefined>): st
 
 export const routes = {
     dashboard: '/dashboard',
+    exploitChains: '/exploit-chains',
 
-    flow: (id: number | string, { tab }: { tab?: string } = {}) => withQuery(`/flows/${id}`, { tab }),
+    flow: (id: number | string, { detailTab, tab }: { detailTab?: string; tab?: string } = {}) =>
+        withQuery(`/flows/${id}`, { detailTab, tab }),
+
     flowReport: (id: number | string) => `/flows/${id}/report`,
     flows: '/flows',
+    intelligence: '/intelligence',
 
     knowledge: (id: number | string) => `/knowledges/${id}`,
     knowledges: '/knowledges',
@@ -32,8 +36,9 @@ export const routes = {
 
     oauthResult: '/oauth/result',
     resources: '/resources',
-
     root: '/',
+
+    securityAssessments: '/security-assessments',
     settings: {
         account: '/settings/account',
         apiTokens: '/settings/api-tokens',
@@ -49,4 +54,5 @@ export const routes = {
     template: (id: number | string) => `/templates/${id}`,
 
     templates: '/templates',
+    vulnerabilityScans: '/vulnerability-scans',
 } as const;

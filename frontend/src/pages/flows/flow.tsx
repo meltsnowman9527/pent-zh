@@ -17,7 +17,7 @@ import {
     Trash,
 } from 'lucide-react';
 import { startTransition, useCallback, useEffect, useOptimistic, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { FlowStatusIcon } from '@/components/icons/flow-status-icon';
@@ -54,7 +54,13 @@ import { useBreakpoint } from '@/hooks/use-breakpoint';
 import { useFlowTabDetection } from '@/hooks/use-flow-tab-detection';
 import { localizeUiErrorText } from '@/lib/errors';
 import { Log } from '@/lib/log';
-import { copyToClipboard, downloadTextFile, findAssistantReport, generateFileName, generateFlowReport } from '@/lib/report';
+import {
+    copyToClipboard,
+    downloadTextFile,
+    findAssistantReport,
+    generateFileName,
+    generateFlowReport,
+} from '@/lib/report';
 import { routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
 import { formatName } from '@/lib/utils/format';
@@ -62,6 +68,8 @@ import { uiText } from '@/locales/zh-CN';
 import { useFavorites } from '@/providers/favorites-provider';
 import { useFlow } from '@/providers/flow-provider';
 import { type Flow as FlowItem, useFlows } from '@/providers/flows-provider';
+
+const DETAIL_TAB_VALUES = ['agents', 'files', 'screenshots', 'tasks', 'terminal', 'tools', 'vectorStores'];
 
 const renderFlowItem = (item: FlowItem, isCurrent: boolean): ReactNode => (
     <>
@@ -84,6 +92,7 @@ const renderFlowItem = (item: FlowItem, isCurrent: boolean): ReactNode => (
 function Flow() {
     const { isDesktop, isMobile } = useBreakpoint();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
 
     const {
         assistantLogs,
@@ -186,7 +195,11 @@ function Flow() {
         }
     }, [flow, deleteFlow, navigate]);
 
-    const [desktopTabsTab, setDesktopTabsTab] = useState<string>('terminal');
+    const [desktopTabsTab, setDesktopTabsTab] = useState<string>(() => {
+        const requestedTab = searchParams.get('detailTab');
+
+        return requestedTab && DETAIL_TAB_VALUES.includes(requestedTab) ? requestedTab : 'terminal';
+    });
 
     const { handleTabChange: handleMobileTabChange, resolvedTab: mobileAutoTab } = useFlowTabDetection();
 
@@ -474,7 +487,8 @@ function FlowReportDropdown() {
 
     // The standalone report page rebuilds the same content from the URL, so an
     // assistant transcript has to carry the assistant it belongs to.
-    const assistantQuery = (tasks?.length ?? 0) === 0 && selectedAssistantId ? `assistantId=${selectedAssistantId}` : '';
+    const assistantQuery =
+        (tasks?.length ?? 0) === 0 && selectedAssistantId ? `assistantId=${selectedAssistantId}` : '';
     const isAssistantReport = (tasks?.length ?? 0) === 0 && !!selectedAssistantId;
     const hasWrittenReport = !!findAssistantReport(assistantLogs);
 

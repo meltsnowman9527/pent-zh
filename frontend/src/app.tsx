@@ -35,6 +35,8 @@ import { UserProvider } from '@/providers/user-provider';
 import { SystemSettingsProvider } from './providers/system-settings-provider';
 
 const Dashboard = lazy(() => import('@/pages/dashboard/dashboard'));
+const ExploitChains = lazy(() => import('@/pages/exploit-chains/exploit-chains'));
+const Intelligence = lazy(() => import('@/pages/intelligence/intelligence'));
 const Flow = lazy(() => import('@/pages/flows/flow'));
 const FlowReport = lazy(() => import('@/pages/flows/flow-report'));
 const Flows = lazy(() => import('@/pages/flows/flows'));
@@ -43,6 +45,7 @@ const Login = lazy(() => import('@/pages/login'));
 const Knowledge = lazy(() => import('@/pages/knowledges/knowledge'));
 const Knowledges = lazy(() => import('@/pages/knowledges/knowledges'));
 const Resources = lazy(() => import('@/pages/resources/resources'));
+const SecurityAssessments = lazy(() => import('@/pages/security-assessments/security-assessments'));
 const Template = lazy(() => import('@/pages/templates/template'));
 const Templates = lazy(() => import('@/pages/templates/templates'));
 const OAuthResult = lazy(() => import('@/pages/oauth-result'));
@@ -52,6 +55,7 @@ const SettingsPrompt = lazy(() => import('@/pages/settings/settings-prompt'));
 const SettingsPrompts = lazy(() => import('@/pages/settings/settings-prompts'));
 const SettingsProvider = lazy(() => import('@/pages/settings/settings-provider'));
 const SettingsProviders = lazy(() => import('@/pages/settings/settings-providers'));
+const VulnerabilityScans = lazy(() => import('@/pages/vulnerability-scans/vulnerability-scans'));
 
 function FlowWithProvider() {
     return (
@@ -137,6 +141,30 @@ const router = createBrowserRouter(
                         element={<Dashboard />}
                         handle={routeTitles.dashboard}
                         path="dashboard"
+                    />
+
+                    <Route
+                        element={<Intelligence />}
+                        handle={routeTitles.intelligence}
+                        path="intelligence"
+                    />
+
+                    <Route
+                        element={<SecurityAssessments />}
+                        handle={routeTitles.securityAssessments}
+                        path="security-assessments"
+                    />
+
+                    <Route
+                        element={<VulnerabilityScans />}
+                        handle={routeTitles.vulnerabilityScans}
+                        path="vulnerability-scans"
+                    />
+
+                    <Route
+                        element={<ExploitChains />}
+                        handle={routeTitles.exploitChains}
+                        path="exploit-chains"
                     />
 
                     <Route element={<FlowsLayout />}>

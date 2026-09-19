@@ -4,6 +4,7 @@ import {
     Clock,
     FileText,
     Folder,
+    GitBranch,
     GitFork,
     LayoutDashboard,
     LibraryBig,
@@ -11,8 +12,11 @@ import {
     Monitor,
     Moon,
     Plus,
+    Radar,
     Settings,
     Settings2,
+    ShieldCheck,
+    Sparkles,
     Star,
     Sun,
     UserIcon,
@@ -65,6 +69,10 @@ interface FlowMenuItemProps {
 export function MainSidebar() {
     const location = useLocation();
     const isDashboardActive = useMatch('/dashboard');
+    const isIntelligenceActive = useMatch('/intelligence/*');
+    const isSecurityAssessmentsActive = useMatch('/security-assessments/*');
+    const isVulnerabilityScansActive = useMatch('/vulnerability-scans/*');
+    const isExploitChainsActive = useMatch('/exploit-chains/*');
     const isFlowsActive = useMatch('/flows/*');
     const isTemplatesActive = useMatch('/templates/*');
     const isKnowledgesActive = useMatch('/knowledges/*');
@@ -139,6 +147,39 @@ export function MainSidebar() {
                             <SidebarMenuItem>
                                 <SidebarMenuButton
                                     asChild
+                                    isActive={!!isIntelligenceActive}
+                                >
+                                    <Link to={routes.intelligence}>
+                                        <Radar />
+                                        外部威胁情报
+                                    </Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                            <SidebarMenuItem>
+                                <SidebarMenuButton
+                                    asChild
+                                    isActive={!!isVulnerabilityScansActive}
+                                >
+                                    <Link to={routes.vulnerabilityScans}>
+                                        <ShieldCheck />
+                                        资产与漏洞管理
+                                    </Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                            <SidebarMenuItem>
+                                <SidebarMenuButton
+                                    asChild
+                                    isActive={!!isExploitChainsActive}
+                                >
+                                    <Link to={routes.exploitChains}>
+                                        <GitBranch />
+                                        漏洞利用链推理
+                                    </Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                            <SidebarMenuItem>
+                                <SidebarMenuButton
+                                    asChild
                                     isActive={!!isFlowsActive}
                                 >
                                     <Link to={routes.flows}>
@@ -158,6 +199,17 @@ export function MainSidebar() {
                                         <Plus />
                                     </Link>
                                 </SidebarMenuAction>
+                            </SidebarMenuItem>
+                            <SidebarMenuItem>
+                                <SidebarMenuButton
+                                    asChild
+                                    isActive={!!isSecurityAssessmentsActive}
+                                >
+                                    <Link to={routes.securityAssessments}>
+                                        <Sparkles />
+                                        安全评估编排
+                                    </Link>
+                                </SidebarMenuButton>
                             </SidebarMenuItem>
                             <SidebarMenuItem>
                                 <SidebarMenuButton

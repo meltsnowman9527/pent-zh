@@ -38,6 +38,7 @@ export const routeTitles = {
     account: { title: uiText('Account') },
     apiTokens: { title: uiText('API Tokens') },
     dashboard: { title: uiText('Dashboard') },
+    exploitChains: { title: '漏洞利用链推理' },
     flow: {
         title: apolloTitle({
             document: FlowDocument,
@@ -50,6 +51,7 @@ export const routeTitles = {
     },
     flowReport: { title: uiText('Flow report') },
     flows: { title: uiText('Flows') },
+    intelligence: { title: '外部威胁情报' },
     knowledge: {
         title: apolloTitle({
             document: KnowledgeDocumentDocument,
@@ -90,6 +92,7 @@ export const routeTitles = {
     providers: { title: uiText('Providers') },
 
     resources: { title: uiText('Resources') },
+    securityAssessments: { title: '安全评估编排' },
 
     template: {
         title: apolloTitle({
@@ -101,4 +104,5 @@ export const routeTitles = {
     },
 
     templates: { title: uiText('Templates') },
+    vulnerabilityScans: { title: '资产与漏洞管理' },
 } as const satisfies Record<string, RouteTitleHandle>;
