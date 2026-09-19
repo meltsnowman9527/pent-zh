@@ -43,6 +43,15 @@
 - 实际首次同步完成：CISA 1,713 条、NVD 5,469 条、ATT&CK 1,953 条、CWE 969 条，共 10,104 个来源记录、27,775 条关系；四个来源状态均为 `ready`。
 - `pentagi` 已使用 `pentagi-local:latest` 重建，`http://localhost:8443` 返回 200；容器前端与本地构建产物校验一致。
 
+## 2026-09-19 安全评估编排修复（阶段 4）
+
+- 安全评估不再用一段提示词要求智能体按标题创建四个任务，而是由后端编排器按顺序真正调用各阶段服务：资产发现 → 漏洞扫描 → 利用链推理 → 渗透测试，每个阶段拥有独立 Flow。
+- 阶段状态改为持久化：新增 `security_assessment_stages` 表（唯一键 `assessment_run_id + stage_key`、状态机 `pending/running/waiting/finished/failed/skipped/stopped`），`security_assessment_runs` 增加 `status`、`current_stage`、`model_provider`、`resource_ids`，`flow_id` 改为可空并始终指向当前阶段的 Flow；阶段进度不再从任务标题推断。
+- 新增编排接口 `GET /api/v1/security-assessments/:id`、`POST /api/v1/security-assessments/:id/stop`、`POST /api/v1/security-assessments/:id/retry`；后台调度每 30 秒推进未结束的编排，服务重启后按 Flow 状态继续，读取列表/详情时也会即时推进。
+- 阶段四沿用所选执行方式（自动执行或交互助手），其余三个阶段固定自动执行；停止编排会同时停止当前阶段的 Flow，重试会重置该阶段及其后续阶段。
+- 迁移 `20260923` 已在临时库完成前向、回退和再次前向验证；后端 `go build ./...`、`go vet`、`go test ./...` 通过（仅 `cmd/installer` 相关用例因缺少生成的嵌入文件失败，与本次改动无关，在改动前的提交上同样失败）。
+- `pentagi` 已使用 `pentagi-local:latest` 重建并替换，数据库已迁移至 `20260923`，`http://localhost:8443` 返回 200；登录后 `GET /api/v1/security-assessments/` 返回 `{"items":[],"total":0}`，不存在的编号返回 404「安全评估编排不存在」。
+
 ## 复核方式
 
 - `docker ps -a --format '{{.Names}}|{{.Image}}|{{.Status}}'`
