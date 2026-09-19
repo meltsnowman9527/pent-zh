@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -109,40 +110,53 @@ func (s *VulnerabilityScanService) CreateDiscovery(c *gin.Context) {
 		scanError(c, http.StatusBadRequest, "资产发现参数不完整", err)
 		return
 	}
-	req.Target = strings.TrimSpace(req.Target)
-	req.ModelProvider = strings.TrimSpace(req.ModelProvider)
-	if err := validateDiscoveryRequest(req); err != nil {
-		scanError(c, http.StatusBadRequest, err.Error(), err)
-		return
-	}
-	uid := c.GetUint64("uid")
-	resources, err := validateServiceResources(s.db, uid, c.GetStringSlice("prm"), req.ResourceIDs)
+	run, err := s.CreateDiscoveryRun(c, c.GetUint64("uid"), c.GetStringSlice("prm"), req)
 	if err != nil {
-		scanError(c, http.StatusBadRequest, "所选流量文件不可用", err)
-		return
-	}
-	if req.DiscoveryType == "passive" && (len(resources) != 1 || resources[0].IsDir || !isTrafficCapture(resources[0].Name)) {
-		err := errors.New("被动发现只能使用一个 PCAP、PCAPNG 或 CAP 流量文件")
-		scanError(c, http.StatusBadRequest, err.Error(), err)
-		return
-	}
-	providerName := provider.ProviderName(req.ModelProvider)
-	selectedProvider, err := s.providers.GetProvider(c, providerName, int64(uid))
-	if err != nil {
-		scanError(c, http.StatusBadRequest, "所选模型服务不可用", err)
-		return
-	}
-	flowID, err := s.controller.CreateFlow(c, int64(uid), buildDiscoveryPrompt(req), providerName, selectedProvider.Type(), nil, resources)
-	if err != nil {
+		if message, isInput := inputErrorMessage(err); isInput {
+			scanError(c, http.StatusBadRequest, message, err)
+			return
+		}
+		logger.FromContext(c).WithError(err).Error("failed to start asset discovery flow")
 		scanError(c, http.StatusInternalServerError, "创建资产发现任务失败", err)
 		return
 	}
+	response.Success(c, http.StatusCreated, run)
+}
+
+// CreateDiscoveryRun starts an asset discovery flow. The REST handler and the
+// security assessment orchestrator share it, so it works with any context.
+func (s *VulnerabilityScanService) CreateDiscoveryRun(
+	ctx context.Context,
+	uid uint64,
+	privileges []string,
+	req models.CreateAssetDiscoveryRequest,
+) (models.AssetDiscoveryRun, error) {
+	req.Target = strings.TrimSpace(req.Target)
+	req.ModelProvider = strings.TrimSpace(req.ModelProvider)
+	if err := validateDiscoveryRequest(req); err != nil {
+		return models.AssetDiscoveryRun{}, newInputError(err.Error(), nil)
+	}
+	resources, err := validateServiceResources(s.db, uid, privileges, req.ResourceIDs)
+	if err != nil {
+		return models.AssetDiscoveryRun{}, newInputError("所选流量文件不可用", err)
+	}
+	if req.DiscoveryType == "passive" && (len(resources) != 1 || resources[0].IsDir || !isTrafficCapture(resources[0].Name)) {
+		return models.AssetDiscoveryRun{}, newInputError("被动发现只能使用一个 PCAP、PCAPNG 或 CAP 流量文件", nil)
+	}
+	providerName := provider.ProviderName(req.ModelProvider)
+	selectedProvider, err := s.providers.GetProvider(ctx, providerName, int64(uid))
+	if err != nil {
+		return models.AssetDiscoveryRun{}, newInputError("所选模型服务不可用", err)
+	}
+	flowID, err := s.controller.CreateFlow(ctx, int64(uid), buildDiscoveryPrompt(req), providerName, selectedProvider.Type(), nil, resources)
+	if err != nil {
+		return models.AssetDiscoveryRun{}, fmt.Errorf("创建资产发现任务失败: %w", err)
+	}
 	run := models.AssetDiscoveryRun{UserID: uid, FlowID: uint64(flowID), DiscoveryType: req.DiscoveryType, Target: req.Target, Profile: req.Profile}
 	if err := s.db.Create(&run).Error; err != nil {
-		scanError(c, http.StatusInternalServerError, "资产发现任务已创建，但保存记录失败", err)
-		return
+		return models.AssetDiscoveryRun{}, fmt.Errorf("资产发现任务已创建，但保存记录失败: %w", err)
 	}
-	response.Success(c, http.StatusCreated, run)
+	return run, nil
 }
 
 func hasPermission(c *gin.Context, permission string) bool {

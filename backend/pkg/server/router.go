@@ -207,7 +207,9 @@ func NewRouter(
 	intelligenceService := services.NewIntelligenceService(orm)
 	vulnerabilityScanService := services.NewVulnerabilityScanService(orm, providers, controller)
 	exploitChainService := services.NewExploitChainService(orm, providers, controller)
-	securityAssessmentService := services.NewSecurityAssessmentService(orm, providers, controller)
+	securityAssessmentService := services.NewSecurityAssessmentService(
+		orm, providers, controller, vulnerabilityScanService, exploitChainService,
+	)
 	anonymizerService := services.NewAnonymizerService(textReplacer)
 	graphqlService := services.NewGraphqlService(
 		db, cfg, baseURL, cfg.CorsOrigins, tokenCache, providers, controller, subscriptions, knowledgeStore, textReplacer,
@@ -426,6 +428,9 @@ func setSecurityAssessmentsGroup(parent *gin.RouterGroup, svc *services.Security
 	{
 		group.GET("/", svc.List)
 		group.POST("/", svc.Create)
+		group.GET("/:id", svc.Get)
+		group.POST("/:id/stop", svc.Stop)
+		group.POST("/:id/retry", svc.Retry)
 	}
 }
 
