@@ -57,6 +57,10 @@ var frontendRoutes = []string{
 	"/templates",
 	"/resources",
 	"/knowledges",
+	"/intelligence",
+	"/vulnerability-scans",
+	"/exploit-chains",
+	"/security-assessments",
 	"/dashboard",
 }
 
@@ -200,6 +204,10 @@ func NewRouter(
 	analyticsService := services.NewAnalyticsService(orm)
 	tokenService := services.NewTokenService(orm, cfg.AuthSalt(), tokenCache, subscriptions)
 	knowledgeService := services.NewKnowledgeService(orm, knowledgeStore)
+	intelligenceService := services.NewIntelligenceService(orm)
+	vulnerabilityScanService := services.NewVulnerabilityScanService(orm, providers, controller)
+	exploitChainService := services.NewExploitChainService(orm, providers, controller)
+	securityAssessmentService := services.NewSecurityAssessmentService(orm, providers, controller)
 	anonymizerService := services.NewAnonymizerService(textReplacer)
 	graphqlService := services.NewGraphqlService(
 		db, cfg, baseURL, cfg.CorsOrigins, tokenCache, providers, controller, subscriptions, knowledgeStore, textReplacer,
@@ -290,6 +298,10 @@ func NewRouter(
 		setGraphqlGroup(privateGroup, graphqlService)
 
 		setKnowledgeGroup(privateGroup, knowledgeService)
+		setIntelligenceGroup(privateGroup, intelligenceService)
+		setVulnerabilityScansGroup(privateGroup, vulnerabilityScanService)
+		setExploitChainsGroup(privateGroup, exploitChainService)
+		setSecurityAssessmentsGroup(privateGroup, securityAssessmentService)
 		setProvidersGroup(privateGroup, providerService)
 		setSettingsGroup(privateGroup, settingsService)
 		setFlowsGroup(privateGroup, flowService)
@@ -398,6 +410,47 @@ func registerStaticFileServer(router *gin.Engine, staticDir string) {
 
 		c.Redirect(http.StatusMovedPermanently, "/")
 	})
+}
+
+func setExploitChainsGroup(parent *gin.RouterGroup, svc *services.ExploitChainService) {
+	group := parent.Group("/exploit-chains")
+	{
+		group.GET("/", svc.List)
+		group.GET("/:id/graph", svc.GetGraph)
+		group.POST("/", svc.Create)
+	}
+}
+
+func setSecurityAssessmentsGroup(parent *gin.RouterGroup, svc *services.SecurityAssessmentService) {
+	group := parent.Group("/security-assessments")
+	{
+		group.GET("/", svc.List)
+		group.POST("/", svc.Create)
+	}
+}
+
+func setVulnerabilityScansGroup(parent *gin.RouterGroup, svc *services.VulnerabilityScanService) {
+	group := parent.Group("/vulnerability-scans")
+	{
+		group.GET("/", svc.List)
+		group.POST("/", svc.Create)
+		group.GET("/assets", svc.ListAssets)
+		group.GET("/discoveries", svc.ListDiscoveries)
+		group.POST("/discoveries", svc.CreateDiscovery)
+	}
+}
+
+func setIntelligenceGroup(parent *gin.RouterGroup, svc *services.IntelligenceService) {
+	group := parent.Group("/intelligence")
+	{
+		group.GET("/", svc.GetOverview)
+		group.GET("/graph", svc.GetGraph)
+		group.POST("/sync", svc.SyncAll)
+		group.POST("/sources", svc.CreateSource)
+		group.PUT("/sources/:id", svc.UpdateSource)
+		group.DELETE("/sources/:id", svc.DeleteSource)
+		group.POST("/sources/:id/sync", svc.SyncSource)
+	}
 }
 
 func setKnowledgeGroup(parent *gin.RouterGroup, svc *services.KnowledgeService) {
