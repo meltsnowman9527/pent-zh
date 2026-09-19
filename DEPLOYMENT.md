@@ -34,6 +34,15 @@
 - `pentagi` 容器于 10:00 重建并启动，运行 `pentagi-local:latest`；`http://localhost:8443` 返回 200。
 - 容器内与本地 `index.html` 的 MD5 均为 `cc32e2973969c55d1f937e0c1f6b799d`。
 
+## 2026-09-18 多源安全知识与知识图谱
+
+- 多源知识收集内置 CISA KEV、NVD CVE 2.0、MITRE ATT&CK Enterprise STIX 和 MITRE CWE XML/ZIP；支持每日或每周调度、手动同步、自定义 JSON/RSS/STIX/CWE 来源，以及最多保留三份压缩原始快照。
+- 新增结构化知识条目与关系存储。ATT&CK 写入战术、技术、组织、软件、攻击活动与缓解措施及其 STIX 关系；CWE 写入弱点层级与 CAPEC 关联；NVD 写入 CVE、CVSS、CPE 厂商/产品和 CVE→CWE 关系。
+- 知识图谱页面改为读取后端节点/关系接口并使用力导向布局，支持按节点类型筛选、缩放、拖动和查看来源详情。新增 `intelligence.view/manage/sync` 权限。
+- 迁移 `20260920` 已完成前向、批次写入和回退验证，`20260921` 为已有账户幂等补齐四个内置来源。官方 ATT&CK 53.8 MB STIX 文件和 CWE ZIP 均通过真实下载解析测试。
+- 实际首次同步完成：CISA 1,713 条、NVD 5,469 条、ATT&CK 1,953 条、CWE 969 条，共 10,104 个来源记录、27,775 条关系；四个来源状态均为 `ready`。
+- `pentagi` 已使用 `pentagi-local:latest` 重建，`http://localhost:8443` 返回 200；容器前端与本地构建产物校验一致。
+
 ## 复核方式
 
 - `docker ps -a --format '{{.Names}}|{{.Image}}|{{.Status}}'`
