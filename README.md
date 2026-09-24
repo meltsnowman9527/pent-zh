@@ -1,4 +1,6 @@
-# PentAGI
+# pent-zh
+
+本仓库是基于 PentAGI 持续开发的中文安全研究与智能评估版本。部署条件、启动方式和当前流程架构请参阅 [《部署条件与流程架构》](DEPLOYMENT_ARCHITECTURE_ZH.md)。
 
 <div align="center" style="font-size: 1.5em; margin: 20px 0;">
     <strong>P</strong>enetration testing <strong>A</strong>rtificial <strong>G</strong>eneral <strong>I</strong>ntelligence

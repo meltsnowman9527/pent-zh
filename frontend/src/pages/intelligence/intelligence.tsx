@@ -210,7 +210,7 @@ function Intelligence() {
         try {
             const response = await api.post<{ collected: number; failed: number }>('/intelligence/sync');
             const result = unwrapApiResponse(response);
-            toast.success(`本次获取 ${result.collected} 条漏洞知识`, {
+            toast.success(`智能体知识库已更新 ${result.collected} 条漏洞知识`, {
                 description: result.failed
                     ? `${result.failed} 个来源获取失败，请查看来源状态。`
                     : '所有启用的来源已更新。',
@@ -233,7 +233,9 @@ function Intelligence() {
         try {
             const response = await api.post<{ collected: number }>(`/intelligence/sources/${source.id}/sync`);
             const result = unwrapApiResponse(response);
-            toast.success(`${source.name} 已更新`, { description: `获取并整理了 ${result.collected} 条记录。` });
+            toast.success(`${source.name} 已更新到智能体知识库`, {
+                description: `获取并整理了 ${result.collected} 条记录。`,
+            });
             await loadOverview(false);
 
             if (activeView === 'graph') {
@@ -335,7 +337,7 @@ function Intelligence() {
                     />
                     <AppHeaderAction
                         icon={<RefreshCw />}
-                        label="立即获取"
+                        label="更新智能体知识库"
                         loading={isSyncingAll}
                         onClick={() => void syncAll()}
                     />
@@ -347,7 +349,7 @@ function Intelligence() {
                     <div>
                         <h1 className="text-2xl font-semibold tracking-tight">外部威胁情报知识管理</h1>
                         <p className="text-muted-foreground mt-1 text-sm">
-                            集中管理 CVE、CWE、ATT&CK 战术技术、攻击组织、软件和缓解措施。
+                            管理智能体使用的情报来源和内部材料，为智能体持续补充结构化安全知识。
                         </p>
                     </div>
                     <div className="flex flex-wrap gap-2 text-xs">
@@ -386,7 +388,7 @@ function Intelligence() {
                             <div>
                                 <CardTitle>采集来源</CardTitle>
                                 <CardDescription>
-                                    内置 KEV、NVD、ATT&CK 和 CWE，也可以添加厂商公告与自定义数据源。
+                                    为智能体配置 KEV、NVD、ATT&CK、CWE、厂商公告与自定义数据源。
                                 </CardDescription>
                             </div>
                         </CardHeader>
@@ -426,9 +428,9 @@ function Intelligence() {
                 {activeView === 'internal' ? (
                     <Card>
                         <CardHeader>
-                            <CardTitle>人工上传内部信息材料</CardTitle>
+                            <CardTitle>提供给智能体的内部材料</CardTitle>
                             <CardDescription>
-                                上传内部报告、通告、处置记录等材料，统一保存在“内部情报材料”目录。
+                                上传内部报告、通告、处置记录等材料，供智能体在任务中读取和分析。
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -844,7 +846,7 @@ function ThreatKnowledgeManager({ isLoading, overview }: { isLoading: boolean; o
                                     colSpan={4}
                                 >
                                     {overview.items.length === 0
-                                        ? '点击“立即获取”开始采集外部威胁情报'
+                                        ? '点击“更新智能体知识库”开始采集外部威胁情报'
                                         : '没有符合当前筛选条件的情报知识'}
                                 </TableCell>
                             </TableRow>
@@ -1007,7 +1009,7 @@ function SourceRow({
                     variant="outline"
                 >
                     {syncing ? <Spinner variant="circle" /> : <RefreshCw />}
-                    <span className="sr-only">立即获取</span>
+                    <span className="sr-only">更新智能体知识库</span>
                 </Button>
                 <Button
                     aria-label="删除来源"

@@ -238,7 +238,7 @@ const messages = {
     'Customize the templates this agent uses': '自定义该智能体使用的模板',
     'Customize the template this tool uses': '自定义该工具使用的模板',
     'Dark theme': '深色主题',
-    Dashboard: '概览',
+    Dashboard: '仪表盘',
     Default: '默认',
     Delete: '删除',
     'Delete Assistant': '删除交互助手',

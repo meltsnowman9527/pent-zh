@@ -36,6 +36,7 @@ export type TitleResolver = ((params: RouteParams) => string) | ComponentType<{ 
  */
 export const routeTitles = {
     account: { title: uiText('Account') },
+    agents: { title: '智能体与能力' },
     apiTokens: { title: uiText('API Tokens') },
     dashboard: { title: uiText('Dashboard') },
     exploitChains: { title: '漏洞利用链推理' },
@@ -91,6 +92,7 @@ export const routeTitles = {
 
     providers: { title: uiText('Providers') },
 
+    reportSystemManagement: { title: '报告与系统管理' },
     resources: { title: uiText('Resources') },
     securityAssessments: { title: '安全评估编排' },
 

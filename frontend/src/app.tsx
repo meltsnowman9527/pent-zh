@@ -49,7 +49,9 @@ const SecurityAssessments = lazy(() => import('@/pages/security-assessments/secu
 const Template = lazy(() => import('@/pages/templates/template'));
 const Templates = lazy(() => import('@/pages/templates/templates'));
 const OAuthResult = lazy(() => import('@/pages/oauth-result'));
+const ReportSystemManagement = lazy(() => import('@/pages/report-system-management/report-system-management'));
 const SettingsAccount = lazy(() => import('@/pages/settings/settings-account'));
+const SettingsAgents = lazy(() => import('@/pages/settings/settings-agents'));
 const SettingsAPITokens = lazy(() => import('@/pages/settings/settings-api-tokens'));
 const SettingsPrompt = lazy(() => import('@/pages/settings/settings-prompt'));
 const SettingsPrompts = lazy(() => import('@/pages/settings/settings-prompts'));
@@ -214,6 +216,12 @@ const router = createBrowserRouter(
                         handle={routeTitles.resources}
                         path="resources"
                     />
+
+                    <Route
+                        element={<ReportSystemManagement />}
+                        handle={routeTitles.reportSystemManagement}
+                        path="report-system-management"
+                    />
                 </Route>
 
                 <Route
@@ -233,6 +241,11 @@ const router = createBrowserRouter(
                         element={<SettingsAccount />}
                         handle={routeTitles.account}
                         path="account"
+                    />
+                    <Route
+                        element={<SettingsAgents />}
+                        handle={routeTitles.agents}
+                        path="agents"
                     />
                     <Route
                         element={<SettingsProviders />}

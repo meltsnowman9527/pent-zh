@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-import { ArrowLeft, FileText, Key, Plug, Settings as SettingsIcon, User } from 'lucide-react';
+import { ArrowLeft, Bot, FileText, Key, Plug, Settings as SettingsIcon, User } from 'lucide-react';
 import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 
@@ -42,6 +42,12 @@ const menuItems: readonly MenuItem[] = [
         id: 'providers',
         path: routes.settings.providers,
         title: uiText('Providers'),
+    },
+    {
+        icon: <Bot className="size-4" />,
+        id: 'agents',
+        path: routes.settings.agents,
+        title: '智能体与能力',
     },
     {
         icon: <FileText className="size-4" />,

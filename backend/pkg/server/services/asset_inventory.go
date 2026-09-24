@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"pentagi/pkg/providers/provider"
 	"pentagi/pkg/server/logger"
 	"pentagi/pkg/server/models"
 	"pentagi/pkg/server/response"
@@ -143,16 +142,14 @@ func (s *VulnerabilityScanService) CreateDiscoveryRun(
 	if req.DiscoveryType == "passive" && (len(resources) != 1 || resources[0].IsDir || !isTrafficCapture(resources[0].Name)) {
 		return models.AssetDiscoveryRun{}, newInputError("被动发现只能使用一个 PCAP、PCAPNG 或 CAP 流量文件", nil)
 	}
-	providerName := provider.ProviderName(req.ModelProvider)
-	selectedProvider, err := s.providers.GetProvider(ctx, providerName, int64(uid))
-	if err != nil {
-		return models.AssetDiscoveryRun{}, newInputError("所选模型服务不可用", err)
-	}
-	flowID, err := s.controller.CreateFlow(ctx, int64(uid), buildDiscoveryPrompt(req), providerName, selectedProvider.Type(), nil, resources)
+	flowID, err := startAgentWork(ctx, s.providers, s.controller, agentWorkRequest{
+		Kind: agentWorkAssetDiscovery, UserID: uid, ProviderName: req.ModelProvider,
+		Instructions: buildDiscoveryPrompt(req), Resources: resources,
+	})
 	if err != nil {
 		return models.AssetDiscoveryRun{}, fmt.Errorf("创建资产发现任务失败: %w", err)
 	}
-	run := models.AssetDiscoveryRun{UserID: uid, FlowID: uint64(flowID), DiscoveryType: req.DiscoveryType, Target: req.Target, Profile: req.Profile}
+	run := models.AssetDiscoveryRun{UserID: uid, FlowID: flowID, DiscoveryType: req.DiscoveryType, Target: req.Target, Profile: req.Profile}
 	if err := s.db.Create(&run).Error; err != nil {
 		return models.AssetDiscoveryRun{}, fmt.Errorf("资产发现任务已创建，但保存记录失败: %w", err)
 	}

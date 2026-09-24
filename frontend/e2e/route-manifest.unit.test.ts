@@ -25,9 +25,11 @@ const EXCLUDED: Record<string, string> = {
     '/intelligence': 'requires intelligence-source REST fixtures and visual baselines',
     '/knowledges/new': 'create-mode variant of the knowledge detail page',
     '/oauth/result': 'OAuth popup landing; only meaningful mid-OAuth-roundtrip',
+    '/report-system-management': 'static management overview; needs dedicated visual baselines before joining the sweep',
     '/security-assessments': 'requires assessment-run REST fixtures and visual baselines',
     '/settings': 'redirects to /settings/account',
     '/settings/account': 'needs an account cassette + visual baseline before joining the sweep',
+    '/settings/agents': 'static agent settings page; needs an account/settings cassette and visual baseline',
     '/templates/new': 'create-mode variant of the template detail page',
     '/vulnerability-scans': 'requires vulnerability-scan REST fixtures and visual baselines',
 };

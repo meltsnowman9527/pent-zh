@@ -14,7 +14,6 @@ import (
 
 	"pentagi/pkg/controller"
 	"pentagi/pkg/providers"
-	"pentagi/pkg/providers/provider"
 	"pentagi/pkg/server/models"
 	"pentagi/pkg/server/response"
 
@@ -33,11 +32,11 @@ const assessmentSchedulerInterval = 30 * time.Second
 // penetration test itself. Every stage owns its flow, and the stage table is the
 // single source of truth for progress.
 type SecurityAssessmentService struct {
-	db        *gorm.DB
-	providers providers.ProviderController
+	db         *gorm.DB
+	providers  providers.ProviderController
 	controller controller.FlowController
-	discovery *VulnerabilityScanService
-	chains    *ExploitChainService
+	discovery  *VulnerabilityScanService
+	chains     *ExploitChainService
 	// mx serializes stage transitions so the scheduler and an API request can
 	// never start the same stage twice.
 	mx sync.Mutex
@@ -557,25 +556,18 @@ func (s *SecurityAssessmentService) startPentestFlow(
 	if err != nil {
 		return 0, err
 	}
-	providerName := provider.ProviderName(run.ModelProvider)
-	selectedProvider, err := s.providers.GetProvider(ctx, providerName, int64(run.UserID))
-	if err != nil {
-		return 0, newInputError("所选模型服务不可用", err)
-	}
+	mode := agentWorkFlow
 	if run.Mode == "assistant" {
-		assistant, err := s.controller.CreateAssistant(
-			ctx, int64(run.UserID), 0, prompt, true, providerName, selectedProvider.Type(), nil, nil,
-		)
-		if err != nil {
-			return 0, fmt.Errorf("创建渗透测试助手会话失败: %w", err)
-		}
-		return uint64(assistant.GetFlowID()), nil
+		mode = agentWorkAssistant
 	}
-	flowID, err := s.controller.CreateFlow(ctx, int64(run.UserID), prompt, providerName, selectedProvider.Type(), nil, nil)
+	flowID, err := startAgentWork(ctx, s.providers, s.controller, agentWorkRequest{
+		Kind: agentWorkPentest, Mode: mode, UserID: run.UserID,
+		ProviderName: run.ModelProvider, Instructions: prompt,
+	})
 	if err != nil {
-		return 0, fmt.Errorf("创建渗透测试任务失败: %w", err)
+		return 0, fmt.Errorf("创建安全验证智能体任务失败: %w", err)
 	}
-	return uint64(flowID), nil
+	return flowID, nil
 }
 
 func (s *SecurityAssessmentService) failStage(

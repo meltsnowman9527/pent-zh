@@ -18,7 +18,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
-import { AppHeader, AppHeaderAction, AppHeaderActions, AppHeaderContent, AppHeaderTitle } from '@/components/layouts/app/app-header';
+import {
+    AppHeader,
+    AppHeaderAction,
+    AppHeaderActions,
+    AppHeaderContent,
+    AppHeaderTitle,
+} from '@/components/layouts/app/app-header';
 import { Badge, type BadgeVariant } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -174,8 +180,8 @@ export default function SecurityAssessments() {
             });
             const run = unwrapApiResponse(response);
 
-            toast.success('安全评估编排已启动', {
-                description: '已完成阶段会自动推进到下一阶段，可在编排记录中查看进度。',
+            toast.success('智能体安全评估任务已启动', {
+                description: '智能体会依次完成各阶段，可在任务记录中查看进度。',
             });
             await loadRuns();
             setTab('records');
@@ -184,7 +190,7 @@ export default function SecurityAssessments() {
                 navigate(routes.flow(run.flow_id, { detailTab: 'tasks', tab: run.mode }));
             }
         } catch (error) {
-            toast.error('启动安全评估失败', { description: getApiErrorMessage(error, '请检查配置后重试') });
+            toast.error('启动智能体安全评估失败', { description: getApiErrorMessage(error, '请检查配置后重试') });
         } finally {
             setIsStarting(false);
         }
@@ -201,7 +207,7 @@ export default function SecurityAssessments() {
             const response = await api.post<AssessmentRunView>(`/security-assessments/${runId}/${action}`);
             const run = unwrapApiResponse(response);
 
-            toast.success(action === 'stop' ? '已停止安全评估编排' : '已重新启动安全评估编排');
+            toast.success(action === 'stop' ? '已停止智能体安全评估' : '已重新启动智能体安全评估');
             await loadRuns();
 
             if (action === 'retry' && run.flow_id) {
@@ -220,7 +226,7 @@ export default function SecurityAssessments() {
         <>
             <AppHeader>
                 <AppHeaderContent>
-                    <AppHeaderTitle icon={<Sparkles className="size-4 shrink-0" />}>安全评估编排</AppHeaderTitle>
+                    <AppHeaderTitle icon={<Sparkles className="size-4 shrink-0" />}>智能体安全评估</AppHeaderTitle>
                 </AppHeaderContent>
                 <AppHeaderActions>
                     <AppHeaderAction
@@ -238,8 +244,8 @@ export default function SecurityAssessments() {
                     value={tab}
                 >
                     <TabsList className="grid w-full grid-cols-2 sm:w-80">
-                        <TabsTrigger value="create">新建编排</TabsTrigger>
-                        <TabsTrigger value="records">编排记录</TabsTrigger>
+                        <TabsTrigger value="create">交给智能体</TabsTrigger>
+                        <TabsTrigger value="records">任务记录</TabsTrigger>
                     </TabsList>
 
                     <TabsContent
@@ -249,9 +255,9 @@ export default function SecurityAssessments() {
                         <Card>
                             <CardContent className="flex flex-col gap-5 pt-6">
                                 <div className="flex flex-col gap-2 text-center">
-                                    <h1 className="text-2xl font-semibold">新建安全评估编排</h1>
+                                    <h1 className="text-2xl font-semibold">交给智能体完成安全评估</h1>
                                     <p className="text-muted-foreground text-sm">
-                                        配置一次，按顺序完成资产发现、漏洞扫描、利用链推理和渗透测试。
+                                        提供目标和要求后，由智能体完成资产发现、漏洞扫描、利用链推理和渗透测试。
                                     </p>
                                 </div>
 
@@ -272,8 +278,7 @@ export default function SecurityAssessments() {
                                     ))}
                                 </div>
                                 <p className="text-muted-foreground -mt-2 text-center text-xs">
-                                    每个阶段使用独立任务执行：上一阶段完成后自动进入下一阶段，
-                                    可在编排记录中查看进度、停止或重试。
+                                    智能体会按顺序推进各阶段，可在任务记录中查看进度、停止或重试。
                                 </p>
 
                                 <Tabs
@@ -285,13 +290,13 @@ export default function SecurityAssessments() {
                                             disabled={isStarting}
                                             value="automation"
                                         >
-                                            自动执行
+                                            智能体自动执行
                                         </TabsTrigger>
                                         <TabsTrigger
                                             disabled={isStarting}
                                             value="assistant"
                                         >
-                                            交互助手
+                                            智能体交互协作
                                         </TabsTrigger>
                                     </TabsList>
                                 </Tabs>
@@ -367,8 +372,8 @@ export default function SecurityAssessments() {
                                     onSubmit={handleSubmit}
                                     placeholder={
                                         mode === 'automation'
-                                            ? '补充本次评估重点、限制和预期结果……'
-                                            : '告诉助手本次评估的要求，执行中还可以继续沟通……'
+                                            ? '告诉智能体本次评估的重点、限制和预期结果……'
+                                            : '告诉智能体本次评估的要求，执行中还可以继续沟通……'
                                     }
                                     type={mode}
                                 />
@@ -393,7 +398,7 @@ export default function SecurityAssessments() {
                                 <Card>
                                     <CardContent className="text-muted-foreground flex h-40 flex-col items-center justify-center gap-2 text-center">
                                         <CircleDashed className="size-8 opacity-50" />
-                                        <div className="text-sm">暂无编排记录，先创建一次安全评估。</div>
+                                        <div className="text-sm">暂无任务记录，先把一次安全评估交给智能体。</div>
                                     </CardContent>
                                 </Card>
                             ) : null}
@@ -442,7 +447,7 @@ function AssessmentRunCard({
                     <div className="min-w-0">
                         <CardTitle className="truncate text-base">{run.target}</CardTitle>
                         <CardDescription className="mt-1">
-                            编排 #{run.id} · {run.mode === 'automation' ? '自动执行' : '交互助手'} ·{' '}
+                            任务 #{run.id} · {run.mode === 'automation' ? '智能体自动执行' : '智能体交互协作'} ·{' '}
                             {run.scan_type === 'passive' ? '流量被动发现' : '传统主动发现'} ·{' '}
                             {formatDate(run.created_at)}
                         </CardDescription>
@@ -497,9 +502,7 @@ function AssessmentRunCard({
                         </div>
                     ))}
                 </div>
-                {run.error ? (
-                    <p className="text-destructive text-xs">最近一次错误：{run.error}</p>
-                ) : null}
+                {run.error ? <p className="text-destructive text-xs">最近一次错误：{run.error}</p> : null}
                 {!run.error && run.stages.some((stage) => stage.error) ? (
                     <p className="text-destructive text-xs">
                         {run.stages.find((stage) => stage.error)?.title}：

@@ -35,12 +35,14 @@ export const routes = {
     newTemplate: '/templates/new',
 
     oauthResult: '/oauth/result',
+    reportSystemManagement: '/report-system-management',
     resources: '/resources',
     root: '/',
 
     securityAssessments: '/security-assessments',
     settings: {
         account: '/settings/account',
+        agents: '/settings/agents',
         apiTokens: '/settings/api-tokens',
         newProvider: ({ id, type }: { id?: string; type?: string } = {}) =>
             withQuery('/settings/providers/new', { id, type }),

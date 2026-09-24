@@ -2,6 +2,7 @@ import { Avatar, AvatarFallback } from '@radix-ui/react-avatar';
 import {
     ChevronsUpDown,
     Clock,
+    Files,
     FileText,
     Folder,
     GitBranch,
@@ -73,6 +74,7 @@ export function MainSidebar() {
     const isSecurityAssessmentsActive = useMatch('/security-assessments/*');
     const isVulnerabilityScansActive = useMatch('/vulnerability-scans/*');
     const isExploitChainsActive = useMatch('/exploit-chains/*');
+    const isReportSystemManagementActive = useMatch('/report-system-management/*');
     const isFlowsActive = useMatch('/flows/*');
     const isTemplatesActive = useMatch('/templates/*');
     const isKnowledgesActive = useMatch('/knowledges/*');
@@ -276,6 +278,17 @@ export function MainSidebar() {
                                         <Plus />
                                     </Link>
                                 </SidebarMenuAction>
+                            </SidebarMenuItem>
+                            <SidebarMenuItem>
+                                <SidebarMenuButton
+                                    asChild
+                                    isActive={!!isReportSystemManagementActive}
+                                >
+                                    <Link to={routes.reportSystemManagement}>
+                                        <Files />
+                                        报告与系统管理
+                                    </Link>
+                                </SidebarMenuButton>
                             </SidebarMenuItem>
                         </SidebarMenu>
                     </SidebarGroupContent>

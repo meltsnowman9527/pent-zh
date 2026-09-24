@@ -43,7 +43,7 @@ const savePeriod = (storageKey: string, value: UsageStatsPeriod): void => {
 
 function Dashboard() {
     const { period: periodStorageKey } = usePageStorageKeys();
-    const [activeTab, setActiveTab] = useState('analytics');
+    const [activeTab, setActiveTab] = useState('overview');
     const [period, setPeriod] = useState<UsageStatsPeriod>(() => loadPeriod(periodStorageKey));
     // Both transitions wrap heavy re-renders: switching activeTab swaps the
     // entire Analytics/Overview subtree (Analytics alone pulls a ~386 kB chunk
@@ -90,8 +90,8 @@ function Dashboard() {
                 >
                     <div className="flex items-center justify-between">
                         <TabsList>
+                            <TabsTrigger value="overview">仪表盘</TabsTrigger>
                             <TabsTrigger value="analytics">{uiText('Analytics')}</TabsTrigger>
-                            <TabsTrigger value="overview">{uiText('Overview')}</TabsTrigger>
                         </TabsList>
 
                         {activeTab === 'analytics' && (
