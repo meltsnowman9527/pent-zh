@@ -1,0 +1,42 @@
+# Kimi K3 - Flagship for long-horizon coding and end-to-end knowledge work
+- name: kimi-k3
+  description: Kimi K3 - Flagship model for long-horizon coding and end-to-end knowledge work with 1M context. Always reasons; reasoning_effort takes low, high and max, with max the default. ToolCalls, JSON Mode, structured output, automatic context caching, tool_choice constraints, and dynamically loaded tools
+  thinking: true
+  reasoning:
+    efforts: [low, high, max]
+  context_window: 1048576
+  max_output_tokens: 1048576
+  price:
+    input: 3.00
+    output: 15.00
+    cache_read: 0.30
+    cache_write: 3.00
+
+# Kimi K2.7 Code - Coding-focused model (and high-speed variant)
+- name: kimi-k2.7-code
+  description: Kimi K2.7 Code - Coding-focused model with higher success rates on long-context programming tasks. Thinking is always on and cannot be turned off, and the model takes no reasoning_effort - only the thinking object. Supports text/image/video input, dialogue and agent tasks, 256k context, automatic context caching, ToolCalls, JSON Mode, Partial Mode
+  thinking: true
+  context_window: 262144
+  price:
+    input: 0.95
+    output: 4.00
+    cache_read: 0.19
+
+- name: kimi-k2.7-code-highspeed
+  description: Kimi K2.7 Code HighSpeed - Same model as kimi-k2.7-code with higher output throughput (~180 tokens/s, up to ~260 tokens/s in short context). Thinking is always on and cannot be turned off, and the model takes no reasoning_effort. Supports text/image/video input, 256k context, automatic context caching, ToolCalls, JSON Mode, Partial Mode
+  thinking: true
+  context_window: 262144
+  price:
+    input: 1.90
+    output: 8.00
+    cache_read: 0.38
+
+# Kimi K2.6 - Latest flagship multimodal model with native architecture
+- name: kimi-k2.6
+  description: Kimi K2.6 - Multimodal model with native architecture, superseded as flagship by K3, stronger long-term code writing, improved instruction compliance and self-correction. Supports text/image/video input, thinking/non-thinking modes and no reasoning_effort support, 256k context, automatic context caching, ToolCalls, JSON Mode, internet search
+  thinking: true
+  context_window: 262144
+  price:
+    input: 0.95
+    output: 4.00
+    cache_read: 0.16

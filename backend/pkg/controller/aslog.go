@@ -1,0 +1,455 @@
+package controller
+
+import (
+	"bytes"
+	"context"
+	"sync"
+	"time"
+
+	"pentagi/pkg/database"
+	"pentagi/pkg/graph/subscriptions"
+	"pentagi/pkg/providers"
+
+	lru "github.com/hashicorp/golang-lru/v2"
+	"github.com/vxcontrol/langchaingo/llms/reasoning"
+)
+
+const (
+	updateMsgTimeout = 30 * time.Second
+	streamCacheSize  = 1000
+
+	assistantPersistInterval = 3 * time.Second
+)
+
+type FlowAssistantLogWorker interface {
+	PutMsg(
+		ctx context.Context,
+		msgType database.MsglogType,
+		taskID, subtaskID *int64,
+		streamID int64,
+		thinking, msg string,
+	) (int64, error)
+	PutFlowAssistantMsg(
+		ctx context.Context,
+		msgType database.MsglogType,
+		thinking, msg string,
+	) (int64, error)
+	PutFlowAssistantMsgResult(
+		ctx context.Context,
+		msgType database.MsglogType,
+		thinking, msg, result string,
+		resultFormat database.MsglogResultFormat,
+	) (int64, error)
+	StreamFlowAssistantMsg(
+		ctx context.Context,
+		chunk *providers.StreamMessageChunk,
+	) error
+	UpdateMsgResult(
+		ctx context.Context,
+		msgID, streamID int64,
+		result string,
+		resultFormat database.MsglogResultFormat,
+	) error
+}
+
+type flowAssistantLogWorker struct {
+	db          database.Querier
+	mx          *sync.Mutex
+	flowID      int64
+	assistantID int64
+	results     map[int64]chan *providers.StreamMessageChunk
+	streamCache *lru.Cache[int64, int64] // streamID -> msgID
+	pub         subscriptions.FlowPublisher
+}
+
+func NewFlowAssistantLogWorker(
+	db database.Querier, flowID int64, assistantID int64, pub subscriptions.FlowPublisher,
+) FlowAssistantLogWorker {
+	return &flowAssistantLogWorker{
+		db:          db,
+		mx:          &sync.Mutex{},
+		flowID:      flowID,
+		assistantID: assistantID,
+		results:     make(map[int64]chan *providers.StreamMessageChunk),
+		streamCache: func() *lru.Cache[int64, int64] { c, _ := lru.New[int64, int64](streamCacheSize); return c }(),
+		pub:         pub,
+	}
+}
+
+func (aslw *flowAssistantLogWorker) PutMsg(
+	ctx context.Context,
+	msgType database.MsglogType,
+	taskID, subtaskID *int64,
+	streamID int64,
+	thinking, msg string,
+) (int64, error) {
+	aslw.mx.Lock()
+	defer aslw.mx.Unlock()
+
+	return aslw.putMsg(ctx, msgType, taskID, subtaskID, streamID, thinking, msg)
+}
+
+func (aslw *flowAssistantLogWorker) PutFlowAssistantMsg(
+	ctx context.Context, msgType database.MsglogType, thinking, msg string,
+) (int64, error) {
+	aslw.mx.Lock()
+	defer aslw.mx.Unlock()
+
+	return aslw.putMsg(ctx, msgType, nil, nil, 0, thinking, msg)
+}
+
+func (aslw *flowAssistantLogWorker) PutFlowAssistantMsgResult(
+	ctx context.Context, msgType database.MsglogType, thinking, msg, result string,
+	resultFormat database.MsglogResultFormat,
+) (int64, error) {
+	aslw.mx.Lock()
+	defer aslw.mx.Unlock()
+
+	return aslw.putMsgResult(ctx, msgType, nil, nil, thinking, msg, result, resultFormat)
+}
+
+func (aslw *flowAssistantLogWorker) StreamFlowAssistantMsg(
+	ctx context.Context, chunk *providers.StreamMessageChunk,
+) error {
+	aslw.mx.Lock()
+	defer aslw.mx.Unlock()
+
+	return aslw.appendMsgResult(ctx, chunk)
+}
+
+func (aslw *flowAssistantLogWorker) UpdateMsgResult(
+	ctx context.Context,
+	msgID, streamID int64,
+	result string,
+	resultFormat database.MsglogResultFormat,
+) error {
+	aslw.mx.Lock()
+	defer aslw.mx.Unlock()
+
+	ch, workerFound := aslw.results[streamID]
+	if workerFound {
+		ch <- &providers.StreamMessageChunk{
+			Type:         providers.StreamMessageChunkTypeResult,
+			Result:       result,
+			ResultFormat: resultFormat,
+			StreamID:     streamID,
+		}
+		return nil
+	}
+
+	msgLog, err := aslw.db.UpdateAssistantLogResult(ctx, database.UpdateAssistantLogResultParams{
+		Result:       database.SanitizeUTF8(result),
+		ResultFormat: resultFormat,
+		ID:           msgID,
+	})
+	if err != nil {
+		return err
+	}
+
+	aslw.pub.AssistantLogUpdated(ctx, msgLog, false)
+
+	return nil
+}
+
+func (aslw *flowAssistantLogWorker) putMsg(
+	ctx context.Context,
+	msgType database.MsglogType,
+	taskID, subtaskID *int64,
+	streamID int64,
+	thinking, msg string,
+) (int64, error) {
+	msgID, msgFound := aslw.streamCache.Get(streamID)
+	ch, workerFound := aslw.results[streamID]
+
+	if msgFound && workerFound {
+		ch <- &providers.StreamMessageChunk{
+			Type:     providers.StreamMessageChunkTypeUpdate,
+			MsgType:  msgType,
+			Content:  msg,
+			Thinking: aslw.getThinkingStructure(thinking),
+			StreamID: streamID,
+		}
+		return msgID, nil
+	} else if msgFound {
+		msgLog, err := aslw.db.UpdateAssistantLogContent(ctx, database.UpdateAssistantLogContentParams{
+			Type:     msgType,
+			Message:  database.SanitizeUTF8(msg),
+			Thinking: database.StringToNullString(database.SanitizeUTF8(thinking)),
+			ID:       msgID,
+		})
+		if err == nil {
+			aslw.pub.AssistantLogUpdated(ctx, msgLog, false)
+		}
+		return msgID, err
+	} else {
+		msgLog, err := aslw.db.CreateAssistantLog(ctx, database.CreateAssistantLogParams{
+			Type:        msgType,
+			Message:     database.SanitizeUTF8(msg),
+			Thinking:    database.StringToNullString(database.SanitizeUTF8(thinking)),
+			FlowID:      aslw.flowID,
+			AssistantID: aslw.assistantID,
+		})
+		if err == nil {
+			if streamID != 0 {
+				aslw.streamCache.Add(streamID, msgLog.ID)
+			}
+			aslw.pub.AssistantLogAdded(ctx, msgLog)
+			return msgLog.ID, nil
+		}
+		return 0, err
+	}
+}
+
+func (aslw *flowAssistantLogWorker) putMsgResult(
+	ctx context.Context,
+	msgType database.MsglogType,
+	taskID, subtaskID *int64,
+	thinking, msg, result string,
+	resultFormat database.MsglogResultFormat,
+) (int64, error) {
+	if len(msg) > defaultMaxMessageLength {
+		msg = msg[:defaultMaxMessageLength] + "..."
+	}
+
+	msgLog, err := aslw.db.CreateResultAssistantLog(ctx, database.CreateResultAssistantLogParams{
+		Type:         msgType,
+		Message:      database.SanitizeUTF8(msg),
+		Thinking:     database.StringToNullString(database.SanitizeUTF8(thinking)),
+		Result:       database.SanitizeUTF8(result),
+		ResultFormat: resultFormat,
+		FlowID:       aslw.flowID,
+		AssistantID:  aslw.assistantID,
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	aslw.pub.AssistantLogAdded(ctx, msgLog)
+
+	return msgLog.ID, nil
+}
+
+func (aslw *flowAssistantLogWorker) appendMsgResult(
+	ctx context.Context, chunk *providers.StreamMessageChunk,
+) error {
+	var (
+		err    error
+		msgLog database.Assistantlog
+	)
+
+	if chunk == nil {
+		return nil
+	}
+
+	ch, ok := aslw.results[chunk.StreamID]
+	if ok {
+		ch <- chunk
+		return nil
+	}
+
+	msgLog, err = aslw.db.CreateAssistantLog(ctx, database.CreateAssistantLogParams{
+		Type:        chunk.MsgType,
+		Message:     "", // special case for completion answer
+		FlowID:      aslw.flowID,
+		AssistantID: aslw.assistantID,
+	})
+	if err != nil {
+		return err
+	}
+
+	aslw.streamCache.Add(chunk.StreamID, msgLog.ID)
+	ch = make(chan *providers.StreamMessageChunk, 50) // safe capacity to avoid deadlock
+	aslw.results[chunk.StreamID] = ch                 // it's safe because mutex is used in parent method
+	ch <- chunk
+
+	go aslw.workerMsgUpdater(msgLog.ID, chunk.StreamID, ch)
+
+	return nil
+}
+
+func (aslw *flowAssistantLogWorker) workerMsgUpdater(
+	msgID, streamID int64,
+	ch chan *providers.StreamMessageChunk,
+) {
+	timer := time.NewTimer(updateMsgTimeout)
+	defer timer.Stop()
+
+	ctx := context.Background()
+	result := ""
+	resultFormat := database.MsglogResultFormatPlain
+	contentData := make([]byte, 0, defaultMaxMessageLength)
+	contentBuf := bytes.NewBuffer(contentData)
+	thinkingData := make([]byte, 0, defaultMaxMessageLength)
+	thinkingBuf := bytes.NewBuffer(thinkingData)
+	wasUpdated := false
+	streamedType := database.MsglogTypeAnswer
+	hasUnsavedChunks := false
+
+	msgLog, err := aslw.db.GetFlowAssistantLog(ctx, msgID)
+	if err != nil {
+		// generic fields
+		msgLog = database.Assistantlog{
+			ID:          msgID,
+			FlowID:      aslw.flowID,
+			AssistantID: aslw.assistantID,
+			CreatedAt:   database.TimeToNullTime(time.Now()),
+		}
+	}
+
+	newLog := func(msgType database.MsglogType, content, thinking string) database.Assistantlog {
+		return database.Assistantlog{
+			ID:           msgID,
+			Type:         msgType,
+			Message:      content,
+			Thinking:     database.StringToNullString(thinking),
+			Result:       result,
+			ResultFormat: resultFormat,
+			FlowID:       msgLog.FlowID,
+			AssistantID:  msgLog.AssistantID,
+			CreatedAt:    msgLog.CreatedAt,
+		}
+	}
+
+	processChunk := func(chunk *providers.StreamMessageChunk) {
+		switch chunk.Type {
+		case providers.StreamMessageChunkTypeUpdate:
+			streamedType = chunk.MsgType
+			thinkingBuf.Reset()
+			contentBuf.Reset()
+			thinkingBuf.WriteString(aslw.getThinkingString(chunk.Thinking))
+			contentBuf.WriteString(chunk.Content)
+			hasUnsavedChunks = true
+			fallthrough // update both thinking and content, send it via publisher
+
+		case providers.StreamMessageChunkTypeFlush:
+			content, thinking := contentBuf.String(), thinkingBuf.String()
+			written, werr := aslw.db.UpdateAssistantLogContent(ctx, database.UpdateAssistantLogContentParams{
+				Type:     chunk.MsgType,
+				Message:  database.SanitizeUTF8(content),
+				Thinking: database.StringToNullString(database.SanitizeUTF8(thinking)),
+				ID:       msgID,
+			})
+			if werr == nil {
+				msgLog = written
+				wasUpdated = true
+				hasUnsavedChunks = false
+				aslw.pub.AssistantLogUpdated(ctx, msgLog, false)
+			}
+
+		case providers.StreamMessageChunkTypeContent:
+			contentBuf.WriteString(chunk.Content)
+			streamedType = chunk.MsgType
+			wasUpdated = true
+			hasUnsavedChunks = true
+			aslw.pub.AssistantLogUpdated(ctx, newLog(chunk.MsgType, chunk.Content, ""), true)
+
+		case providers.StreamMessageChunkTypeThinking:
+			thinkingBuf.WriteString(aslw.getThinkingString(chunk.Thinking))
+			wasUpdated = true
+			hasUnsavedChunks = true
+			aslw.pub.AssistantLogUpdated(ctx, newLog(chunk.MsgType, "", aslw.getThinkingString(chunk.Thinking)), true)
+
+		case providers.StreamMessageChunkTypeResult:
+			result = chunk.Result
+			resultFormat = chunk.ResultFormat
+			content, thinking := contentBuf.String(), thinkingBuf.String()
+			written, werr := aslw.db.UpdateAssistantLog(ctx, database.UpdateAssistantLogParams{
+				Type:         streamedType,
+				Message:      database.SanitizeUTF8(content),
+				Thinking:     database.StringToNullString(database.SanitizeUTF8(thinking)),
+				Result:       database.SanitizeUTF8(result),
+				ResultFormat: resultFormat,
+				ID:           msgID,
+			})
+			if werr == nil {
+				msgLog = written
+				wasUpdated = true
+				hasUnsavedChunks = false
+				aslw.pub.AssistantLogUpdated(ctx, msgLog, false)
+			}
+		}
+	}
+
+	persistTicker := time.NewTicker(assistantPersistInterval)
+	defer persistTicker.Stop()
+
+	persist := func() {
+		if !hasUnsavedChunks {
+			return
+		}
+
+		content, thinking := contentBuf.String(), thinkingBuf.String()
+		if perr := aslw.db.SaveAssistantLogContent(ctx, database.SaveAssistantLogContentParams{
+			Type:     streamedType,
+			Message:  database.SanitizeUTF8(content),
+			Thinking: database.StringToNullString(database.SanitizeUTF8(thinking)),
+			ID:       msgID,
+		}); perr == nil {
+			wasUpdated = true
+			hasUnsavedChunks = false
+		}
+	}
+
+	for {
+		select {
+		case <-persistTicker.C:
+			persist()
+
+		case <-timer.C:
+			// TryLock avoids a deadlock: while this branch holds up reading from ch,
+			// StreamFlowAssistantMsg may be blocked on a full ch <- chunk while
+			// holding aslw.mx. If the mutex is taken, the stream is still active —
+			// reset the timer and keep draining instead of blocking.
+			if !aslw.mx.TryLock() {
+				timer.Reset(updateMsgTimeout)
+				continue
+			}
+			defer aslw.mx.Unlock()
+
+			for len(ch) > 0 {
+				processChunk(<-ch)
+			}
+
+			// If record was never updated, delete it (empty message case)
+			if !wasUpdated {
+				_ = aslw.db.DeleteFlowAssistantLog(ctx, msgID)
+			} else {
+				content, thinking := contentBuf.String(), thinkingBuf.String()
+				_ = aslw.db.SaveAssistantLog(ctx, database.SaveAssistantLogParams{
+					Type:         streamedType,
+					Message:      database.SanitizeUTF8(content),
+					Thinking:     database.StringToNullString(database.SanitizeUTF8(thinking)),
+					Result:       database.SanitizeUTF8(result),
+					ResultFormat: resultFormat,
+					ID:           msgID,
+				})
+			}
+
+			delete(aslw.results, streamID)
+			close(ch)
+
+			return
+
+		case chunk := <-ch:
+			timer.Reset(updateMsgTimeout)
+
+			processChunk(chunk)
+		}
+	}
+}
+
+func (aslw *flowAssistantLogWorker) getThinkingString(thinking *reasoning.ContentReasoning) string {
+	if thinking == nil {
+		return ""
+	}
+	return thinking.Content
+}
+
+func (aslw *flowAssistantLogWorker) getThinkingStructure(thinking string) *reasoning.ContentReasoning {
+	if thinking == "" {
+		return nil
+	}
+	return &reasoning.ContentReasoning{
+		Content: thinking,
+	}
+}

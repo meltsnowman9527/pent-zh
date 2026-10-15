@@ -1,0 +1,159 @@
+# OpenRouter agent configuration.
+#
+# Strategy:
+#   - deepseek-v4-flash for deterministic utility calls;
+#   - GPT-4.1 Mini for structured JSON;
+#   - deepseek-v4.1-flash for routine agent and tool work;
+#   - deepseek-v4-pro for the highest-effort refinement step.
+#
+# Reasoning control notes:
+#   - utility agents use low effort because routed providers do not consistently
+#     honor a complete reasoning disable;
+#   - workhorse agents use high effort;
+#   - the refiner uses max effort.
+# Sampling parameters are omitted where reasoning is enabled.
+#
+# Prices were read from https://openrouter.ai/api/v1/models on 2026-09-25 and
+# are dollars per 1M tokens. Re-validate after model or routing changes.
+
+simple:
+  model: "deepseek/deepseek-v4-flash"
+  n: 1
+  max_tokens: 8192
+  reasoning:
+    effort: low
+  price:
+    input: 0.064
+    output: 0.128
+    cache_read: 0.0128
+
+simple_json:
+  model: "openai/gpt-4.1-mini"
+  n: 1
+  max_tokens: 4096
+  json: true
+  price:
+    input: 0.40
+    output: 1.60
+    cache_read: 0.10
+
+primary_agent:
+  model: "deepseek/deepseek-v4.1-flash"
+  n: 1
+  max_tokens: 16384
+  reasoning:
+    effort: high
+  price:
+    input: 0.15
+    output: 0.60
+    cache_read: 0.003
+
+assistant:
+  model: "deepseek/deepseek-v4.1-flash"
+  n: 1
+  max_tokens: 16384
+  reasoning:
+    effort: high
+  price:
+    input: 0.15
+    output: 0.60
+    cache_read: 0.003
+
+generator:
+  model: "deepseek/deepseek-v4.1-flash"
+  n: 1
+  max_tokens: 32768
+  reasoning:
+    effort: high
+  price:
+    input: 0.15
+    output: 0.60
+    cache_read: 0.003
+
+refiner:
+  model: "deepseek/deepseek-v4-pro"
+  n: 1
+  max_tokens: 32768
+  reasoning:
+    effort: max
+  price:
+    input: 0.86
+    output: 1.72
+    cache_read: 0.0717
+
+adviser:
+  model: "deepseek/deepseek-v4.1-flash"
+  n: 1
+  max_tokens: 16384
+  reasoning:
+    effort: high
+  price:
+    input: 0.15
+    output: 0.60
+    cache_read: 0.003
+
+reflector:
+  model: "deepseek/deepseek-v4-flash"
+  n: 1
+  max_tokens: 4096
+  reasoning:
+    effort: low
+  price:
+    input: 0.064
+    output: 0.128
+    cache_read: 0.0128
+
+searcher:
+  model: "deepseek/deepseek-v4-flash"
+  n: 1
+  max_tokens: 4096
+  reasoning:
+    effort: low
+  price:
+    input: 0.064
+    output: 0.128
+    cache_read: 0.0128
+
+enricher:
+  model: "deepseek/deepseek-v4.1-flash"
+  n: 1
+  max_tokens: 8192
+  reasoning:
+    effort: high
+  price:
+    input: 0.15
+    output: 0.60
+    cache_read: 0.003
+
+coder:
+  model: "deepseek/deepseek-v4.1-flash"
+  n: 1
+  max_tokens: 20480
+  reasoning:
+    effort: high
+  price:
+    input: 0.15
+    output: 0.60
+    cache_read: 0.003
+
+installer:
+  model: "deepseek/deepseek-v4.1-flash"
+  n: 1
+  max_tokens: 16384
+  reasoning:
+    effort: high
+  price:
+    input: 0.15
+    output: 0.60
+    cache_read: 0.003
+
+pentester:
+  model: "deepseek/deepseek-v4.1-flash"
+  n: 1
+  max_tokens: 16384
+  reasoning:
+    effort: high
+  price:
+    input: 0.15
+    output: 0.60
+    cache_read: 0.003

@@ -1,0 +1,253 @@
+package processor
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"time"
+)
+
+const (
+	composeFilePentagi       = "docker-compose.yml"
+	composeFileGraphiti      = "docker-compose-graphiti.yml"
+	composeFileLangfuse      = "docker-compose-langfuse.yml"
+	composeFileObservability = "docker-compose-observability.yml"
+)
+
+var composeOperationAllStacksOrder = map[ProcessorOperation][]ProductStack{
+	ProcessorOperationStart:    {ProductStackObservability, ProductStackLangfuse, ProductStackGraphiti, ProductStackPentagi},
+	ProcessorOperationStop:     {ProductStackPentagi, ProductStackGraphiti, ProductStackLangfuse, ProductStackObservability},
+	ProcessorOperationUpdate:   {ProductStackObservability, ProductStackLangfuse, ProductStackGraphiti, ProductStackPentagi},
+	ProcessorOperationDownload: {ProductStackObservability, ProductStackLangfuse, ProductStackGraphiti, ProductStackPentagi},
+	ProcessorOperationRemove:   {ProductStackObservability, ProductStackLangfuse, ProductStackGraphiti, ProductStackPentagi},
+	ProcessorOperationPurge:    {ProductStackObservability, ProductStackLangfuse, ProductStackGraphiti, ProductStackPentagi},
+}
+
+type composeOperationsImpl struct {
+	processor *processor
+}
+
+func newComposeOperations(p *processor) composeOperations {
+	return &composeOperationsImpl{processor: p}
+}
+
+// startStack starts Docker Compose stack with dependency ordering
+func (c *composeOperationsImpl) startStack(ctx context.Context, stack ProductStack, state *operationState) error {
+	return c.performStackOperation(ctx, stack, state, ProcessorOperationStart, "start")
+}
+
+// stopStack stops Docker Compose stack
+func (c *composeOperationsImpl) stopStack(ctx context.Context, stack ProductStack, state *operationState) error {
+	return c.performStackOperation(ctx, stack, state, ProcessorOperationStop, "stop")
+}
+
+// restartStack restarts Docker Compose stack (stop + start to avoid race conditions for dependencies)
+func (c *composeOperationsImpl) restartStack(ctx context.Context, stack ProductStack, state *operationState) error {
+	if err := c.stopStack(ctx, stack, state); err != nil {
+		return err
+	}
+
+	// brief pause to ensure clean shutdown
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(2 * time.Second):
+	}
+
+	return c.startStack(ctx, stack, state)
+}
+
+// updateStack performs rolling update with health checks (also used for install)
+// updateStack and downloadStack are the only two compose operations that FETCH anything,
+// and both write the image references the server chose into the environment file first.
+//
+// Here rather than at each call site, because there are five of them — update, download,
+// install and the three apply-changes phases — and the one that forgets is not a compile
+// error: `${COMPONENT_IMAGE:-default}` quietly resolves to the default the compose file
+// ships with, the pull fetches that, and the operation reports success having fetched
+// something the update server never offered.
+//
+// The tear-down operations below deliberately do not: `down` needs no reference, and
+// writing one while removing a stack would be a side effect nobody asked for.
+func (c *composeOperationsImpl) updateStack(ctx context.Context, stack ProductStack, state *operationState) error {
+	if err := c.processor.applyPullReferences(stack); err != nil {
+		return err
+	}
+	return c.performStackOperation(ctx, stack, state, ProcessorOperationUpdate, "up", "-d")
+}
+
+func (c *composeOperationsImpl) downloadStack(ctx context.Context, stack ProductStack, state *operationState) error {
+	if err := c.processor.applyPullReferences(stack); err != nil {
+		return err
+	}
+	return c.performStackOperation(ctx, stack, state, ProcessorOperationDownload, "pull")
+}
+
+func (c *composeOperationsImpl) removeStack(ctx context.Context, stack ProductStack, state *operationState) error {
+	return c.performStackOperation(ctx, stack, state, ProcessorOperationRemove, "down")
+}
+
+func (c *composeOperationsImpl) purgeStack(ctx context.Context, stack ProductStack, state *operationState) error {
+	return c.performStackOperation(ctx, stack, state, ProcessorOperationPurge, "down", "-v")
+}
+
+// purgeImagesStack is a stricter purge that also removes images referenced by the compose services
+func (c *composeOperationsImpl) purgeImagesStack(ctx context.Context, stack ProductStack, state *operationState) error {
+	return c.performStackOperation(ctx, stack, state, ProcessorOperationPurge, "down", "--rmi", "all", "-v")
+}
+
+func (c *composeOperationsImpl) performStackOperation(
+	ctx context.Context, stack ProductStack, state *operationState, operation ProcessorOperation, args ...string,
+) error {
+	switch stack {
+	case ProductStackPentagi:
+		// destructive operations cannot run without the compose file and have
+		// nothing to act on when the stack was never extracted
+		if isDestructiveComposeOperation(operation) && !c.composeFileExists(stack) {
+			return nil
+		}
+		return c.wrapPerformStackCommand(ctx, stack, state, operation, args...)
+
+	case ProductStackLangfuse, ProductStackObservability, ProductStackGraphiti:
+		switch operation {
+		// for destructive operations we must always allow compose to run, even if stack is disabled/external now
+		case ProcessorOperationRemove, ProcessorOperationPurge, ProcessorOperationStop:
+			// but only if the compose file exists; a missing file means the stack
+			// was never extracted and there is nothing for compose to remove
+			if !c.composeFileExists(stack) {
+				return nil
+			}
+			// execute the operation, but if it fails due to missing compose file, treat as success
+			// (this handles race conditions or path calculation issues)
+			err := c.wrapPerformStackCommand(ctx, stack, state, operation, args...)
+			if err != nil && c.isComposeMissingError(err) {
+				return nil
+			}
+			return err
+		// for non-destructive operations (start/update/download) honor embedded mode only
+		default:
+			if c.processor.isEmbeddedDeployment(stack) {
+				return c.wrapPerformStackCommand(ctx, stack, state, operation, args...)
+			}
+			return nil
+		}
+
+	case ProductStackAll, ProductStackCompose:
+		for _, s := range composeOperationAllStacksOrder[operation] {
+			if err := c.performStackOperation(ctx, s, state, operation, args...); err != nil {
+				return err
+			}
+		}
+		return nil
+
+	default:
+		return fmt.Errorf("operation %s not applicable for stack %s", operation, stack)
+	}
+}
+
+func (c *composeOperationsImpl) wrapPerformStackCommand(
+	ctx context.Context, stack ProductStack, state *operationState, operation ProcessorOperation, args ...string,
+) error {
+	msgs := c.getMessages(stack, operation)
+	c.processor.appendLog(msgs.Enter, stack, state)
+
+	err := c.performStackCommand(ctx, stack, state, args...)
+	if err != nil {
+		c.processor.appendLog(fmt.Sprintf("%s: %s\n", msgs.Error, err.Error()), stack, state)
+	} else {
+		c.processor.appendLog(msgs.Exit+"\n", stack, state)
+	}
+
+	return err
+}
+
+func (c *composeOperationsImpl) performStackCommand(
+	ctx context.Context, stack ProductStack, state *operationState, args ...string,
+) error {
+	envPath := c.processor.state.GetEnvPath()
+	composeFile, err := c.determineComposeFile(stack)
+	if err != nil {
+		return err
+	}
+	workingDir := filepath.Dir(envPath)
+	composePath := filepath.Join(workingDir, composeFile)
+
+	// check if files exist
+	if err := c.processor.isFileExists(composePath); err != nil {
+		return err
+	}
+	if err := c.processor.isFileExists(envPath); err != nil {
+		return err
+	}
+
+	// build docker compose command
+	args = append([]string{"compose", "--env-file", envPath, "-f", composePath}, args...)
+	cmd := exec.CommandContext(ctx, "docker", args...)
+	cmd.Dir = workingDir
+	cmd.Env = os.Environ()
+	// stacks are processed one by one, so we can ignore orphans
+	// orphans containers are removed by specific stack operations in main logic
+	cmd.Env = append(cmd.Env, "COMPOSE_IGNORE_ORPHANS=1")
+	// force Python unbuffered output to prevent incomplete data loss
+	cmd.Env = append(cmd.Env, "PYTHONUNBUFFERED=1")
+
+	return c.processor.runCommand(cmd, stack, state)
+}
+
+// isDestructiveComposeOperation reports whether the operation tears a stack down
+// (and therefore may target a stack that is disabled/external/never extracted)
+func isDestructiveComposeOperation(operation ProcessorOperation) bool {
+	switch operation {
+	case ProcessorOperationRemove, ProcessorOperationPurge, ProcessorOperationStop:
+		return true
+	default:
+		return false
+	}
+}
+
+// composeFileExists reports whether the stack's compose file is present on disk;
+// destructive operations cannot run (and have nothing to remove) without it
+func (c *composeOperationsImpl) composeFileExists(stack ProductStack) bool {
+	composeFile, err := c.determineComposeFile(stack)
+	if err != nil {
+		return false
+	}
+	composePath := filepath.Join(filepath.Dir(c.processor.state.GetEnvPath()), composeFile)
+	return c.processor.isFileExists(composePath) == nil
+}
+
+// isComposeMissingError checks if an error is due to a missing compose file
+func (c *composeOperationsImpl) isComposeMissingError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errMsg := err.Error()
+	return strings.Contains(errMsg, "does not exist") || strings.Contains(errMsg, "no such file")
+}
+
+func (c *composeOperationsImpl) determineComposeFile(stack ProductStack) (string, error) {
+	switch stack {
+	case ProductStackPentagi:
+		return composeFilePentagi, nil
+	case ProductStackGraphiti:
+		return composeFileGraphiti, nil
+	case ProductStackLangfuse:
+		return composeFileLangfuse, nil
+	case ProductStackObservability:
+		return composeFileObservability, nil
+	default:
+		return "", fmt.Errorf("stack %s not supported", stack)
+	}
+}
+
+func (c *composeOperationsImpl) getMessages(stack ProductStack, operation ProcessorOperation) SubsystemOperationMessage {
+	msgs := SubsystemOperationMessages[SubsystemCompose][operation]
+	return SubsystemOperationMessage{
+		Enter: fmt.Sprintf(msgs.Enter, stack),
+		Exit:  fmt.Sprintf(msgs.Exit, stack),
+		Error: fmt.Sprintf(msgs.Error, stack),
+	}
+}

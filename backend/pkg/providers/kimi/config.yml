@@ -1,0 +1,223 @@
+# Kimi (Moonshot) agent configuration.
+#
+# Strategy: kimi-k2.6 for utility/orchestration, kimi-k2.7-code-highspeed for the
+# primary/assistant loop, kimi-k3 (always-thinking flagship) for advice, and
+# kimi-k2.7-code for generator/refiner/coder/pentester.
+#
+# Thinking is expressed through the reasoning block, not extra_body: utility kimi-k2.6
+# agents set reasoning.mode "off" (langchaingo emits thinking.type=disabled), kimi-k3
+# sets reasoning.effort, and the always-thinking kimi-k2.7-code models reason by
+# default. extra_body carries only tool_choice.
+#
+# API constraints per model family (any deviation -> invalid_request_error):
+#   kimi-k3:      always reasons, no `thinking` param at all; reasoning depth is set
+#                 via the top-level `reasoning_effort` field (low/high/max, default
+#                 max). Here it is pinned to "max" via reasoning.effort below, which
+#                 AgentConfig.BuildOptions turns into llms.WithReasoning(ReasoningMax,
+#                 0) (see pconfig/config.go), emitted as the legacy top-level
+#                 reasoning_effort string (ModernReasoningFormat is off for this
+#                 shared openaicompat base). temperature=1.0, top_p=0.95, n=1,
+#                 presence/frequency_penalty=0 are fixed by the API. Do not switch
+#                 effort per call: it invalidates the prefix cache. Cache writes use
+#                 the default five-minute TTL and are billed at the input rate.
+#   kimi-k2.7-code / -highspeed: always reasons and keeps thinking; the only
+#                 accepted `thinking` is {type: enabled, keep: all}, and omitting it
+#                 means the same, so it is not sent. `reasoning_effort` is not
+#                 supported. temperature=1.0, top_p=0.95, n=1 fixed;
+#                 tool_choice="required" not supported (use auto).
+#   kimi-k2.6:    thinking: temperature=1.0, top_p=0.95, n=1, thinking.keep="all"
+#                 non-thinking: temperature=0.6, top_p=0.95, n=1
+#   always:       presence_penalty=0, frequency_penalty=0, tool_choice in {auto, none}
+#
+# Retired by Moonshot, calls return 404 - do not reintroduce: kimi-k2.5 and the whole
+# moonshot-v1 series (2026-08-31); kimi-k2-* turbo-preview, 0905-preview, 0711-preview,
+# thinking and thinking-turbo (2026-05-25).
+
+simple:
+  model: kimi-k2.6
+  temperature: 0.6
+  top_p: 0.95
+  n: 1
+  max_tokens: 8192
+  reasoning:
+    mode: "off"
+  extra_body:
+    tool_choice: auto
+  price:
+    input: 0.95
+    output: 4.00
+    cache_read: 0.16
+
+simple_json:
+  model: kimi-k2.6
+  temperature: 0.6
+  top_p: 0.95
+  n: 1
+  max_tokens: 4096
+  json: true
+  reasoning:
+    mode: "off"
+  extra_body:
+    tool_choice: auto
+  price:
+    input: 0.95
+    output: 4.00
+    cache_read: 0.16
+
+primary_agent:
+  model: kimi-k2.7-code-highspeed
+  temperature: 1.0
+  top_p: 0.95
+  n: 1
+  max_tokens: 16384
+  extra_body:
+    tool_choice: auto
+  price:
+    input: 1.90
+    output: 8.00
+    cache_read: 0.38
+
+assistant:
+  model: kimi-k2.7-code-highspeed
+  temperature: 1.0
+  top_p: 0.95
+  n: 1
+  max_tokens: 16384
+  extra_body:
+    tool_choice: auto
+  price:
+    input: 1.90
+    output: 8.00
+    cache_read: 0.38
+
+generator:
+  model: kimi-k2.7-code
+  temperature: 1.0
+  top_p: 0.95
+  presence_penalty: 0
+  frequency_penalty: 0
+  n: 1
+  max_tokens: 32768
+  extra_body:
+    tool_choice: auto
+  price:
+    input: 0.95
+    output: 4.00
+    cache_read: 0.19
+
+refiner:
+  model: kimi-k2.7-code
+  temperature: 1.0
+  top_p: 0.95
+  presence_penalty: 0
+  frequency_penalty: 0
+  n: 1
+  max_tokens: 32768
+  extra_body:
+    tool_choice: auto
+  price:
+    input: 0.95
+    output: 4.00
+    cache_read: 0.19
+
+adviser:
+  model: kimi-k3
+  temperature: 1.0
+  top_p: 0.95
+  presence_penalty: 0
+  frequency_penalty: 0
+  n: 1
+  max_tokens: 8192
+  reasoning:
+    effort: max
+  extra_body:
+    tool_choice: auto
+  price:
+    input: 3.00
+    output: 15.00
+    cache_read: 0.30
+    cache_write: 3.00
+
+reflector:
+  model: kimi-k2.6
+  temperature: 0.6
+  top_p: 0.95
+  n: 1
+  max_tokens: 4096
+  reasoning:
+    mode: "off"
+  extra_body:
+    tool_choice: auto
+  price:
+    input: 0.95
+    output: 4.00
+    cache_read: 0.16
+
+searcher:
+  model: kimi-k2.6
+  temperature: 0.6
+  top_p: 0.95
+  n: 1
+  max_tokens: 4096
+  reasoning:
+    mode: "off"
+  extra_body:
+    tool_choice: auto
+  price:
+    input: 0.95
+    output: 4.00
+    cache_read: 0.16
+
+enricher:
+  model: kimi-k2.6
+  temperature: 0.6
+  top_p: 0.95
+  n: 1
+  max_tokens: 4096
+  reasoning:
+    mode: "off"
+  extra_body:
+    tool_choice: auto
+  price:
+    input: 0.95
+    output: 4.00
+    cache_read: 0.16
+
+coder:
+  model: kimi-k2.7-code
+  temperature: 1.0
+  top_p: 0.95
+  n: 1
+  max_tokens: 20480
+  extra_body:
+    tool_choice: auto
+  price:
+    input: 0.95
+    output: 4.00
+    cache_read: 0.19
+
+installer:
+  model: kimi-k2.6
+  temperature: 1.0
+  top_p: 0.95
+  n: 1
+  max_tokens: 16384
+  extra_body:
+    tool_choice: auto
+  price:
+    input: 0.95
+    output: 4.00
+    cache_read: 0.16
+
+pentester:
+  model: kimi-k2.7-code
+  temperature: 1.0
+  top_p: 0.95
+  n: 1
+  max_tokens: 16384
+  extra_body:
+    tool_choice: auto
+  price:
+    input: 0.95
+    output: 4.00
+    cache_read: 0.19

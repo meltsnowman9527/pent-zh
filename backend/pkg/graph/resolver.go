@@ -1,0 +1,36 @@
+package graph
+
+import (
+	"pentagi/pkg/config"
+	"pentagi/pkg/controller"
+	"pentagi/pkg/database"
+	"pentagi/pkg/database/knowledge"
+	"pentagi/pkg/graph/subscriptions"
+	"pentagi/pkg/providers"
+	"pentagi/pkg/server/auth"
+	"pentagi/pkg/server/update"
+	"pentagi/pkg/templates"
+	"pentagi/pkg/timezone"
+
+	"github.com/sirupsen/logrus"
+	"github.com/vxcontrol/cloud/anonymizer"
+)
+
+// This file will not be regenerated automatically.
+//
+// It serves as dependency injection for your app, add any dependencies you require here.
+
+type Resolver struct {
+	DB              database.Querier
+	Config          *config.Config
+	Logger          *logrus.Entry
+	TokenCache      *auth.TokenCache
+	DefaultPrompter templates.Prompter
+	ProvidersCtrl   providers.ProviderController
+	Controller      controller.FlowController
+	Subscriptions   subscriptions.SubscriptionsController
+	Knowledge       knowledge.KnowledgeStore
+	Replacer        anonymizer.Replacer
+	Updates         *update.Service
+	Timezones       *timezone.Catalog
+}

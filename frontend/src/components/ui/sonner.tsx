@@ -1,0 +1,44 @@
+'use client';
+
+import { CircleCheckIcon, InfoIcon, OctagonXIcon, TriangleAlertIcon } from 'lucide-react';
+import { Toaster as Sonner, type ToasterProps } from 'sonner';
+
+import { Spinner } from '@/components/ui/spinner';
+import { useTheme } from '@/hooks/use-theme';
+
+function Toaster({ ...props }: ToasterProps) {
+    const { theme } = useTheme();
+
+    return (
+        <Sonner
+            className="toaster group"
+            icons={{
+                error: <OctagonXIcon className="size-4" />,
+                info: <InfoIcon className="size-4" />,
+                loading: (
+                    <Spinner
+                        className="size-4"
+                        variant="circle"
+                    />
+                ),
+                success: <CircleCheckIcon className="size-4" />,
+                warning: <TriangleAlertIcon className="size-4" />,
+            }}
+            style={
+                {
+                    '--border-radius': 'var(--radius)',
+                    '--normal-bg': 'var(--popover)',
+                    '--normal-border': 'var(--border)',
+                    '--normal-text': 'var(--popover-foreground)',
+                    '--toast-icon-margin-end': '0px',
+                    '--toast-icon-margin-start': '0px',
+                    '--width': '320px',
+                } as React.CSSProperties
+            }
+            theme={theme as ToasterProps['theme']}
+            {...props}
+        />
+    );
+}
+
+export { Toaster };

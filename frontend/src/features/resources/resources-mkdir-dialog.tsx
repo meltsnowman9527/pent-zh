@@ -1,0 +1,129 @@
+import { FolderPlus } from 'lucide-react';
+import { useEffect } from 'react';
+
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { FormSubmitButton } from '@/components/ui/form-submit-button';
+import { Input } from '@/components/ui/input';
+import { useAppForm } from '@/hooks/use-app-form';
+import { uiText } from '@/locales/zh-CN';
+
+import { resourcesMkdirFormSchema, type ResourcesMkdirFormValues, useResourcesMkdir } from './use-resources-mkdir';
+
+interface ResourcesMkdirDialogFormProps {
+    defaultParentPath: string;
+    onClose: () => void;
+}
+
+interface ResourcesMkdirDialogProps {
+    /** Pre-filled parent path (without leading "/"). Empty string targets the root. */
+    defaultParentPath?: string;
+    isOpen: boolean;
+    onClose: () => void;
+}
+
+const buildDefaultPath = (defaultParentPath: string): string =>
+    defaultParentPath ? `${defaultParentPath.replace(/\/+$/u, '')}/new-folder` : 'new-folder';
+
+export function ResourcesMkdirDialog({ defaultParentPath = '', isOpen, onClose }: ResourcesMkdirDialogProps) {
+    const handleDialogOpenChange = (nextOpen: boolean) => {
+        if (!nextOpen) {
+            onClose();
+        }
+    };
+
+    return (
+        <Dialog
+            onOpenChange={handleDialogOpenChange}
+            open={isOpen}
+        >
+            {isOpen && (
+                <ResourcesMkdirDialogForm
+                    defaultParentPath={defaultParentPath}
+                    onClose={onClose}
+                />
+            )}
+        </Dialog>
+    );
+}
+
+function ResourcesMkdirDialogForm({ defaultParentPath, onClose }: ResourcesMkdirDialogFormProps) {
+    const { isCreating, mkdir } = useResourcesMkdir();
+
+    const form = useAppForm<ResourcesMkdirFormValues>({
+        defaultValues: { path: buildDefaultPath(defaultParentPath) },
+        schema: resourcesMkdirFormSchema,
+    });
+
+    useEffect(() => {
+        form.reset({ path: buildDefaultPath(defaultParentPath) });
+    }, [defaultParentPath, form]);
+
+    const handleSubmit = form.handleSubmit(async (values) => {
+        const wasCreated = await mkdir(values);
+
+        if (wasCreated) {
+            onClose();
+        }
+    });
+
+    return (
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                    <FolderPlus className="size-4" />
+                    {uiText('Create directory')}
+                </DialogTitle>
+                <DialogDescription>
+                    {uiText(
+                        'Create a virtual directory inside your resource library. Existing parent directories are reused automatically.',
+                    )}
+                </DialogDescription>
+            </DialogHeader>
+
+            <Form {...form}>
+                <form
+                    className="flex flex-col gap-4"
+                    noValidate
+                    onSubmit={handleSubmit}
+                >
+                    <FormField
+                        control={form.control}
+                        name="path"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>{uiText('Path')}</FormLabel>
+                                <FormControl>
+                                    <Input
+                                        {...field}
+                                        autoComplete="off"
+                                        autoFocus
+                                        disabled={isCreating}
+                                        placeholder={uiText('reports/2025')}
+                                    />
+                                </FormControl>
+                                <FormDescription>
+                                    {uiText('Relative path. Use / to nest into subdirectories.')}
+                                </FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+
+                    <div className="flex justify-end gap-2">
+                        <Button
+                            disabled={isCreating}
+                            onClick={onClose}
+                            type="button"
+                            variant="outline"
+                        >
+                            {uiText('Cancel')}
+                        </Button>
+                        <FormSubmitButton icon={<FolderPlus />}>{uiText('Create')}</FormSubmitButton>
+                    </div>
+                </form>
+            </Form>
+        </DialogContent>
+    );
+}

@@ -1,0 +1,612 @@
+import { getUILanguage } from '@/locales/language';
+import { useQuery } from '@apollo/client/react';
+import { format } from 'date-fns';
+import { enUS, zhCN } from 'date-fns/locale';
+import { ChevronRight, Clock, Wrench } from 'lucide-react';
+import { memo, useDeferredValue, useMemo, useRef, useState } from 'react';
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from 'recharts';
+
+import type { FlowFragmentFragment, UsageStatsPeriod } from '@/graphql/types';
+
+import { ChartCard, ChartTooltip, DashboardError } from '@/components/dashboard';
+import { FlowStatusBadge } from '@/components/icons/flow-status-badge';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Spinner } from '@/components/ui/spinner';
+import {
+    FlowsDocument,
+    FlowsExecutionStatsByPeriodDocument,
+    FlowsStatsByPeriodDocument,
+    ToolcallsStatsByPeriodDocument,
+    UsageStatsByPeriodDocument,
+} from '@/graphql/types';
+import { cn } from '@/lib/utils';
+import { isSeriesEmpty } from '@/lib/utils/chart-series';
+import { formatCost, formatDuration, formatNumber, formatTokenCount } from '@/lib/utils/format';
+import { uiText } from '@/locales/zh-CN';
+import { fillPeriodDays } from '@/pages/dashboard/analytics-period';
+
+const CHART_COLORS = {
+    area1: 'var(--color-chart-1)',
+    area2: 'var(--color-chart-2)',
+    area3: 'var(--color-chart-3)',
+    bar1: 'var(--color-chart-4)',
+    bar2: 'var(--color-chart-5)',
+};
+
+const formatDateLabel = (dateString: string): string => {
+    try {
+        return format(new Date(dateString), getUILanguage() === 'en' ? 'd MMM' : 'M月d日', {
+            locale: getUILanguage() === 'en' ? enUS : zhCN,
+        });
+    } catch {
+        return dateString;
+    }
+};
+
+const axisTickStyle = { fill: 'var(--color-muted-foreground)', fontSize: 12 };
+
+type FlowExecution = {
+    flowId: string;
+    flowTitle: string;
+    tasks: Array<{
+        subtasks: Array<{
+            subtaskId: string;
+            subtaskTitle: string;
+            totalDurationSeconds: number;
+            totalToolcallsCount: number;
+        }>;
+        taskId: string;
+        taskTitle: string;
+        totalDurationSeconds: number;
+        totalToolcallsCount: number;
+    }>;
+    totalAssistantsCount: number;
+    totalDurationSeconds: number;
+    totalToolcallsCount: number;
+};
+
+export function DashboardAnalytics({ period }: { period: UsageStatsPeriod }) {
+    const timezone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC', []);
+
+    const {
+        data: usageByPeriodData,
+        error: usageByPeriodError,
+        loading: usageByPeriodLoading,
+    } = useQuery(UsageStatsByPeriodDocument, {
+        variables: { period, timezone },
+    });
+    const {
+        data: toolcallsByPeriodData,
+        error: toolcallsByPeriodError,
+        loading: toolcallsByPeriodLoading,
+    } = useQuery(ToolcallsStatsByPeriodDocument, {
+        variables: { period, timezone },
+    });
+    const {
+        data: flowsByPeriodData,
+        error: flowsByPeriodError,
+        loading: flowsByPeriodLoading,
+    } = useQuery(FlowsStatsByPeriodDocument, {
+        variables: { period, timezone },
+    });
+    const {
+        data: executionStatsData,
+        error: executionStatsError,
+        loading: executionStatsLoading,
+    } = useQuery(FlowsExecutionStatsByPeriodDocument, {
+        variables: { period, timezone },
+    });
+    const { data: flowsData } = useQuery(FlowsDocument);
+
+    const flowsTooltip = useChartTooltipAnimation();
+    const toolcallsTooltip = useChartTooltipAnimation();
+    const tokenUsageTooltip = useChartTooltipAnimation();
+    const costTooltip = useChartTooltipAnimation();
+
+    const flowsById = useMemo(() => {
+        const map = new Map<string, FlowFragmentFragment>();
+        (flowsData?.flows ?? []).forEach((flow) => {
+            map.set(flow.id, flow);
+        });
+
+        return map;
+    }, [flowsData?.flows]);
+
+    // The backend groups by day and returns only days that have rows, so every
+    // period used to plot the same single point whenever all activity happened on
+    // one day. Filling the query window makes the week/month/quarter switch
+    // visible on the axis; `empty` below still keys off the raw rows so a period
+    // with no activity keeps its empty state instead of a flat zero chart.
+    const usageRows = usageByPeriodData?.usageStatsByPeriod;
+    const toolcallsRows = toolcallsByPeriodData?.toolcallsStatsByPeriod;
+    const flowsRows = flowsByPeriodData?.flowsStatsByPeriod;
+
+    const usageChartData = useMemo(
+        () =>
+            fillPeriodDays(
+                (usageRows ?? []).map((item) => ({
+                    cacheIn: item.stats.totalUsageCacheIn,
+                    costIn: item.stats.totalUsageCostIn,
+                    costOut: item.stats.totalUsageCostOut,
+                    date: item.date,
+                    tokensIn: item.stats.totalUsageIn,
+                    tokensOut: item.stats.totalUsageOut,
+                    totalCost: item.stats.totalUsageCostIn + item.stats.totalUsageCostOut,
+                })),
+                period,
+                (item) => item.date,
+                (date) => ({
+                    cacheIn: 0,
+                    costIn: 0,
+                    costOut: 0,
+                    date,
+                    tokensIn: 0,
+                    tokensOut: 0,
+                    totalCost: 0,
+                }),
+            ),
+        [period, usageRows],
+    );
+
+    const toolcallsChartData = useMemo(
+        () =>
+            fillPeriodDays(
+                (toolcallsRows ?? []).map((item) => ({
+                    count: item.stats.totalCount,
+                    date: item.date,
+                    duration: item.stats.totalDurationSeconds,
+                })),
+                period,
+                (item) => item.date,
+                (date) => ({ count: 0, date, duration: 0 }),
+            ),
+        [period, toolcallsRows],
+    );
+
+    const flowsChartData = useMemo(
+        () =>
+            fillPeriodDays(
+                (flowsRows ?? []).map((item) => ({
+                    assistants: item.stats.totalAssistantsCount,
+                    date: item.date,
+                    flows: item.stats.totalFlowsCount,
+                    subtasks: item.stats.totalSubtasksCount,
+                    tasks: item.stats.totalTasksCount,
+                })),
+                period,
+                (item) => item.date,
+                (date) => ({ assistants: 0, date, flows: 0, subtasks: 0, tasks: 0 }),
+            ),
+        [period, flowsRows],
+    );
+
+    const executionStats = executionStatsData?.flowsExecutionStatsByPeriod ?? [];
+    // Defer the heavy 130+ row list so a period switch can repaint the charts
+    // first and run the long list reconciliation as a low-priority follow-up.
+    // Combined with content-visibility: auto on each row this drops the
+    // pointerdown→paint INP from ~430ms into the "Good" (<200ms) zone.
+    const deferredExecutionStats = useDeferredValue(executionStats);
+
+    return (
+        <div className="flex flex-col gap-6">
+            <ChartCard
+                description={uiText('Flows, tasks, and subtasks created per day')}
+                empty={isSeriesEmpty(flowsChartData)}
+                error={!!flowsByPeriodError && !flowsByPeriodData}
+                height={320}
+                loading={flowsByPeriodLoading && !flowsByPeriodData}
+                title={uiText('Flows Activity Over Time')}
+            >
+                <BarChart
+                    data={flowsChartData}
+                    onMouseEnter={flowsTooltip.onMouseEnter}
+                    onMouseLeave={flowsTooltip.onMouseLeave}
+                >
+                    <CartesianGrid
+                        className="stroke-border"
+                        strokeDasharray="3 3"
+                    />
+                    <XAxis
+                        dataKey="date"
+                        tick={axisTickStyle}
+                        tickFormatter={formatDateLabel}
+                        tickMargin={8}
+                    />
+                    <YAxis
+                        tick={axisTickStyle}
+                        tickMargin={8}
+                    />
+                    <Tooltip
+                        content={
+                            <ChartTooltip
+                                labelFormatter={formatDateLabel}
+                                onFirstActive={flowsTooltip.onFirstActive}
+                                sessionKey={flowsTooltip.sessionKey}
+                            />
+                        }
+                        cursor={{ fill: 'var(--color-muted-foreground)', fillOpacity: 0.1 }}
+                        isAnimationActive={flowsTooltip.isAnimationActive}
+                    />
+                    <Bar
+                        dataKey="flows"
+                        fill={CHART_COLORS.area1}
+                        name={uiText('Flows')}
+                        radius={[4, 4, 0, 0]}
+                    />
+                    <Bar
+                        dataKey="tasks"
+                        fill={CHART_COLORS.area2}
+                        name={uiText('Tasks')}
+                        radius={[4, 4, 0, 0]}
+                    />
+                    <Bar
+                        dataKey="subtasks"
+                        fill={CHART_COLORS.area3}
+                        name={uiText('Subtasks')}
+                        radius={[4, 4, 0, 0]}
+                    />
+                </BarChart>
+            </ChartCard>
+
+            <div className="grid gap-6 lg:grid-cols-2">
+                <ChartCard
+                    description={uiText('Number of tool executions per day')}
+                    empty={isSeriesEmpty(toolcallsChartData)}
+                    error={!!toolcallsByPeriodError && !toolcallsByPeriodData}
+                    loading={toolcallsByPeriodLoading && !toolcallsByPeriodData}
+                    title={uiText('Tool Calls Over Time')}
+                >
+                    <BarChart
+                        data={toolcallsChartData}
+                        onMouseEnter={toolcallsTooltip.onMouseEnter}
+                        onMouseLeave={toolcallsTooltip.onMouseLeave}
+                    >
+                        <CartesianGrid
+                            className="stroke-border"
+                            strokeDasharray="3 3"
+                        />
+                        <XAxis
+                            dataKey="date"
+                            tick={axisTickStyle}
+                            tickFormatter={formatDateLabel}
+                            tickMargin={8}
+                        />
+                        <YAxis
+                            tick={axisTickStyle}
+                            tickMargin={8}
+                        />
+                        <Tooltip
+                            content={
+                                <ChartTooltip
+                                    labelFormatter={formatDateLabel}
+                                    onFirstActive={toolcallsTooltip.onFirstActive}
+                                    sessionKey={toolcallsTooltip.sessionKey}
+                                />
+                            }
+                            cursor={{ fill: 'var(--color-muted-foreground)', fillOpacity: 0.1 }}
+                            isAnimationActive={toolcallsTooltip.isAnimationActive}
+                        />
+                        <Bar
+                            dataKey="count"
+                            fill={CHART_COLORS.bar1}
+                            name={uiText('Tool Calls')}
+                            radius={[4, 4, 0, 0]}
+                        />
+                    </BarChart>
+                </ChartCard>
+
+                <ChartCard
+                    description={uiText('Input and output tokens processed daily')}
+                    empty={isSeriesEmpty(usageChartData)}
+                    error={!!usageByPeriodError && !usageByPeriodData}
+                    loading={usageByPeriodLoading && !usageByPeriodData}
+                    title={uiText('Token Usage Over Time')}
+                >
+                    <AreaChart
+                        data={usageChartData}
+                        onMouseEnter={tokenUsageTooltip.onMouseEnter}
+                        onMouseLeave={tokenUsageTooltip.onMouseLeave}
+                    >
+                        <CartesianGrid
+                            className="stroke-border"
+                            strokeDasharray="3 3"
+                        />
+                        <XAxis
+                            dataKey="date"
+                            tick={axisTickStyle}
+                            tickFormatter={formatDateLabel}
+                            tickMargin={8}
+                        />
+                        <YAxis
+                            tick={axisTickStyle}
+                            tickFormatter={formatTokenCount}
+                            tickMargin={8}
+                        />
+                        <Tooltip
+                            content={
+                                <ChartTooltip
+                                    formatter={(value) => formatTokenCount(value)}
+                                    labelFormatter={formatDateLabel}
+                                    onFirstActive={tokenUsageTooltip.onFirstActive}
+                                    sessionKey={tokenUsageTooltip.sessionKey}
+                                />
+                            }
+                            isAnimationActive={tokenUsageTooltip.isAnimationActive}
+                        />
+                        <Area
+                            dataKey="tokensIn"
+                            fill={CHART_COLORS.area1}
+                            fillOpacity={0.3}
+                            name={uiText('Tokens In')}
+                            stroke={CHART_COLORS.area1}
+                            type="monotone"
+                        />
+                        <Area
+                            dataKey="tokensOut"
+                            fill={CHART_COLORS.area2}
+                            fillOpacity={0.3}
+                            name={uiText('Tokens Out')}
+                            stroke={CHART_COLORS.area2}
+                            type="monotone"
+                        />
+                    </AreaChart>
+                </ChartCard>
+            </div>
+
+            <ChartCard
+                description={uiText(
+                    'LLM spending per day. May stay near zero when using local engines — this is expected.',
+                )}
+                empty={isSeriesEmpty(usageChartData)}
+                error={!!usageByPeriodError && !usageByPeriodData}
+                height={240}
+                loading={usageByPeriodLoading && !usageByPeriodData}
+                title={uiText('Cost Over Time')}
+            >
+                <AreaChart
+                    data={usageChartData}
+                    onMouseEnter={costTooltip.onMouseEnter}
+                    onMouseLeave={costTooltip.onMouseLeave}
+                >
+                    <CartesianGrid
+                        className="stroke-border"
+                        strokeDasharray="3 3"
+                    />
+                    <XAxis
+                        dataKey="date"
+                        tick={axisTickStyle}
+                        tickFormatter={formatDateLabel}
+                        tickMargin={8}
+                    />
+                    <YAxis
+                        tick={axisTickStyle}
+                        tickFormatter={(value) => formatCost(value)}
+                        tickMargin={8}
+                    />
+                    <Tooltip
+                        content={
+                            <ChartTooltip
+                                formatter={(value) => formatCost(value)}
+                                labelFormatter={formatDateLabel}
+                                onFirstActive={costTooltip.onFirstActive}
+                                sessionKey={costTooltip.sessionKey}
+                            />
+                        }
+                        isAnimationActive={costTooltip.isAnimationActive}
+                    />
+                    <Area
+                        dataKey="costIn"
+                        fill={CHART_COLORS.area1}
+                        fillOpacity={0.3}
+                        name={uiText('Cost In')}
+                        stroke={CHART_COLORS.area1}
+                        type="monotone"
+                    />
+                    <Area
+                        dataKey="costOut"
+                        fill={CHART_COLORS.area3}
+                        fillOpacity={0.3}
+                        name={uiText('Cost Out')}
+                        stroke={CHART_COLORS.area3}
+                        type="monotone"
+                    />
+                </AreaChart>
+            </ChartCard>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>{uiText('Flow Execution Details')}</CardTitle>
+                    <CardDescription>{uiText('Execution time and tool calls breakdown per flow')}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    {executionStatsLoading && !executionStatsData ? (
+                        <div className="flex items-center justify-center py-8">
+                            <Spinner
+                                className="text-muted-foreground size-6"
+                                variant="circle"
+                            />
+                        </div>
+                    ) : executionStatsError && !executionStatsData ? (
+                        <DashboardError className="py-8" />
+                    ) : !deferredExecutionStats.length ? (
+                        <p className="text-muted-foreground py-8 text-center text-sm">
+                            {uiText('No flow executions in this period')}
+                        </p>
+                    ) : (
+                        <div
+                            className={cn(
+                                'flex flex-col gap-1 transition-opacity',
+                                deferredExecutionStats !== executionStats && 'opacity-60',
+                            )}
+                        >
+                            {deferredExecutionStats.map((flow) => (
+                                <FlowExecutionItem
+                                    flow={flow}
+                                    flowMeta={flowsById.get(flow.flowId)}
+                                    key={flow.flowId}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+        </div>
+    );
+}
+
+const FlowExecutionItem = memo(function FlowExecutionItem({
+    flow,
+    flowMeta,
+}: {
+    flow: FlowExecution;
+    flowMeta?: FlowFragmentFragment;
+}) {
+    const [isOpen, setIsOpen] = useState(false);
+    const taskCount = flow.tasks.length;
+    const subtaskCount = flow.tasks.reduce((sum, task) => sum + task.subtasks.length, 0);
+
+    return (
+        <Collapsible
+            // content-visibility: auto lets the browser skip layout & paint for
+            // rows outside the viewport. With ~130+ rows this is the cheapest
+            // possible virtualization — no deps, no measurement, no scroll math.
+            className="[contain-intrinsic-size:auto_56px] [content-visibility:auto]"
+            onOpenChange={setIsOpen}
+            open={isOpen}
+        >
+            <CollapsibleTrigger className="hover:bg-muted/50 group flex w-full items-start gap-3 rounded-lg px-3 py-2 text-left transition-colors">
+                <ChevronRight className={`mt-1 size-4 shrink-0 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
+                <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <span className="truncate font-medium">
+                            {flow.flowTitle || uiText('Flow #{id}', { id: flow.flowId })}
+                        </span>
+                        {flowMeta?.status && <FlowStatusBadge status={flowMeta.status} />}
+                        {flowMeta?.provider?.name && <Badge variant="secondary">{flowMeta.provider.name}</Badge>}
+                    </div>
+                    <div className="text-muted-foreground mt-0.5 text-xs">
+                        {uiText('{count} tasks', { count: taskCount })}
+                        {subtaskCount > 0 && ` · ${uiText('{count} subtasks', { count: subtaskCount })}`}
+                        {flow.totalAssistantsCount > 0 &&
+                            ` · ${uiText('{count} assistants', { count: flow.totalAssistantsCount })}`}
+                    </div>
+                </div>
+                <div className="text-muted-foreground flex shrink-0 items-center gap-4 pt-1 text-sm">
+                    <span className="flex items-center gap-1">
+                        <Clock className="size-3" />
+                        {formatDuration(flow.totalDurationSeconds)}
+                    </span>
+                    <span className="flex items-center gap-1">
+                        <Wrench className="size-3" />
+                        {formatNumber(flow.totalToolcallsCount)}
+                    </span>
+                </div>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+                <div className="ml-7 flex flex-col gap-1 border-l pl-3">
+                    {flow.tasks.map((task) => (
+                        <TaskExecutionItem
+                            key={task.taskId}
+                            task={task}
+                        />
+                    ))}
+                </div>
+            </CollapsibleContent>
+        </Collapsible>
+    );
+});
+
+const TaskExecutionItem = memo(function TaskExecutionItem({ task }: { task: FlowExecution['tasks'][number] }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const hasSubtasks = task.subtasks.length > 0;
+
+    return (
+        <Collapsible
+            onOpenChange={setIsOpen}
+            open={isOpen}
+        >
+            <CollapsibleTrigger
+                className="hover:bg-muted/50 flex w-full items-center gap-3 rounded-lg px-3 py-1.5 text-left text-sm transition-colors"
+                disabled={!hasSubtasks}
+            >
+                {hasSubtasks ? (
+                    <ChevronRight className={`size-3 shrink-0 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
+                ) : (
+                    <span className="size-3 shrink-0" />
+                )}
+                <div className="text-muted-foreground flex-1 truncate">
+                    {task.taskTitle || uiText('Task #{id}', { id: task.taskId })}
+                </div>
+                <div className="text-muted-foreground flex items-center gap-4 text-xs">
+                    <span className="flex items-center gap-1">
+                        <Clock className="size-3" />
+                        {formatDuration(task.totalDurationSeconds)}
+                    </span>
+                    <span className="flex items-center gap-1">
+                        <Wrench className="size-3" />
+                        {formatNumber(task.totalToolcallsCount)}
+                    </span>
+                </div>
+            </CollapsibleTrigger>
+            {hasSubtasks && (
+                <CollapsibleContent>
+                    <div className="ml-6 flex flex-col gap-0.5 border-l pl-3">
+                        {task.subtasks.map((subtask) => (
+                            <div
+                                className="text-muted-foreground flex items-center gap-3 px-3 py-1 text-xs"
+                                key={subtask.subtaskId}
+                            >
+                                <div className="flex-1 truncate">
+                                    {subtask.subtaskTitle || uiText('Subtask #{id}', { id: subtask.subtaskId })}
+                                </div>
+                                <div className="flex items-center gap-4">
+                                    <span className="flex items-center gap-1">
+                                        <Clock className="size-3" />
+                                        {formatDuration(subtask.totalDurationSeconds)}
+                                    </span>
+                                    <span className="flex items-center gap-1">
+                                        <Wrench className="size-3" />
+                                        {formatNumber(subtask.totalToolcallsCount)}
+                                    </span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </CollapsibleContent>
+            )}
+        </Collapsible>
+    );
+});
+
+// Disables tooltip animation on chart entry and re-enables it only after the
+// tooltip has rendered at the correct position for the first time in the session.
+// This prevents the tooltip from flying from (0,0) to the cursor on entry,
+// while keeping smooth follow animation for all subsequent movements.
+function useChartTooltipAnimation() {
+    const [isAnimationActive, setIsAnimationActive] = useState(false);
+    const [sessionKey, setSessionKey] = useState(0);
+    const rafRef = useRef<number | undefined>(undefined);
+
+    const onMouseEnter = () => {
+        cancelAnimationFrame(rafRef.current!);
+        setIsAnimationActive(false);
+        setSessionKey((k) => k + 1);
+    };
+
+    const onMouseLeave = () => {
+        cancelAnimationFrame(rafRef.current!);
+        setIsAnimationActive(false);
+    };
+
+    // Called by ChartTooltip the first time it becomes visible in this session.
+    // One rAF ensures the tooltip has painted at its initial position before
+    // animation is re-enabled for subsequent cursor movements.
+    const onFirstActive = () => {
+        cancelAnimationFrame(rafRef.current!);
+        rafRef.current = requestAnimationFrame(() => setIsAnimationActive(true));
+    };
+
+    return { isAnimationActive, onFirstActive, onMouseEnter, onMouseLeave, sessionKey };
+}

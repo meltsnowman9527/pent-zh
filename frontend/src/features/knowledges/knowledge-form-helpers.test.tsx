@@ -1,0 +1,260 @@
+import { describe, expect, it } from 'vitest';
+
+import type { KnowledgeDocumentFragmentFragment } from '@/graphql/types';
+
+import { KnowledgeAnswerType, KnowledgeDocType, KnowledgeGuideType } from '@/graphql/types';
+import { uiText } from '@/locales/zh-CN';
+
+import type { DirtyFlags, FormValues } from './knowledge-form';
+
+import { documentToFormValues, formSchema, formValuesToCreateInput, formValuesToUpdateInput } from './knowledge-form';
+
+const baseValues: FormValues = {
+    answerType: KnowledgeAnswerType.Other,
+    codeLang: '',
+    content: 'some content',
+    description: '',
+    docType: KnowledgeDocType.Answer,
+    guideType: undefined,
+    question: 'a question',
+};
+
+const baseFragment: KnowledgeDocumentFragmentFragment = {
+    answerType: KnowledgeAnswerType.Other,
+    codeLang: null,
+    content: 'frag content',
+    description: null,
+    docType: KnowledgeDocType.Answer,
+    flowId: null,
+    guideType: null,
+    id: '42',
+    manual: true,
+    partSize: 1,
+    question: 'frag question',
+    subtaskId: null,
+    taskId: null,
+    totalSize: 1,
+    userId: '7',
+};
+
+describe('formValuesToCreateInput', () => {
+    it('sends all required fields', () => {
+        const input = formValuesToCreateInput({
+            ...baseValues,
+            codeLang: 'python',
+            description: 'desc',
+            docType: KnowledgeDocType.Code,
+        });
+
+        expect(input).toEqual({
+            answerType: KnowledgeAnswerType.Other,
+            codeLang: 'python',
+            content: 'some content',
+            description: 'desc',
+            docType: KnowledgeDocType.Code,
+            guideType: undefined,
+            question: 'a question',
+        });
+    });
+
+    it('maps empty optional fields to undefined, not ""', () => {
+        const input = formValuesToCreateInput({ ...baseValues, codeLang: '', description: '' });
+
+        expect(input.codeLang).toBeUndefined();
+        expect(input.description).toBeUndefined();
+    });
+});
+
+describe('the content a form value carries', () => {
+    it('reaches both inputs as it was written', () => {
+        const values = { ...baseValues, content: '  # Title\n\ntext\n' };
+
+        expect(formValuesToCreateInput(values).content).toBe('  # Title\n\ntext\n');
+        expect(formValuesToUpdateInput(values, {}).content).toBe('  # Title\n\ntext\n');
+    });
+});
+
+describe('formValuesToUpdateInput', () => {
+    it('always sends content and omits untouched fields', () => {
+        const input = formValuesToUpdateInput(baseValues, {});
+
+        expect(input).toEqual({ content: 'some content' });
+        expect('description' in input).toBe(false);
+        expect('question' in input).toBe(false);
+        expect('docType' in input).toBe(false);
+    });
+
+    it('emits a dirty+cleared description as "" (not undefined)', () => {
+        const input = formValuesToUpdateInput({ ...baseValues, description: '' }, { description: true });
+
+        expect(input.description).toBe('');
+    });
+
+    it('emits a dirty+cleared codeLang as ""', () => {
+        const input = formValuesToUpdateInput({ ...baseValues, codeLang: '' }, { codeLang: true });
+
+        expect(input.codeLang).toBe('');
+    });
+
+    it.each<[keyof DirtyFlags, Partial<FormValues>, unknown]>([
+        ['docType', { docType: KnowledgeDocType.Guide }, KnowledgeDocType.Guide],
+        ['question', { question: 'new q' }, 'new q'],
+        ['guideType', { guideType: KnowledgeGuideType.Pentest }, KnowledgeGuideType.Pentest],
+        ['answerType', { answerType: KnowledgeAnswerType.Tool }, KnowledgeAnswerType.Tool],
+    ])('includes %s only when dirty', (field, overrides, expected) => {
+        const values = { ...baseValues, ...overrides };
+
+        expect(formValuesToUpdateInput(values, {})[field]).toBeUndefined();
+        expect(formValuesToUpdateInput(values, { [field]: true })[field]).toBe(expected);
+    });
+});
+
+describe('documentToFormValues', () => {
+    it('coerces nullish subtypes to undefined and nullish text to ""', () => {
+        expect(documentToFormValues(baseFragment)).toEqual({
+            answerType: KnowledgeAnswerType.Other,
+            codeLang: '',
+            content: 'frag content',
+            description: '',
+            docType: KnowledgeDocType.Answer,
+            guideType: undefined,
+            question: 'frag question',
+        });
+    });
+
+    it('preserves present values', () => {
+        const values = documentToFormValues({
+            ...baseFragment,
+            codeLang: 'go',
+            description: 'a desc',
+            guideType: KnowledgeGuideType.Install,
+        });
+
+        expect(values.codeLang).toBe('go');
+        expect(values.description).toBe('a desc');
+        expect(values.guideType).toBe(KnowledgeGuideType.Install);
+    });
+});
+
+describe('formSchema', () => {
+    const valid: FormValues = {
+        answerType: KnowledgeAnswerType.Other,
+        codeLang: '',
+        content: 'content',
+        description: '',
+        docType: KnowledgeDocType.Answer,
+        guideType: undefined,
+        question: 'question',
+    };
+
+    it('accepts a valid Answer document', () => {
+        expect(formSchema.safeParse(valid).success).toBe(true);
+    });
+
+    it('requires content', () => {
+        const result = formSchema.safeParse({ ...valid, content: '' });
+
+        expect(result.success).toBe(false);
+        expect(result.error?.issues.find((i) => i.path[0] === 'content')?.message).toBe(uiText('Content is required'));
+    });
+
+    it.each([
+        ['spaces', '   '],
+        ['line breaks and tabs', '\n\t \n'],
+    ])('refuses a content of nothing but %s', (_name, content) => {
+        const result = formSchema.safeParse({ ...valid, content });
+
+        expect(result.error?.issues.find((i) => i.path[0] === 'content')?.message).toBe('Content is required');
+    });
+
+    it('hands the content on as it was written and trims the one-line fields', () => {
+        const result = formSchema.safeParse({
+            ...valid,
+            codeLang: ' go ',
+            content: '  # Title\n\ntext\n',
+            description: ' about ',
+            question: '  which port?  ',
+        });
+
+        expect(result.data).toMatchObject({
+            codeLang: 'go',
+            content: '  # Title\n\ntext\n',
+            description: 'about',
+            question: 'which port?',
+        });
+    });
+
+    it('counts the line break a content ends with toward its limit', () => {
+        expect(formSchema.safeParse({ ...valid, content: `${'a'.repeat(65536)}\n` }).success).toBe(false);
+    });
+
+    it('requires question', () => {
+        const result = formSchema.safeParse({ ...valid, question: '' });
+
+        expect(result.success).toBe(false);
+        expect(result.error?.issues.find((i) => i.path[0] === 'question')?.message).toBe(
+            uiText('Question is required'),
+        );
+    });
+
+    it.each([
+        ['question', 2048],
+        ['content', 65536],
+    ] as const)('counts %s length in code points, the way the endpoint does', (field, max) => {
+        expect(formSchema.safeParse({ ...valid, [field]: '\u{1f511}'.repeat(max) }).success).toBe(true);
+        expect(formSchema.safeParse({ ...valid, [field]: '\u{1f511}'.repeat(max + 1) }).success).toBe(false);
+    });
+
+    it('enforces the question max-length message', () => {
+        const result = formSchema.safeParse({ ...valid, question: 'x'.repeat(2049) });
+
+        expect(result.success).toBe(false);
+        expect(result.error?.issues.find((i) => i.path[0] === 'question')?.message).toBe(
+            uiText('Question must be {max} characters or fewer', { max: 2048 }),
+        );
+    });
+
+    it('enforces the description max-length message', () => {
+        const result = formSchema.safeParse({ ...valid, description: 'x'.repeat(1001) });
+
+        expect(result.success).toBe(false);
+        expect(result.error?.issues.find((i) => i.path[0] === 'description')?.message).toBe(
+            uiText('{label} must be {max} characters or fewer', { label: uiText('Description'), max: 1000 }),
+        );
+    });
+
+    it.each<[KnowledgeDocType, keyof FormValues, string]>([
+        [KnowledgeDocType.Answer, 'answerType', uiText('Answer type is required')],
+        [KnowledgeDocType.Code, 'codeLang', uiText('Code language is required')],
+        [KnowledgeDocType.Guide, 'guideType', uiText('Guide type is required')],
+    ])('requires the %s subtype field', (docType, field, message) => {
+        const result = formSchema.safeParse({
+            ...valid,
+            answerType: undefined,
+            codeLang: '',
+            docType,
+            guideType: undefined,
+        });
+
+        expect(result.success).toBe(false);
+        const issue = result.error?.issues.find((i) => i.path[0] === field);
+        expect(issue?.message).toBe(message);
+    });
+
+    it.each<[KnowledgeDocType, Partial<FormValues>]>([
+        [KnowledgeDocType.Answer, { answerType: KnowledgeAnswerType.Tool }],
+        [KnowledgeDocType.Code, { codeLang: 'rust' }],
+        [KnowledgeDocType.Guide, { guideType: KnowledgeGuideType.Use }],
+    ])('passes the superRefine for %s when its subtype is present', (docType, overrides) => {
+        const result = formSchema.safeParse({
+            ...valid,
+            answerType: undefined,
+            codeLang: '',
+            docType,
+            guideType: undefined,
+            ...overrides,
+        });
+
+        expect(result.success).toBe(true);
+    });
+});

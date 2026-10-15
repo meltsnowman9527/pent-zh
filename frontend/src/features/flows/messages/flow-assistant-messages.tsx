@@ -1,0 +1,642 @@
+import { uiText } from '@/locales/zh-CN';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Check, ChevronDown, ListFilter, Plus, Search, Trash2, X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { useDebouncedCallback } from 'use-debounce';
+import { z } from 'zod';
+
+import type { AssistantFragmentFragment, ProviderFragmentFragment } from '@/graphql/types';
+
+import { FlowStatusIcon } from '@/components/icons/flow-status-icon';
+import { ProviderIcon } from '@/components/icons/provider-icon';
+import ConfirmationDialog from '@/components/shared/confirmation-dialog';
+import { Button } from '@/components/ui/button';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
+import { Form, FormControl, FormField } from '@/components/ui/form';
+import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Spinner } from '@/components/ui/spinner';
+import { StatusType } from '@/graphql/types';
+import { useAutoScroll } from '@/hooks/use-auto-scroll';
+import { Log } from '@/lib/log';
+import { cn } from '@/lib/utils';
+import { formatName } from '@/lib/utils/format';
+import { groupAssistantsByState } from '@/models/assistant';
+import { isProviderValid } from '@/models/provider';
+import { useFlow } from '@/providers/flow-provider';
+import { useProviders } from '@/providers/providers-provider';
+import { useSystemSettings } from '@/providers/system-settings-provider';
+
+import { FlowForm, type FlowFormValues } from '../flow-form';
+import FlowMessage from './flow-message';
+
+interface AssistantsDropdownProps {
+    assistants: AssistantFragmentFragment[];
+    isAssistantCreating: boolean;
+    isDisabled: boolean;
+    onAssistantCreate: () => void;
+    onAssistantDelete: (assistantId: string) => void;
+    onAssistantSelect: (assistantId: string) => void;
+    providers: ProviderFragmentFragment[];
+    selectedAssistantId: null | string;
+}
+
+interface FlowAssistantMessagesProps {
+    className?: string;
+}
+
+function AssistantsDropdown({
+    assistants,
+    isAssistantCreating,
+    isDisabled,
+    onAssistantCreate,
+    onAssistantDelete,
+    onAssistantSelect,
+    providers,
+    selectedAssistantId,
+}: AssistantsDropdownProps) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [currentAssistant, setCurrentAssistant] = useState<AssistantFragmentFragment | null>(null);
+
+    const selectedAssistant = useMemo(() => {
+        if (!selectedAssistantId) {
+            return null;
+        }
+
+        return assistants.find((assistant) => assistant.id === selectedAssistantId) || null;
+    }, [assistants, selectedAssistantId]);
+
+    const selectedAssistantIndex = useMemo(() => {
+        return assistants.findIndex((assistant) => assistant.id === selectedAssistantId);
+    }, [assistants, selectedAssistantId]);
+
+    const assistantsGroup = useMemo(() => groupAssistantsByState(assistants), [assistants]);
+
+    const handleAssistantSelect = (assistantId: string) => {
+        onAssistantSelect(assistantId);
+        setIsOpen(false);
+    };
+
+    const handleDeleteClick = (assistant: AssistantFragmentFragment) => {
+        if (isDisabled) {
+            return;
+        }
+
+        setCurrentAssistant(assistant);
+        setDeleteDialogOpen(true);
+    };
+
+    const handleConfirmDelete = () => {
+        if (currentAssistant) {
+            onAssistantDelete(currentAssistant.id);
+            setCurrentAssistant(null);
+        }
+    };
+
+    const renderAssistantItem = (assistant: AssistantFragmentFragment, index: number) => {
+        const isSelected = selectedAssistantId === assistant.id;
+        const isValid = isProviderValid(assistant.provider, providers);
+
+        return (
+            <CommandItem
+                className={cn('group', !isValid && 'opacity-50')}
+                key={assistant.id}
+                onSelect={() => handleAssistantSelect(assistant.id)}
+                value={`${assistant.id}-${assistant.title}`}
+            >
+                <FlowStatusIcon
+                    status={assistant.status}
+                    tooltip={formatName(assistant.status)}
+                />
+
+                <ProviderIcon
+                    className="shrink-0"
+                    provider={assistant.provider}
+                />
+
+                <span className="bg-muted text-muted-foreground flex size-5 shrink-0 items-center justify-center rounded text-xs font-medium">
+                    {index}
+                </span>
+
+                <div className="flex flex-1 items-center gap-2 overflow-hidden">
+                    <span className="truncate text-sm">{assistant.title}</span>
+                    {!isValid && <span className="text-destructive shrink-0 text-xs">{uiText('(unavailable)')}</span>}
+                </div>
+
+                <Check
+                    className={cn(
+                        'text-primary ml-auto size-4 shrink-0 transition-opacity group-hover:opacity-0',
+                        isSelected ? 'opacity-100' : 'opacity-0',
+                    )}
+                />
+
+                {!isDisabled && (
+                    <Button
+                        aria-label={uiText('Delete {name}', { name: assistant.title })}
+                        className="text-muted-foreground hover:text-destructive absolute top-1/2 right-0.5 shrink-0 -translate-y-1/2 opacity-0 transition-opacity group-hover:opacity-100"
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            handleDeleteClick(assistant);
+                        }}
+                        size="icon-xs"
+                        variant="ghost"
+                    >
+                        <Trash2 />
+                    </Button>
+                )}
+            </CommandItem>
+        );
+    };
+
+    return (
+        <>
+            <Popover
+                onOpenChange={setIsOpen}
+                open={isOpen}
+            >
+                <PopoverTrigger asChild>
+                    <Button
+                        aria-label={uiText('Select assistant')}
+                        className="px-2"
+                        disabled={isAssistantCreating}
+                        variant="outline"
+                    >
+                        {selectedAssistant ? (
+                            <>
+                                <FlowStatusIcon
+                                    status={selectedAssistant.status}
+                                    tooltip={formatName(selectedAssistant.status)}
+                                />
+                                <ProviderIcon provider={selectedAssistant.provider} />
+                                <span className="bg-muted text-muted-foreground flex size-5 shrink-0 items-center justify-center rounded text-xs font-medium">
+                                    {selectedAssistantIndex + 1}
+                                </span>
+                            </>
+                        ) : (
+                            <span className="bg-muted text-muted-foreground flex h-5 shrink-0 items-center justify-center rounded px-1 text-xs font-medium">
+                                {uiText('New')}
+                            </span>
+                        )}
+                        <ChevronDown className="opacity-50" />
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                    align="start"
+                    className="w-[400px] p-0"
+                >
+                    <Command>
+                        <CommandInput placeholder={uiText('Search assistants...')} />
+                        <CommandList>
+                            <CommandEmpty>{uiText('No assistants found.')}</CommandEmpty>
+
+                            {!isDisabled && (
+                                <CommandGroup>
+                                    <CommandItem
+                                        className="font-medium"
+                                        onSelect={() => {
+                                            onAssistantCreate();
+                                            setIsOpen(false);
+                                        }}
+                                        value="create-new-assistant"
+                                    >
+                                        <Plus />
+                                        {uiText('Create new assistant')}
+                                    </CommandItem>
+                                </CommandGroup>
+                            )}
+
+                            {assistantsGroup.active.length > 0 && (
+                                <CommandGroup
+                                    heading={uiText('Active ({count})', { count: assistantsGroup.active.length })}
+                                >
+                                    {assistantsGroup.active.map(({ assistant, index }) =>
+                                        renderAssistantItem(assistant, index),
+                                    )}
+                                </CommandGroup>
+                            )}
+
+                            {assistantsGroup.finished.length > 0 && (
+                                <CommandGroup
+                                    heading={uiText('Finished ({count})', { count: assistantsGroup.finished.length })}
+                                >
+                                    {assistantsGroup.finished.map(({ assistant, index }) =>
+                                        renderAssistantItem(assistant, index),
+                                    )}
+                                </CommandGroup>
+                            )}
+
+                            {assistantsGroup.failed.length > 0 && (
+                                <CommandGroup
+                                    heading={uiText('Failed ({count})', { count: assistantsGroup.failed.length })}
+                                >
+                                    {assistantsGroup.failed.map(({ assistant, index }) =>
+                                        renderAssistantItem(assistant, index),
+                                    )}
+                                </CommandGroup>
+                            )}
+                        </CommandList>
+                    </Command>
+                </PopoverContent>
+            </Popover>
+
+            <ConfirmationDialog
+                cancelText={uiText('Cancel')}
+                confirmText={uiText('Delete')}
+                handleConfirm={handleConfirmDelete}
+                handleOpenChange={setDeleteDialogOpen}
+                isOpen={deleteDialogOpen}
+                itemName={currentAssistant?.title}
+                itemType={uiText('assistant')}
+                title={uiText('Delete Assistant')}
+            />
+        </>
+    );
+}
+
+const searchFormSchema = z.object({
+    search: z.string(),
+});
+
+function FlowAssistantMessages({ className }: FlowAssistantMessagesProps) {
+    const { providers, selectedProvider } = useProviders();
+
+    const {
+        assistantLogs: logs,
+        assistants,
+        createAssistant,
+        deleteAssistant,
+        flowId,
+        flowStatus,
+        initiateAssistantCreation,
+        selectAssistant,
+        selectedAssistantId,
+        stopAssistant,
+        submitAssistantMessage,
+    } = useFlow();
+
+    const [isAssistantCreating, setIsAssistantCreating] = useState(false);
+
+    const [debouncedSearchValue, setDebouncedSearchValue] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isCanceling, setIsCanceling] = useState(false);
+
+    const selectedAssistantLogs = useMemo(() => {
+        if (!logs?.length || !selectedAssistantId) {
+            return [];
+        }
+
+        return logs.filter((log) => log.assistantId === selectedAssistantId);
+    }, [logs, selectedAssistantId]);
+
+    const { containerRef, endRef, hasNewMessages, isScrolledToBottom, scrollToEnd } = useAutoScroll(
+        selectedAssistantLogs,
+        selectedAssistantId ?? null,
+    );
+
+    const { settings } = useSystemSettings();
+
+    const form = useForm<z.infer<typeof searchFormSchema>>({
+        defaultValues: {
+            search: '',
+        },
+        resolver: zodResolver(searchFormSchema),
+    });
+
+    const searchValue = form.watch('search');
+
+    const debouncedUpdateSearch = useDebouncedCallback((value: string) => {
+        setDebouncedSearchValue(value);
+    }, 500);
+
+    useEffect(() => {
+        debouncedUpdateSearch(searchValue);
+
+        return () => {
+            debouncedUpdateSearch.cancel();
+        };
+    }, [searchValue, debouncedUpdateSearch]);
+
+    useEffect(() => {
+        return () => {
+            debouncedUpdateSearch.cancel();
+        };
+    }, [debouncedUpdateSearch]);
+
+    useEffect(() => {
+        form.reset({ search: '' });
+        setDebouncedSearchValue('');
+        debouncedUpdateSearch.cancel();
+    }, [flowId, form, debouncedUpdateSearch]);
+
+    const selectedAssistant = useMemo(() => {
+        if (!selectedAssistantId || !assistants) {
+            return null;
+        }
+
+        return assistants.find((assistant) => assistant.id === selectedAssistantId) || null;
+    }, [assistants, selectedAssistantId]);
+
+    const shouldUseAgents = useMemo(() => {
+        if (isAssistantCreating || !selectedAssistant) {
+            return settings?.assistantUseAgents ?? false;
+        }
+
+        return selectedAssistant.useAgents;
+    }, [selectedAssistant, settings?.assistantUseAgents, isAssistantCreating]);
+
+    const hasActiveFilters = useMemo(() => {
+        return !!searchValue.trim();
+    }, [searchValue]);
+
+    const filteredLogs = useMemo(() => {
+        const search = debouncedSearchValue.toLowerCase().trim();
+
+        if (!search) {
+            return selectedAssistantLogs;
+        }
+
+        return selectedAssistantLogs.filter(
+            (log) =>
+                log.message.toLowerCase().includes(search) ||
+                (log.result && log.result.toLowerCase().includes(search)) ||
+                (log.thinking && log.thinking.toLowerCase().includes(search)),
+        );
+    }, [selectedAssistantLogs, debouncedSearchValue]);
+
+    const handleAssistantDelete = (assistantId: string) => {
+        if (deleteAssistant) {
+            deleteAssistant(assistantId);
+        }
+    };
+
+    const handleSubmitMessage = async (values: FlowFormValues) => {
+        if (!values.message.trim()) {
+            return false;
+        }
+
+        setIsSubmitting(true);
+
+        try {
+            if (!selectedAssistantId) {
+                setIsAssistantCreating(true);
+
+                return await createAssistant(values);
+            }
+
+            return await submitAssistantMessage(selectedAssistantId, values);
+        } catch (error) {
+            Log.error('Error submitting message:', error);
+            throw error;
+        } finally {
+            setIsSubmitting(false);
+            setIsAssistantCreating(false);
+        }
+    };
+
+    const handleStopAssistant = async () => {
+        if (!selectedAssistantId || !stopAssistant) {
+            return;
+        }
+
+        setIsCanceling(true);
+
+        try {
+            await stopAssistant(selectedAssistantId);
+        } catch (error) {
+            Log.error('Error stopping assistant:', error);
+            throw error;
+        } finally {
+            setIsCanceling(false);
+        }
+    };
+
+    const handleAssistantCreate = () => {
+        if (initiateAssistantCreation) {
+            initiateAssistantCreation();
+        }
+    };
+
+    const handleResetFilters = () => {
+        form.reset({ search: '' });
+        setDebouncedSearchValue('');
+        debouncedUpdateSearch.cancel();
+    };
+
+    const placeholder = useMemo(() => {
+        if (!flowId) {
+            return 'Select a flow...';
+        }
+
+        if (isAssistantCreating) {
+            return 'Creating assistant...';
+        }
+
+        if (!selectedAssistant?.status) {
+            return uiText('Type a message to create a new assistant...');
+        }
+
+        switch (selectedAssistant.status) {
+            case StatusType.Created: {
+                return uiText('Assistant is starting...');
+            }
+
+            case StatusType.Failed:
+            case StatusType.Finished: {
+                return uiText('This assistant session has ended. Create a new one to continue.');
+            }
+
+            case StatusType.Running: {
+                return uiText('Assistant is running... Click Stop to interrupt');
+            }
+
+            case StatusType.Waiting: {
+                return uiText('Continue the conversation...');
+            }
+
+            default: {
+                return uiText('Type your message...');
+            }
+        }
+    }, [flowId, isAssistantCreating, selectedAssistant?.status]);
+
+    const assistantStatus = selectedAssistant?.status;
+    const isFormDisabled =
+        flowStatus === StatusType.Finished ||
+        flowStatus === StatusType.Failed ||
+        assistantStatus === StatusType.Finished ||
+        assistantStatus === StatusType.Failed;
+    const isFormLoading = assistantStatus === StatusType.Created || assistantStatus === StatusType.Running;
+
+    return (
+        <div className={cn('flex h-full flex-col', className)}>
+            <div className="bg-background sticky top-0 z-10 pb-4">
+                <div className="flex gap-2 p-px">
+                    {flowId && (
+                        <AssistantsDropdown
+                            assistants={assistants}
+                            isAssistantCreating={isAssistantCreating}
+                            isDisabled={isFormDisabled}
+                            onAssistantCreate={handleAssistantCreate}
+                            onAssistantDelete={handleAssistantDelete}
+                            onAssistantSelect={(assistantId) => selectAssistant?.(assistantId)}
+                            providers={providers}
+                            selectedAssistantId={selectedAssistantId}
+                        />
+                    )}
+                    <div className="flex-1">
+                        <Form {...form}>
+                            <FormField
+                                control={form.control}
+                                name="search"
+                                render={({ field }) => (
+                                    <FormControl>
+                                        <InputGroup>
+                                            <InputGroupAddon>
+                                                <Search />
+                                            </InputGroupAddon>
+                                            <InputGroupInput
+                                                {...field}
+                                                autoComplete="off"
+                                                disabled={isAssistantCreating}
+                                                placeholder={uiText('Search messages...')}
+                                                type="text"
+                                            />
+                                            {field.value && (
+                                                <InputGroupAddon align="inline-end">
+                                                    <InputGroupButton
+                                                        aria-label={uiText('Clear message search')}
+                                                        disabled={isAssistantCreating}
+                                                        onClick={() => {
+                                                            form.reset({ search: '' });
+                                                            setDebouncedSearchValue('');
+                                                            debouncedUpdateSearch.cancel();
+                                                        }}
+                                                        type="button"
+                                                    >
+                                                        <X />
+                                                    </InputGroupButton>
+                                                </InputGroupAddon>
+                                            )}
+                                        </InputGroup>
+                                    </FormControl>
+                                )}
+                            />
+                        </Form>
+                    </div>
+                </div>
+            </div>
+
+            {isAssistantCreating ? (
+                <Empty>
+                    <EmptyHeader>
+                        <EmptyMedia variant="icon">
+                            <Spinner variant="circle" />
+                        </EmptyMedia>
+                        <EmptyTitle>{uiText('Creating assistant...')}</EmptyTitle>
+                        <EmptyDescription>{uiText('Please wait while we set up your new assistant')}</EmptyDescription>
+                    </EmptyHeader>
+                </Empty>
+            ) : selectedAssistantId ? (
+                filteredLogs.length > 0 ? (
+                    <div className="relative h-full overflow-y-hidden">
+                        <div
+                            className="flex h-full flex-col gap-4 overflow-y-auto"
+                            ref={containerRef}
+                        >
+                            {filteredLogs.map((log) => (
+                                <FlowMessage
+                                    key={log.id}
+                                    log={log}
+                                    searchValue={debouncedSearchValue}
+                                />
+                            ))}
+                            <div ref={endRef} />
+                        </div>
+
+                        {!isScrolledToBottom && (
+                            <Button
+                                aria-label={uiText('Scroll to latest message')}
+                                className="absolute right-4 bottom-4 z-10 shadow-md hover:shadow-lg"
+                                onClick={() => scrollToEnd()}
+                                size="icon-sm"
+                                type="button"
+                                variant="outline"
+                            >
+                                <ChevronDown />
+                                {hasNewMessages && (
+                                    <span className="bg-primary absolute -top-1.5 -right-1.5 size-3 rounded-full" />
+                                )}
+                            </Button>
+                        )}
+                    </div>
+                ) : hasActiveFilters ? (
+                    <Empty>
+                        <EmptyHeader>
+                            <EmptyMedia variant="icon">
+                                <ListFilter />
+                            </EmptyMedia>
+                            <EmptyTitle>{uiText('No messages found')}</EmptyTitle>
+                            <EmptyDescription>
+                                {uiText('Try adjusting your search or filter parameters')}
+                            </EmptyDescription>
+                        </EmptyHeader>
+                        <EmptyContent>
+                            <Button
+                                onClick={handleResetFilters}
+                                variant="outline"
+                            >
+                                <X />
+                                {uiText('Reset filters')}
+                            </Button>
+                        </EmptyContent>
+                    </Empty>
+                ) : (
+                    <Empty>
+                        <EmptyHeader>
+                            <EmptyMedia variant="icon">
+                                <Plus />
+                            </EmptyMedia>
+                            <EmptyTitle>{uiText('No messages')}</EmptyTitle>
+                            <EmptyDescription>{uiText('No messages found for this assistant')}</EmptyDescription>
+                        </EmptyHeader>
+                    </Empty>
+                )
+            ) : (
+                <Empty>
+                    <EmptyHeader>
+                        <EmptyMedia variant="icon">
+                            <Plus />
+                        </EmptyMedia>
+                        <EmptyTitle>{uiText('New assistant')}</EmptyTitle>
+                        <EmptyDescription>
+                            {uiText('Type a message below to create a new assistant...')}
+                        </EmptyDescription>
+                    </EmptyHeader>
+                </Empty>
+            )}
+
+            <div className="bg-background sticky bottom-0 p-px">
+                <FlowForm
+                    defaultValues={{
+                        providerName: selectedAssistant?.provider?.name ?? selectedProvider?.name ?? '',
+                        useAgents: shouldUseAgents,
+                    }}
+                    isCanceling={isCanceling}
+                    isDisabled={isFormDisabled}
+                    isLoading={isFormLoading}
+                    isProviderDisabled={!!selectedAssistant}
+                    isSubmitting={isSubmitting}
+                    onCancel={handleStopAssistant}
+                    onSubmit={handleSubmitMessage}
+                    placeholder={placeholder}
+                    type={'assistant'}
+                />
+            </div>
+        </div>
+    );
+}
+
+export default FlowAssistantMessages;

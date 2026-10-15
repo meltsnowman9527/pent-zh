@@ -1,0 +1,108 @@
+package response
+
+import (
+	"context"
+	"errors"
+	"fmt"
+
+	"pentagi/pkg/server/logger"
+	"pentagi/pkg/version"
+
+	"github.com/gin-gonic/gin"
+	"github.com/lib/pq"
+	"github.com/sirupsen/logrus"
+)
+
+type HttpError struct {
+	message  string
+	code     string
+	httpCode int
+}
+
+func (h *HttpError) Code() string {
+	return h.code
+}
+
+func (h *HttpError) HttpCode() int {
+	return h.httpCode
+}
+
+func (h *HttpError) Msg() string {
+	return h.message
+}
+
+func NewHttpError(httpCode int, code, message string) *HttpError {
+	return &HttpError{httpCode: httpCode, message: message, code: code}
+}
+
+func (h *HttpError) Error() string {
+	return fmt.Sprintf("%s: %s", h.code, h.message)
+}
+
+func Error(c *gin.Context, err *HttpError, original error) {
+	if err == ErrInternal && ranOutOfTime(original) {
+		err = ErrRequestTimeout
+	}
+
+	ErrorWithLevel(c, err, original, logger.LevelForStatus(err.HttpCode()))
+}
+
+func ranOutOfTime(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+
+	var pgErr *pq.Error
+
+	return errors.As(err, &pgErr) && pgErr.Code == pqQueryCanceled
+}
+
+// https://www.postgresql.org/docs/current/errcodes-appendix.html
+const pqQueryCanceled = pq.ErrorCode("57014")
+
+// ErrorWithLevel behaves exactly like Error but logs the "api error" entry at
+// the given level instead of always at Error. Use this for routes where a
+// non-2xx response is routine/expected (e.g. an unauthenticated request
+// hitting a protected endpoint) and logging it as an application error would
+// just add noise without indicating an actual problem.
+func ErrorWithLevel(c *gin.Context, err *HttpError, original error, level logrus.Level) {
+	body := gin.H{
+		"status": "error",
+		"code":   err.Code(),
+		"msg":    err.Msg(),
+	}
+
+	if version.IsDevelopMode() && original != nil {
+		body["error"] = original.Error()
+	}
+
+	fields := logrus.Fields{
+		"code":    err.HttpCode(),
+		"message": err.Msg(),
+	}
+	logger.FromContext(c).WithFields(fields).WithError(original).Log(level, "api error")
+
+	c.AbortWithStatusJSON(err.HttpCode(), body)
+}
+
+func Success(c *gin.Context, code int, data any) {
+	c.JSON(code, gin.H{"status": "success", "data": data})
+}
+
+//lint:ignore U1000 successResp
+type successResp struct {
+	Status string `json:"status" example:"success"`
+	Data   any    `json:"data" swaggertype:"object"`
+} // @name SuccessResponse
+
+//lint:ignore U1000 errorResp
+type errorResp struct {
+	Status string `json:"status" example:"error"`
+	Code   string `json:"code" example:"Internal"`
+	Msg    string `json:"msg,omitempty" example:"internal server error"`
+	Error  string `json:"error,omitempty" example:"original server error message"`
+} // @name ErrorResponse

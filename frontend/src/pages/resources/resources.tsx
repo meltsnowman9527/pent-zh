@@ -1,0 +1,570 @@
+import { uiText } from '@/locales/zh-CN';
+import { ColumnsSettings, Copy, FileSymlink, Folder, FolderPlus, FolderUp, Search, Upload, X } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
+import { toast } from 'sonner';
+
+import type { OverwriteConflict } from '@/components/shared/overwrite';
+
+import {
+    AppHeader,
+    AppHeaderAction,
+    AppHeaderActions,
+    AppHeaderContent,
+    AppHeaderTitle,
+} from '@/components/layouts/app/app-header';
+import ConfirmationDialog from '@/components/shared/confirmation-dialog';
+import { ErrorState } from '@/components/shared/error-state';
+import {
+    bulkCopyAction,
+    bulkCopyPathsAction,
+    bulkDeleteAction,
+    bulkDownloadAction,
+    bulkMoveAction,
+    copyPathAction,
+    deleteAction,
+    downloadAction,
+    FileManager,
+    type FileManagerAction,
+    type FileManagerBulkAction,
+    type FileManagerEmptyAreaAction,
+    type FileManagerLabels,
+    type FileNode,
+    formatModifiedAbsolute,
+    formatModifiedRelative,
+    pluralizeItems,
+} from '@/components/shared/file-manager';
+import { OverwriteDialog, useOverwrite } from '@/components/shared/overwrite';
+import { Button } from '@/components/ui/button';
+import {
+    DropdownMenu,
+    DropdownMenuCheckboxItem,
+    DropdownMenuContent,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
+import { FileDropZone } from '@/components/ui/file-drop-zone';
+import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group';
+import { Spinner } from '@/components/ui/spinner';
+import { ResourcesCopyDialog } from '@/features/resources/resources-copy-dialog';
+import { ResourcesMkdirDialog } from '@/features/resources/resources-mkdir-dialog';
+import { ResourcesMoveDialog } from '@/features/resources/resources-move-dialog';
+import { buildResourcesDownloadHref, toFileNode } from '@/features/resources/resources-utils';
+import {
+    type ResourcesViewOptionKey,
+    type ResourcesViewOptions,
+    seedResourcesViewOptions,
+} from '@/features/resources/resources-view-options';
+import { useResourcesDelete } from '@/features/resources/use-resources-delete';
+import { useResourcesMove } from '@/features/resources/use-resources-move';
+import { useResourcesSearch } from '@/features/resources/use-resources-search';
+import { useResourcesUpload } from '@/features/resources/use-resources-upload';
+import { useEffectAfterMount } from '@/hooks/use-effect-after-mount';
+import { useFilesDragAndDrop } from '@/hooks/use-files-drag-and-drop';
+import { usePageStorageKeys } from '@/hooks/use-page-storage-keys';
+import { copyToClipboard } from '@/lib/clipboard';
+import { saveViewOptions } from '@/lib/view-options-storage';
+import { useResources } from '@/providers/resources-provider';
+
+function Resources() {
+    const { error, isInitialLoading, refetch, resources } = useResources();
+    const search = useResourcesSearch();
+
+    const [isMkdirOpen, setIsMkdirOpen] = useState(false);
+    // When the user invokes uiText('New folder here') from a directory row's menu, we
+    // need the dialog to seed itself with that *specific* directory. Cleared
+    // whenever the dialog closes so the toolbar mkdir falls back to the
+    // library root again.
+    const [mkdirParentOverride, setMkdirParentOverride] = useState<null | string>(null);
+    // Both dialogs accept an array now: a row-action click pushes a single-element
+    // array, the bulk bar pushes the full deduped selection. Empty / null array
+    // closes the dialog.
+    const [filesToMove, setFilesToMove] = useState<FileNode[] | null>(null);
+    const [filesToCopy, setFilesToCopy] = useState<FileNode[] | null>(null);
+
+    const { viewOptions: viewOptionsStorageKey } = usePageStorageKeys();
+    const [viewOptions, setViewOptions] = useState<ResourcesViewOptions>(() =>
+        seedResourcesViewOptions(viewOptionsStorageKey),
+    );
+
+    useEffectAfterMount(() => {
+        saveViewOptions(viewOptionsStorageKey, viewOptions as unknown as Record<string, boolean>);
+    }, [viewOptions, viewOptionsStorageKey]);
+
+    const toggleViewOption = useCallback((option: ResourcesViewOptionKey) => {
+        setViewOptions((previous) => ({ ...previous, [option]: !previous[option] }));
+    }, []);
+
+    // Keep the `labels` reference stable while the user keeps the same
+    // formatting choice — FileManager threads it through the memoized row
+    // bundle, and a fresh object identity on every render would invalidate
+    // the row memo for the whole tree on unrelated re-renders.
+    const fileManagerLabels = useMemo<FileManagerLabels>(
+        () => ({
+            formatModified: viewOptions.isModifiedRelative ? formatModifiedRelative : formatModifiedAbsolute,
+        }),
+        [viewOptions.isModifiedRelative],
+    );
+
+    // Toolbar / empty-area mkdir + upload always target the library root —
+    // row-level uiText('Upload here') / uiText('New folder here') handlers carry their own
+    // explicit path, and DnD passes the destination per drop, so these
+    // entry points don't need a focus-derived fallback directory.
+    const upload = useResourcesUpload();
+    const deletion = useResourcesDelete();
+    const { move } = useResourcesMove();
+
+    const canAcceptDrop = !upload.isUploading;
+    const { dragHandlers, isDragging } = useFilesDragAndDrop({
+        canAcceptDrop,
+        // Page-level drop falls back to the hook's defaults — i.e. the
+        // library root, since `useResourcesUpload` is invoked without a
+        // `defaultDir`.
+        onDrop: upload.uploadFiles,
+    });
+
+    // Per-row external file drop (OS desktop → folder row): forward the
+    // dropped files together with the resolved directory so the upload lands
+    // exactly where the user released, not in the library root that the
+    // page-level `dragHandlers` above default to. FileManager already stops
+    // propagation on the row, so this never double-fires.
+    const handleExternalFileDrop = useCallback(
+        async (droppedFiles: File[], destinationDir: string): Promise<void> => {
+            await upload.uploadFiles(droppedFiles, { dir: destinationDir });
+        },
+        [upload],
+    );
+
+    const fileNodes = useMemo<FileNode[]>(() => resources.map(toFileNode), [resources]);
+
+    const resourcePaths = useMemo(() => new Set(resources.map((resource) => resource.path)), [resources]);
+
+    /**
+     * Drag-and-drop move: ship every dragged item to `destinationDir` in a
+     * single atomic batch (`PUT /resources/move` with `sources[]`). The
+     * backend handles dedup + transactional writes; the shared overwrite
+     * workflow drives the local preflight and the conflict dialog.
+     */
+    interface DndMovePlan {
+        destination: string;
+        sources: readonly string[];
+        targets: OverwriteConflict[];
+    }
+
+    const dndMoveAction = useOverwrite<DndMovePlan>({
+        execute: (plan, force) => move(plan.sources, plan.destination, force),
+        findConflicts: (plan) => {
+            const movedPaths = new Set(plan.sources);
+
+            // Targets that match an item being moved are no-ops, not conflicts.
+            return plan.targets.filter((t) => !movedPaths.has(t.destination) && resourcePaths.has(t.destination));
+        },
+        synthesizeFallbackConflicts: (plan) => plan.targets,
+    });
+
+    const handleMoveItems = useCallback(
+        async (sources: FileNode[], destinationDir: string) => {
+            if (sources.length === 0) {
+                return;
+            }
+
+            const baseDir = destinationDir.replace(/\/+$/, '');
+            const targets: OverwriteConflict[] = sources.map((source) => ({
+                destination: baseDir ? `${baseDir}/${source.name}` : source.name,
+                destinationName: source.name,
+            }));
+
+            await dndMoveAction.primaryExecute({
+                destination: baseDir,
+                sources: sources.map((source) => source.path),
+                targets,
+            });
+        },
+        [dndMoveAction],
+    );
+
+    const handleCopyPath = useCallback(async (file: FileNode) => {
+        const wasCopied = await copyToClipboard(file.path);
+
+        if (wasCopied) {
+            toast.success(uiText('Path copied to clipboard'));
+
+            return;
+        }
+
+        toast.error(uiText('Failed to copy path'));
+    }, []);
+
+    // Join the selected paths with `\n` so the result pastes as a clean
+    // newline-separated list into the agent chat, a shell command, or notes.
+    const handleBulkCopyPaths = useCallback(async (paths: string[]) => {
+        if (paths.length === 0) {
+            return;
+        }
+
+        const wasCopied = await copyToClipboard(paths.join('\n'));
+
+        if (wasCopied) {
+            toast.success(uiText('{count} items copied to clipboard', { count: paths.length }));
+
+            return;
+        }
+
+        toast.error(uiText('Failed to copy paths'));
+    }, []);
+
+    /**
+     * uiText('Open') gesture — fires on double-click or Enter for a file row.
+     * Triggers the same download the dropdown's Download action would, by clicking
+     * a transient `<a download>` element. We can't just `window.open()` here because
+     * we want the browser's `download` attribute hint (preserves the original
+     * filename even when the server sends `Content-Disposition: inline`).
+     */
+    const handleOpenFile = useCallback((file: FileNode) => {
+        const anchor = document.createElement('a');
+
+        anchor.href = buildResourcesDownloadHref([file]);
+        anchor.download = file.name;
+        anchor.rel = 'noopener';
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+    }, []);
+
+    // Row-level uiText('Upload here') pre-targets the picker at the chosen directory's
+    // path, regardless of `currentDir` (the dropdown trigger doesn't move
+    // keyboard focus, so `activeRowPath` may still point at a sibling row).
+    const handleUploadHere = useCallback(
+        (file: FileNode) => {
+            upload.openFilePickerForDir(file.path);
+        },
+        [upload],
+    );
+
+    const handleMkdirHere = useCallback((file: FileNode) => {
+        setMkdirParentOverride(file.path);
+        setIsMkdirOpen(true);
+    }, []);
+
+    const closeMkdirDialog = useCallback(() => {
+        setIsMkdirOpen(false);
+        setMkdirParentOverride(null);
+    }, []);
+
+    const fileManagerActions = useMemo<FileManagerAction[]>(
+        () => [
+            // Row download is the single-file specialisation of the bulk download:
+            // we hand the URL builder a 1-element array so the same backend
+            // contract (`?paths[]=`) is used everywhere.
+            downloadAction((file) => buildResourcesDownloadHref([file])),
+            copyPathAction(handleCopyPath),
+            // Directory-only actions — surfaced both in the row dropdown and
+            // the right-click context menu (the manager renders both menus
+            // from the same `actions` array). `appliesToFiles: false` keeps
+            // them off file rows.
+            {
+                appliesToDirs: true,
+                appliesToFiles: false,
+                icon: FolderPlus,
+                id: 'resources-mkdir-here',
+                label: uiText('New folder'),
+                onSelect: handleMkdirHere,
+                separatorBefore: true,
+            },
+            {
+                appliesToDirs: true,
+                appliesToFiles: false,
+                icon: Upload,
+                id: 'resources-upload-here',
+                label: uiText('Upload files'),
+                onSelect: handleUploadHere,
+            },
+            {
+                appliesToDirs: true,
+                icon: FileSymlink,
+                id: 'resources-rename',
+                label: uiText('Rename or move'),
+                onSelect: (file) => setFilesToMove([file]),
+                separatorBefore: true,
+            },
+            {
+                appliesToDirs: true,
+                icon: Copy,
+                id: 'resources-copy',
+                label: uiText('Copy to…'),
+                onSelect: (file) => setFilesToCopy([file]),
+            },
+            deleteAction(deletion.requestDelete),
+        ],
+        [deletion.requestDelete, handleCopyPath, handleMkdirHere, handleUploadHere],
+    );
+
+    // Bulk-action set, rendered in the bulk-actions bar when at least one row
+    // is selected. Order matters — primary CTAs first, then less frequent
+    // actions in the overflow `…` menu, then destructive Delete on the right.
+    const fileManagerBulkActions = useMemo<FileManagerBulkAction[]>(
+        () => [
+            bulkDownloadAction(buildResourcesDownloadHref),
+            bulkMoveAction((files) => setFilesToMove(files)),
+            bulkCopyAction((files) => setFilesToCopy(files), { overflow: true }),
+            bulkCopyPathsAction(handleBulkCopyPaths),
+            bulkDeleteAction(deletion.deleteFiles),
+        ],
+        [deletion.deleteFiles, handleBulkCopyPaths],
+    );
+
+    // Right-click anywhere outside a row in the tree → mirror the toolbar
+    // gestures so users have a closer-to-pointer entry point. Both items
+    // target the library root, identical to the toolbar buttons.
+    const fileManagerEmptyAreaActions = useMemo<FileManagerEmptyAreaAction[]>(
+        () => [
+            {
+                icon: FolderPlus,
+                id: 'resources-empty-mkdir',
+                label: uiText('New folder'),
+                onSelect: () => setIsMkdirOpen(true),
+            },
+            {
+                icon: Upload,
+                id: 'resources-empty-upload',
+                label: uiText('Upload files'),
+                onSelect: upload.openFilePicker,
+            },
+        ],
+        [upload.openFilePicker],
+    );
+
+    const handleDeleteDialogOpenChange = useCallback(
+        (nextOpen: boolean) => {
+            if (!nextOpen) {
+                deletion.clearFileToDelete();
+            }
+        },
+        [deletion],
+    );
+
+    const pageHeader = (
+        <AppHeader>
+            <AppHeaderContent>
+                <AppHeaderTitle icon={<Folder className="size-4 shrink-0" />}>{uiText('Resources')}</AppHeaderTitle>
+            </AppHeaderContent>
+            <AppHeaderActions>
+                <AppHeaderAction
+                    disabled={upload.isUploading}
+                    icon={<FolderPlus />}
+                    label={uiText('New folder')}
+                    onClick={() => setIsMkdirOpen(true)}
+                    variant="outline"
+                />
+                <AppHeaderAction
+                    aria-label={upload.isUploading ? uiText('Uploading...') : uiText('Upload files')}
+                    disabled={upload.isUploading}
+                    icon={upload.isUploading ? <Spinner variant="circle" /> : <Upload />}
+                    label={upload.isUploading ? uiText('Uploading...') : uiText('Upload files')}
+                    onClick={upload.openFilePicker}
+                    variant="secondary"
+                />
+            </AppHeaderActions>
+        </AppHeader>
+    );
+
+    const hasResources = resources.length > 0;
+
+    const noResourcesState = (
+        <FileDropZone
+            actionLabel={uiText('Upload files')}
+            description={uiText(
+                'Upload documents so PentAGI agents can reference them during your flows. You can also drag & drop files anywhere in this panel.',
+            )}
+            hint={uiText('Up to 300 MB per file · 2 GB per upload')}
+            isDragging={isDragging}
+            isUploading={upload.isUploading}
+            onBrowse={upload.openFilePicker}
+            title={uiText('No resources yet')}
+        />
+    );
+
+    const noMatchesState = (
+        <Empty>
+            <EmptyHeader>
+                <EmptyMedia variant="icon">
+                    <Search />
+                </EmptyMedia>
+                <EmptyTitle>{uiText('No matches')}</EmptyTitle>
+                <EmptyDescription>
+                    {uiText('No resources match')}
+                    <code>{search.debouncedQuery.trim()}</code>
+                    {uiText('. Try a different query.')}
+                </EmptyDescription>
+            </EmptyHeader>
+        </Empty>
+    );
+
+    // Error surface only when there's no data — a failed background refetch must not blank a working list.
+    if (error && !hasResources) {
+        return (
+            <>
+                {pageHeader}
+                <div className="flex flex-1 flex-col gap-4 p-4">
+                    <ErrorState
+                        message={error.message}
+                        onRetry={refetch}
+                        title={uiText('Error loading resources')}
+                    />
+                </div>
+            </>
+        );
+    }
+
+    return (
+        <>
+            {pageHeader}
+            <div
+                className="relative flex h-[calc(100dvh-3rem)] flex-col gap-4 p-4"
+                {...dragHandlers}
+            >
+                <input
+                    aria-hidden="true"
+                    className="hidden"
+                    key={upload.fileInputKey}
+                    multiple
+                    name="resource-upload"
+                    tabIndex={-1}
+                    type="file"
+                    {...upload.fileInputProps}
+                />
+
+                {isDragging && hasResources && (
+                    <div className="bg-primary/10 border-primary pointer-events-none absolute inset-2 z-30 flex items-center justify-center rounded-lg border-2 border-dashed">
+                        <div className="text-link flex flex-col items-center gap-2">
+                            <FolderUp className="size-8" />
+                            <span className="text-sm font-medium">{uiText('Drop files to upload')}</span>
+                        </div>
+                    </div>
+                )}
+
+                <div className="flex items-center gap-2">
+                    <InputGroup className="max-w-sm flex-1">
+                        <InputGroupInput
+                            aria-label={uiText('Search resources')}
+                            autoComplete="off"
+                            onChange={(event) => search.setQuery(event.target.value)}
+                            placeholder={uiText('Search resources...')}
+                            type="text"
+                            value={search.rawQuery}
+                        />
+                        {search.rawQuery ? (
+                            <InputGroupAddon align="inline-end">
+                                <InputGroupButton
+                                    aria-label={uiText('Clear resource search')}
+                                    onClick={search.resetSearch}
+                                    type="button"
+                                >
+                                    <X />
+                                </InputGroupButton>
+                            </InputGroupAddon>
+                        ) : null}
+                    </InputGroup>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                aria-label={uiText('Column settings')}
+                                className="ml-auto"
+                                size="icon"
+                                variant="outline"
+                            >
+                                <ColumnsSettings />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuCheckboxItem
+                                checked={viewOptions.isSizeVisible}
+                                onCheckedChange={() => toggleViewOption('isSizeVisible')}
+                                onSelect={(event) => event.preventDefault()}
+                            >
+                                {uiText('Size')}
+                            </DropdownMenuCheckboxItem>
+                            <DropdownMenuCheckboxItem
+                                checked={viewOptions.isModifiedVisible}
+                                onCheckedChange={() => toggleViewOption('isModifiedVisible')}
+                                onSelect={(event) => event.preventDefault()}
+                            >
+                                {uiText('Modified')}
+                            </DropdownMenuCheckboxItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuCheckboxItem
+                                checked={viewOptions.isFoldersFirst}
+                                onCheckedChange={() => toggleViewOption('isFoldersFirst')}
+                                onSelect={(event) => event.preventDefault()}
+                            >
+                                {uiText('Folders first')}
+                            </DropdownMenuCheckboxItem>
+                            <DropdownMenuCheckboxItem
+                                checked={viewOptions.isModifiedRelative}
+                                disabled={!viewOptions.isModifiedVisible}
+                                onCheckedChange={() => toggleViewOption('isModifiedRelative')}
+                                onSelect={(event) => event.preventDefault()}
+                            >
+                                {uiText('Relative dates')}
+                            </DropdownMenuCheckboxItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
+
+                <FileManager
+                    actions={fileManagerActions}
+                    bulkActions={fileManagerBulkActions}
+                    className="min-h-0 flex-1"
+                    columns={{
+                        isModifiedVisible: viewOptions.isModifiedVisible,
+                        isSizeVisible: viewOptions.isSizeVisible,
+                    }}
+                    emptyAreaActions={fileManagerEmptyAreaActions}
+                    emptyState={noResourcesState}
+                    files={fileNodes}
+                    isFoldersFirst={viewOptions.isFoldersFirst}
+                    isLoading={isInitialLoading}
+                    labels={fileManagerLabels}
+                    onExternalFileDrop={handleExternalFileDrop}
+                    onMoveItems={handleMoveItems}
+                    onOpen={handleOpenFile}
+                    search={{ emptyState: noMatchesState, query: search.debouncedQuery }}
+                />
+
+                <ResourcesMkdirDialog
+                    defaultParentPath={mkdirParentOverride ?? ''}
+                    isOpen={isMkdirOpen}
+                    onClose={closeMkdirDialog}
+                />
+
+                <ResourcesMoveDialog
+                    files={filesToMove}
+                    onClose={() => setFilesToMove(null)}
+                />
+
+                <ResourcesCopyDialog
+                    files={filesToCopy}
+                    onClose={() => setFilesToCopy(null)}
+                />
+
+                <OverwriteDialog
+                    conflicts={dndMoveAction.conflicts}
+                    onCancel={dndMoveAction.resetConflicts}
+                    onReplaceAll={dndMoveAction.handleReplaceAll}
+                />
+
+                <ConfirmationDialog
+                    confirmText={uiText('Delete')}
+                    handleConfirm={deletion.confirmDelete}
+                    handleOpenChange={handleDeleteDialogOpenChange}
+                    isOpen={!!deletion.fileToDelete}
+                    itemName={deletion.fileToDelete?.name}
+                    itemType={deletion.fileToDelete?.isDir ? uiText('directory') : uiText('resource')}
+                    title={deletion.fileToDelete?.isDir ? uiText('Delete directory') : uiText('Delete resource')}
+                />
+            </div>
+        </>
+    );
+}
+
+export default Resources;

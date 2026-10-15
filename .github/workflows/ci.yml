@@ -1,0 +1,256 @@
+name: Docker build and push
+
+on:
+  # pull_request so the lint/codegen/test gate runs on fork PRs too: a fork's commits never push to
+  # this repo, so a push-only trigger let a fork edit the schema without regenerating types.ts (or
+  # ship a lint/test failure) and merge green, since e2e.yml's tsc build cannot see stale codegen.
+  # lint-and-test uses no secrets and is fork-safe; docker-build stays gated to main/tags below.
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - main
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Verify Node version pins match .nvmrc
+        run: |
+          NVMRC="$(tr -dc '0-9.' < frontend/.nvmrc)"
+          echo "Expected Node: $NVMRC"
+          grep -q "node:${NVMRC}-slim" Dockerfile || { echo "::error::Dockerfile node tag != .nvmrc ($NVMRC)"; exit 1; }
+
+      # Go setup and cache (setup-go's cache:true already covers the build cache
+      # and the module cache; a second actions/cache restore over the read-only
+      # ~/go/pkg/mod collides with "File exists" whenever both caches hit)
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.26.5"
+          cache: true
+          cache-dependency-path: backend/go.sum
+
+      # pnpm setup
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: frontend/package.json
+
+      # Node.js setup and cache
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: "pnpm"
+          cache-dependency-path: "frontend/pnpm-lock.yaml"
+
+      # Frontend lint and test
+      - name: Frontend - Install dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Frontend - Prettier
+        working-directory: frontend
+        run: pnpm run prettier
+
+      - name: Frontend - Lint
+        working-directory: frontend
+        run: pnpm run lint
+
+      - name: Frontend - Type check
+        working-directory: frontend
+        run: pnpm run typescript
+
+      # Only when a codegen input moved. The lockfile is included on purpose: a codegen
+      # version bump can change the output, and skipping it there would let types.ts go
+      # stale and fail the next schema push for something its author did not do.
+      - name: Frontend - Detect GraphQL codegen input changes
+        id: codegen-inputs
+        run: |
+          .github/scripts/codegen-inputs-changed.sh \
+            '${{ github.event_name }}' \
+            '${{ github.event.before }}' \
+            '${{ github.event.pull_request.base.sha }}' \
+            '${{ github.sha }}' >> "$GITHUB_OUTPUT"
+
+      # The app ships the operations compiled into src/graphql/types.ts; regenerate and
+      # diff so it can't drift from graphql-schema.graphql (the codegen input the stand's
+      # schema-compat pre-flight validates against).
+      - name: Frontend - GraphQL codegen is fresh
+        if: steps.codegen-inputs.outputs.changed == 'true'
+        working-directory: frontend
+        run: |
+          pnpm run graphql:generate
+          git diff --exit-code src/graphql/types.ts || {
+            echo "::error file=frontend/src/graphql/types.ts::src/graphql/types.ts is stale — run 'pnpm run graphql:generate' in frontend/ and commit the result"
+            exit 1
+          }
+
+      - name: Frontend - Test
+        working-directory: frontend
+        run: pnpm run test
+
+      # Backend lint and test
+      - name: Backend - Download dependencies
+        working-directory: backend
+        run: go mod download
+        continue-on-error: true
+
+      # The installer embeds the deployment descriptors it extracts onto a host —
+      # the compose files, the observability configuration, the Jaeger plugin — and
+      # that embedded copy is GENERATED from symlinks in cmd/installer/files/links,
+      # not committed (see cmd/installer/files/.gitignore).
+      #
+      # It has to run before the tests, not only before a build: the checker's
+      # compose-consistency tests read the generated copy, because that copy is what
+      # a host actually gets. Without this step they fail on a missing file, and an
+      # installer built in this workflow would ship compose files with the image tags
+      # hardcoded instead of the ${COMPONENT_IMAGE:-default} variables the update
+      # mechanism writes into — an update that resolves correctly and then applies
+      # nothing.
+      - name: Backend - Generate embedded installer files
+        working-directory: backend/cmd/installer/files
+        run: go run generate.go
+
+      - name: Backend - Lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.12.2
+          working-directory: backend
+          args: --timeout=5m
+
+      - name: Backend - Test
+        working-directory: backend
+        run: go test ./... -race -v
+
+      - name: Backend - Test Build
+        working-directory: backend
+        env:
+          CGO_ENABLED: 0
+          GO111MODULE: on
+        run: |
+          # Get version information
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          PACKAGE_VER=${LATEST_TAG#v}
+          CURRENT_COMMIT=$(git rev-parse HEAD)
+          TAG_COMMIT=$(git rev-list -n 1 "$LATEST_TAG" 2>/dev/null || echo "")
+
+          if [ "$CURRENT_COMMIT" != "$TAG_COMMIT" ]; then
+            # Fixed width, as in scripts/version.sh: --short widens with the size of the clone.
+            PACKAGE_REV=$(printf '%s' "$CURRENT_COMMIT" | cut -c1-7)
+          else
+            PACKAGE_REV=""
+          fi
+
+          LDFLAGS="-X pentagi/pkg/version.PackageName=pentagi -X pentagi/pkg/version.PackageVer=${PACKAGE_VER} -X pentagi/pkg/version.PackageRev=${PACKAGE_REV}"
+
+          echo "Building with version: ${PACKAGE_VER}${PACKAGE_REV:+-$PACKAGE_REV}"
+
+          # Build for AMD64
+          GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "$LDFLAGS" -o /tmp/pentagi-amd64 ./cmd/pentagi
+          echo "✓ Successfully built for linux/amd64"
+
+          # Build for ARM64
+          GOOS=linux GOARCH=arm64 go build -trimpath -ldflags "$LDFLAGS" -o /tmp/pentagi-arm64 ./cmd/pentagi
+          echo "✓ Successfully built for linux/arm64"
+
+  docker-build:
+    needs: lint-and-test
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Extract version from tag (without 'v' prefix) and split into parts
+      - name: Extract version and revision
+        id: version
+        run: |
+          # Get latest tag version (without 'v' prefix)
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          VERSION=${LATEST_TAG#v}
+
+          # Get current commit hash
+          CURRENT_COMMIT=$(git rev-parse HEAD)
+
+          # Get commit hash of the latest tag
+          TAG_COMMIT=$(git rev-list -n 1 "$LATEST_TAG" 2>/dev/null || echo "")
+
+          # Set revision only if current commit differs from tag commit
+          if [ "$CURRENT_COMMIT" != "$TAG_COMMIT" ]; then
+            # Fixed width, as in scripts/version.sh: --short widens with the size of the clone.
+            PACKAGE_REV=$(printf '%s' "$CURRENT_COMMIT" | cut -c1-7)
+            echo "revision=${PACKAGE_REV}" >> $GITHUB_OUTPUT
+            echo "is_release=false" >> $GITHUB_OUTPUT
+            echo "Building development version: ${VERSION}-${PACKAGE_REV}"
+            echo " Docker tags: latest only"
+          else
+            echo "revision=" >> $GITHUB_OUTPUT
+            echo "is_release=true" >> $GITHUB_OUTPUT
+            echo "Building release version: ${VERSION}"
+            
+            # Split version into major.minor.patch for Docker tags (only for releases)
+            IFS='.' read -r major minor patch <<< "$VERSION"
+            echo "major=${major}" >> $GITHUB_OUTPUT
+            echo "minor=${major}.${minor}" >> $GITHUB_OUTPUT
+            echo "patch=${VERSION}" >> $GITHUB_OUTPUT
+            echo "  Docker tags: latest, ${major}, ${major}.${minor}, ${VERSION}"
+          fi
+
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Generate Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: vxcontrol/pentagi
+          tags: |
+            # For main branch - latest tag
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            # For release builds only - tag with major, minor and patch versions
+            type=raw,value=${{ steps.version.outputs.major }},enable=${{ steps.version.outputs.is_release == 'true' }}
+            type=raw,value=${{ steps.version.outputs.minor }},enable=${{ steps.version.outputs.is_release == 'true' }}
+            type=raw,value=${{ steps.version.outputs.patch }},enable=${{ steps.version.outputs.is_release == 'true' }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64/v8
+          push: true
+          provenance: true
+          sbom: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            PACKAGE_VER=${{ steps.version.outputs.version }}
+            PACKAGE_REV=${{ steps.version.outputs.revision }}

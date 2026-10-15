@@ -1,0 +1,124 @@
+# Ollama Cloud agent configuration.
+#
+# Ollama Cloud bills pay-as-you-go usage per token. PentAGI obtains the published
+# prices from pkg/providers/ollama/cloud_pricing.go, so this file does not duplicate
+# price blocks.
+#
+# Excluded from the available model list on purpose: `gemini-3-flash-preview` and
+# `gpt-oss:120b`/`gpt-oss:20b`. This product runs cybersecurity/pentesting
+# workloads, and Google/OpenAI-trained models (hosted or open-weight) carry
+# built-in safety alignment prone to false-positive refusals on legitimate
+# exploit-development and offensive security content - the same reasoning applied
+# when curating examples/configs/openrouter.provider.yml.
+#
+# Role assignments (from the models actually offered on this Ollama Cloud
+# account):
+#   - minimax-m2.7        : simple/reflector/enricher - reliable, low-latency
+#     utility and enrichment model.
+#   - deepseek-v4.1-flash : simple_json/primary_agent/assistant/pentester/searcher
+#     - efficient long-context model at the same input/output rate as MiniMax M2.7.
+#   - kimi-k3             : generator/adviser - flagship model for long-horizon
+#     agentic planning and knowledge work.
+#   - glm-5.3             : refiner - strongest current GLM coding model.
+#   - kimi-k2.7-code      : coder/installer - coding-specialized Kimi variant
+#     with strong long-context performance and lower thinking-token usage.
+#
+# Reasoning/thinking control note: this file intentionally omits the `reasoning:`
+# field entirely. For the native Ollama provider (pkg/providers/ollama, backed by
+# langchaingo's llms/ollama client, not openaicompat), `reasoning:` is a no-op -
+# llms/ollama's createChatRequest/makeOllamaOptionsFromOptions never reads
+# opts.Reasoning; "reasoning" support in that client is purely passive parsing of
+# `<thinking>` tags already present in a model's response text, not an active
+# request parameter. Each model's own hybrid-thinking default is used as-is.
+
+simple:
+  model: "minimax-m2.7:cloud"
+  temperature: 1
+  top_p: 0.9
+  n: 1
+  max_tokens: 8192
+
+simple_json:
+  model: "deepseek-v4.1-flash:cloud"
+  temperature: 0
+  top_p: 0.9
+  n: 1
+  max_tokens: 8192
+  json: true
+
+primary_agent:
+  model: "deepseek-v4.1-flash:cloud"
+  temperature: 1
+  top_p: 0.95
+  n: 1
+  max_tokens: 16384
+
+assistant:
+  model: "deepseek-v4.1-flash:cloud"
+  temperature: 1
+  top_p: 0.95
+  n: 1
+  max_tokens: 16384
+
+generator:
+  model: "kimi-k3:cloud"
+  temperature: 1
+  top_p: 0.95
+  n: 1
+  max_tokens: 32768
+
+refiner:
+  model: "glm-5.3:cloud"
+  temperature: 1
+  top_p: 0.95
+  n: 1
+  max_tokens: 32768
+
+adviser:
+  model: "kimi-k3:cloud"
+  temperature: 1
+  top_p: 0.95
+  n: 1
+  max_tokens: 16384
+
+reflector:
+  model: "minimax-m2.7:cloud"
+  temperature: 1
+  top_p: 0.9
+  n: 1
+  max_tokens: 8192
+
+searcher:
+  model: "deepseek-v4.1-flash:cloud"
+  temperature: 1
+  top_p: 0.95
+  n: 1
+  max_tokens: 8192
+
+enricher:
+  model: "minimax-m2.7:cloud"
+  temperature: 1
+  top_p: 0.95
+  n: 1
+  max_tokens: 4096
+
+coder:
+  model: "kimi-k2.7-code:cloud"
+  temperature: 1
+  top_p: 0.95
+  n: 1
+  max_tokens: 20480
+
+installer:
+  model: "kimi-k2.7-code:cloud"
+  temperature: 1
+  top_p: 0.95
+  n: 1
+  max_tokens: 16384
+
+pentester:
+  model: "deepseek-v4.1-flash:cloud"
+  temperature: 1
+  top_p: 0.95
+  n: 1
+  max_tokens: 16384

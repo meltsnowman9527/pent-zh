@@ -1,0 +1,154 @@
+# DeepInfra agent configuration.
+#
+# Strategy:
+#   - DeepSeek V4 Flash for inexpensive utility calls;
+#   - Gemma 4 31B for structured JSON;
+#   - DeepSeek V4.1 Flash for planning and routine tool work.
+#
+# Prices were read from https://api.deepinfra.com/v1/openai/models on 2026-09-25
+# and are dollars per 1M tokens.
+
+simple:
+  model: "deepseek-ai/DeepSeek-V4-Flash"
+  temperature: 1.0
+  top_p: 0.9
+  repetition_penalty: 1.0
+  n: 1
+  max_tokens: 8192
+  price:
+    input: 0.09
+    output: 0.18
+    cache_read: 0.018
+
+simple_json:
+  model: "google/gemma-4-31B-it"
+  temperature: 0.7
+  top_p: 0.9
+  repetition_penalty: 1.0
+  n: 1
+  max_tokens: 4096
+  json: true
+  price:
+    input: 0.13
+    output: 0.38
+
+primary_agent:
+  model: "deepseek-ai/DeepSeek-V4.1-Flash"
+  temperature: 1.0
+  top_p: 0.95
+  n: 1
+  max_tokens: 16384
+  price:
+    input: 0.20
+    output: 0.60
+    cache_read: 0.006
+
+assistant:
+  model: "deepseek-ai/DeepSeek-V4.1-Flash"
+  temperature: 1.0
+  top_p: 0.95
+  n: 1
+  max_tokens: 16384
+  price:
+    input: 0.20
+    output: 0.60
+    cache_read: 0.006
+
+generator:
+  model: "deepseek-ai/DeepSeek-V4.1-Flash"
+  temperature: 1.0
+  top_p: 0.95
+  n: 1
+  max_tokens: 32768
+  price:
+    input: 0.20
+    output: 0.60
+    cache_read: 0.006
+
+refiner:
+  model: "deepseek-ai/DeepSeek-V4.1-Flash"
+  temperature: 1.0
+  top_p: 0.95
+  n: 1
+  max_tokens: 32768
+  price:
+    input: 0.20
+    output: 0.60
+    cache_read: 0.006
+
+adviser:
+  model: "deepseek-ai/DeepSeek-V4.1-Flash"
+  temperature: 1.0
+  top_p: 0.95
+  n: 1
+  max_tokens: 16384
+  price:
+    input: 0.20
+    output: 0.60
+    cache_read: 0.006
+
+reflector:
+  model: "deepseek-ai/DeepSeek-V4-Flash"
+  temperature: 1.0
+  top_p: 0.95
+  n: 1
+  max_tokens: 4096
+  price:
+    input: 0.09
+    output: 0.18
+    cache_read: 0.018
+
+searcher:
+  model: "deepseek-ai/DeepSeek-V4-Flash"
+  temperature: 1.0
+  top_p: 0.95
+  n: 1
+  max_tokens: 4096
+  price:
+    input: 0.09
+    output: 0.18
+    cache_read: 0.018
+
+enricher:
+  model: "deepseek-ai/DeepSeek-V4.1-Flash"
+  temperature: 1.0
+  top_p: 0.95
+  n: 1
+  max_tokens: 8192
+  price:
+    input: 0.20
+    output: 0.60
+    cache_read: 0.006
+
+coder:
+  model: "deepseek-ai/DeepSeek-V4.1-Flash"
+  temperature: 1.0
+  top_p: 0.95
+  n: 1
+  max_tokens: 20480
+  price:
+    input: 0.20
+    output: 0.60
+    cache_read: 0.006
+
+installer:
+  model: "deepseek-ai/DeepSeek-V4.1-Flash"
+  temperature: 1.0
+  top_p: 0.95
+  n: 1
+  max_tokens: 16384
+  price:
+    input: 0.20
+    output: 0.60
+    cache_read: 0.006
+
+pentester:
+  model: "deepseek-ai/DeepSeek-V4.1-Flash"
+  temperature: 1.0
+  top_p: 0.95
+  n: 1
+  max_tokens: 16384
+  price:
+    input: 0.20
+    output: 0.60
+    cache_read: 0.006

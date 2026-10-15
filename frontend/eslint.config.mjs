@@ -1,0 +1,185 @@
+// @ts-check
+import { FlatCompat } from '@eslint/eslintrc';
+import js from '@eslint/js';
+import perfectionist from 'eslint-plugin-perfectionist';
+import playwright from 'eslint-plugin-playwright';
+
+import waitforBudget from './eslint-rules/waitfor-budget.mjs';
+
+const compat = new FlatCompat({
+    baseDirectory: import.meta.dirname,
+    recommendedConfig: js.configs.recommended,
+});
+
+const eslintConfig = [
+    ...compat.config({
+        extends: [
+            'eslint:recommended',
+            'plugin:@typescript-eslint/recommended',
+            'plugin:react/recommended',
+            'plugin:react/jsx-runtime',
+            'plugin:react-hooks/recommended',
+            'prettier',
+        ],
+        settings: {
+            react: {
+                version: 'detect',
+            },
+        },
+    }),
+    {
+        plugins: {
+            local: {
+                rules: {
+                    'waitfor-budget': waitforBudget,
+                },
+            },
+        },
+        rules: {
+            '@typescript-eslint/no-explicit-any': 'warn',
+            '@typescript-eslint/no-unused-vars': [
+                'error',
+                {
+                    argsIgnorePattern: '^_',
+                    varsIgnorePattern: '^_',
+                },
+            ],
+            curly: ['error', 'all'],
+            'local/waitfor-budget': 'error',
+            'no-fallthrough': 'off',
+            'no-restricted-syntax': [
+                'error',
+                {
+                    message:
+                        'Do not set mode/reValidateMode on useForm — use useAppForm, which owns the silent-until-submit form timing.',
+                    selector:
+                        'CallExpression[callee.name="useForm"] > ObjectExpression > Property[key.name="mode"], CallExpression[callee.name="useForm"] > ObjectExpression > Property[key.name="reValidateMode"]',
+                },
+            ],
+            'padding-line-between-statements': [
+                'error',
+                {
+                    blankLine: 'always',
+                    next: 'return',
+                    prev: '*',
+                },
+                {
+                    blankLine: 'always',
+                    next: 'block-like',
+                    prev: '*',
+                },
+                {
+                    blankLine: 'any',
+                    next: 'block-like',
+                    prev: 'case',
+                },
+                {
+                    blankLine: 'always',
+                    next: '*',
+                    prev: 'block-like',
+                },
+                {
+                    blankLine: 'always',
+                    next: 'block-like',
+                    prev: 'block-like',
+                },
+                {
+                    blankLine: 'any',
+                    next: 'while',
+                    prev: 'do',
+                },
+            ],
+            // Off until React Compiler lands: its compatibility lint flags every RHF
+            // watch() / useReactTable as unactionable noise (see OPEN-ISSUES §3).
+            'react-hooks/incompatible-library': 'off',
+            'react/no-unescaped-entities': 'off', // Allow quotes in JSX
+            'react/prop-types': 'off', // TypeScript provides type checking
+        },
+    },
+    {
+        // useAppForm is the single owner of the form timing — the one place
+        // allowed to set mode/reValidateMode on useForm.
+        files: ['src/hooks/use-app-form.ts'],
+        rules: { 'no-restricted-syntax': 'off' },
+    },
+    {
+        files: ['src/components/shared/**', 'src/components/ui/**'],
+        rules: {
+            'no-restricted-imports': [
+                'error',
+                {
+                    patterns: [
+                        {
+                            group: ['@/features/*', '**/features/*'],
+                            message:
+                                'components/ui and components/shared are reusable primitives — a feature must be passed in, not imported. The app shell under components/layouts may import features.',
+                        },
+                    ],
+                },
+            ],
+        },
+    },
+    perfectionist.configs['recommended-natural'],
+    {
+        ...playwright.configs['flat/recommended'],
+        // *.unit.test.ts are vitest, not Playwright — the plugin's rules
+        // (no-standalone-expect) misfire on vitest's `it`.
+        files: ['e2e/**/*.ts'],
+        ignores: ['e2e/**/*.unit.test.ts'],
+    },
+    {
+        // Playwright fixtures take a `use` callback that the React hooks rule
+        // mistakes for a hook call; there is no React under e2e/.
+        files: ['e2e/**/*.ts'],
+        rules: { 'react-hooks/rules-of-hooks': 'off' },
+    },
+    {
+        // The dependency-free .mjs tools run under plain Node — declare its
+        // globals so no-undef doesn't misfire.
+        files: ['e2e/**/*.mjs'],
+        languageOptions: {
+            globals: {
+                console: 'readonly',
+                fetch: 'readonly',
+                process: 'readonly',
+                setTimeout: 'readonly',
+                URL: 'readonly',
+            },
+        },
+    },
+    {
+        // The perf and leak harnesses run half in Node and half inside page.evaluate,
+        // so both sets of globals are legitimate in the same file.
+        files: ['scripts/**/*.{js,mjs,ts}'],
+        languageOptions: {
+            globals: {
+                clearInterval: 'readonly',
+                console: 'readonly',
+                document: 'readonly',
+                fetch: 'readonly',
+                performance: 'readonly',
+                PerformanceObserver: 'readonly',
+                PopStateEvent: 'readonly',
+                process: 'readonly',
+                requestAnimationFrame: 'readonly',
+                setInterval: 'readonly',
+                setTimeout: 'readonly',
+                URL: 'readonly',
+                window: 'readonly',
+            },
+        },
+    },
+    {
+        ignores: [
+            'node_modules/**',
+            'dist/**',
+            'build/**',
+            'public/mockServiceWorker.js',
+            'src/graphql/types.ts',
+            'e2e/test-results/**',
+            'e2e/playwright-report/**',
+        ],
+    },
+];
+
+export default eslintConfig;

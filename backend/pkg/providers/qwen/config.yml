@@ -1,0 +1,136 @@
+# Qwen Cloud and Alibaba Cloud Model Studio agent configuration.
+#
+# Every assigned model is available from both qwen_cloud and dashscope. The
+# catalogue is wider because it is the union of both platforms.
+#
+# Qwen3.6 Flash handles utility calls. DeepSeek V4.1 Flash handles routine tool
+# use, while DeepSeek V4 Pro handles planning and advice.
+#
+# Thinking controls are left unset because Qwen Cloud does not let these models
+# disable reasoning while DashScope does. Both gateways apply their defaults.
+
+simple:
+  model: "qwen3.6-flash"
+  temperature: 0.3
+  n: 1
+  max_tokens: 8192
+  price:
+    input: 0.25
+    output: 1.5
+    cache_read: 0.05
+
+simple_json:
+  model: "qwen3.6-flash"
+  temperature: 0.3
+  n: 1
+  max_tokens: 4096
+  json: true
+  price:
+    input: 0.25
+    output: 1.5
+    cache_read: 0.05
+
+primary_agent:
+  model: "deepseek-v4.1-flash"
+  temperature: 0.7
+  n: 1
+  max_tokens: 16384
+  price:
+    input: 0.15
+    output: 0.6
+
+assistant:
+  model: "deepseek-v4.1-flash"
+  temperature: 0.7
+  n: 1
+  max_tokens: 16384
+  price:
+    input: 0.15
+    output: 0.6
+
+generator:
+  model: "deepseek-v4-pro"
+  temperature: 0.7
+  n: 1
+  max_tokens: 32768
+  price:
+    input: 2.4
+    output: 4.8
+    cache_read: 0.2
+
+refiner:
+  model: "deepseek-v4-pro"
+  temperature: 0.7
+  n: 1
+  max_tokens: 20480
+  price:
+    input: 2.4
+    output: 4.8
+    cache_read: 0.2
+
+adviser:
+  model: "deepseek-v4-pro"
+  temperature: 0.7
+  n: 1
+  max_tokens: 8192
+  price:
+    input: 2.4
+    output: 4.8
+    cache_read: 0.2
+
+reflector:
+  model: "qwen3.6-flash"
+  temperature: 0.3
+  n: 1
+  max_tokens: 4096
+  price:
+    input: 0.25
+    output: 1.5
+    cache_read: 0.05
+
+searcher:
+  model: "qwen3.6-flash"
+  temperature: 0.3
+  n: 1
+  max_tokens: 4096
+  price:
+    input: 0.25
+    output: 1.5
+    cache_read: 0.05
+
+enricher:
+  model: "qwen3.6-flash"
+  temperature: 0.3
+  n: 1
+  max_tokens: 4096
+  price:
+    input: 0.25
+    output: 1.5
+    cache_read: 0.05
+
+coder:
+  model: "deepseek-v4.1-flash"
+  temperature: 0.7
+  n: 1
+  max_tokens: 20480
+  price:
+    input: 0.15
+    output: 0.6
+
+installer:
+  model: "deepseek-v4.1-flash"
+  temperature: 0.7
+  n: 1
+  max_tokens: 16384
+  price:
+    input: 0.15
+    output: 0.6
+
+pentester:
+  model: "deepseek-v4.1-flash"
+  temperature: 0.7
+  n: 1
+  max_tokens: 16384
+  price:
+    input: 0.15
+    output: 0.6

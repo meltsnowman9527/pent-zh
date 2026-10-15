@@ -1,0 +1,64 @@
+.DS_Store
+.env
+.env.*
+/登录账号密码.txt
+/docker-ssl/*
+!/docker-ssl/.gitkeep
+.state
+!.env.example
+!backend/cmd/installer/files/links/.env
+
+backend/tmp
+backend/build
+backend/data
+# locally built helper binaries (cmd/ctester, cmd/etester, cmd/ftester)
+backend/ctester
+backend/etester
+backend/ftester
+backend/vendor
+backend/cmd/installer/**/log.json
+
+frontend/coverage
+frontend/dist
+frontend/node_modules
+frontend/ssl
+node_modules
+.pnpm-store/
+
+.cursorrules
+.cursorignore
+.cursor/
+.agents/
+.playwright-mcp/
+skills-lock.json
+
+build/*
+data/*
+neo4j/*
+.bak/*
+!.gitkeep
+.claude/
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
+__pycache__/
+
+# OS
+Thumbs.db
+
+# 非系统文件（规划、评审、设计与实施状态文档）：不随交付仓库跟踪，保留在本机。
+# 交付物只包含系统本身的代码、配置与运维说明。
+/IMPLEMENTATION_STATUS.md
+/PENTAGI_*.md
+/docs/research-platform/
+
+# 可选叠加栈的运行时目录：Neo4j 由容器创建（数据/日志），Graphiti 由安装器安装。
+/neo4j/
+/graphiti/
+
+# Windows application builds are local artifacts.
+/backend/*.exe
+

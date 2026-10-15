@@ -1,0 +1,174 @@
+import type { ReactNode } from 'react';
+
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
+import { describe, expect, it } from 'vitest';
+
+import { TooltipProvider } from '@/components/ui/tooltip';
+import { uiText } from '@/locales/zh-CN';
+
+import { DetailNavigationButtons } from './detail-navigation-buttons';
+import { DetailNavigationToolbar } from './detail-navigation-toolbar';
+import { type DetailNavigationController, useDetailNavigation } from './use-detail-navigation';
+
+interface Item {
+    id: string;
+    title: string;
+}
+
+const ITEMS: readonly Item[] = [
+    { id: 'a', title: 'Alpha' },
+    { id: 'b', title: 'Bravo' },
+    { id: 'c', title: 'Charlie' },
+    { id: 'd', title: 'Delta' },
+] as const;
+
+const getHref = (item: Item) => `/items/${item.id}`;
+const getLabel = (item: Item) => item.title;
+
+const LocationReadout = () => {
+    const { pathname, search } = useLocation();
+
+    return (
+        <span data-slot="probe-location">
+            {pathname}
+            {search}
+        </span>
+    );
+};
+
+interface HarnessProps {
+    currentId?: null | string;
+    filter?: string;
+    items?: readonly Item[];
+}
+
+const ToolbarHarness = ({ currentId = 'c', items = ITEMS }: HarnessProps) => {
+    const nav = useDetailNavigation<Item>({
+        currentId,
+        getHref,
+        getLabel,
+        items,
+    });
+
+    return (
+        <DetailNavigationToolbar<Item>
+            controller={nav}
+            sheetTitle="Items"
+        />
+    );
+};
+
+const renderToolbar = (props: HarnessProps = {}) => {
+    const filter = props.filter ?? '';
+    const initialId = props.currentId ?? 'c';
+
+    const Wrapper = ({ children }: { children: ReactNode }) => (
+        <MemoryRouter initialEntries={[`/items/${initialId}?q=${filter}`]}>
+            <TooltipProvider>
+                <LocationReadout />
+                <Routes>
+                    <Route
+                        element={<>{children}</>}
+                        path="/items/:id"
+                    />
+                </Routes>
+            </TooltipProvider>
+        </MemoryRouter>
+    );
+
+    return render(<ToolbarHarness {...props} />, { wrapper: Wrapper });
+};
+
+describe('DetailNavigationToolbar', () => {
+    it('renders a disabled cluster when raw items is empty', () => {
+        renderToolbar({ items: [] });
+        expect(screen.getByRole('button', { name: uiText('Previous') })).toBeDisabled();
+        expect(screen.getByRole('button', { name: uiText('Next') })).toBeDisabled();
+        expect(screen.getByRole('button', { name: /–\/0/ })).toBeDisabled();
+    });
+
+    it.each([
+        { expected: '7ch', total: 0 },
+        { expected: '7ch', total: 4 },
+        { expected: '7ch', total: 150 },
+        { expected: '9ch', total: 1500 },
+        { expected: '11ch', total: 99999 },
+    ])('reserves $expected of counter width for a set of $total', ({ expected, total }) => {
+        // Do not mount 99999 real items: that path times out under CI's default 5s testTimeout.
+        const controller = {
+            goToNext: () => undefined,
+            goToPrev: () => undefined,
+            hasEntries: true,
+            nextId: 'next',
+            openSheet: () => undefined,
+            positionLabel: `1/${total}`,
+            prevId: null,
+            total,
+        } as DetailNavigationController<Item>;
+
+        render(
+            <TooltipProvider>
+                <DetailNavigationButtons
+                    controller={controller}
+                    sheetTitle="Items"
+                />
+            </TooltipProvider>,
+        );
+
+        expect(screen.getByRole('button', { name: new RegExp(`1/${total}`) }).firstElementChild).toHaveStyle({
+            minWidth: expected,
+        });
+    });
+
+    it('composes Buttons + Sheet: position button opens the listbox', async () => {
+        const user = userEvent.setup();
+        renderToolbar({ currentId: 'c' });
+
+        // Buttons present (smoke).
+        expect(screen.getByRole('button', { name: uiText('Previous') })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: uiText('Next') })).toBeInTheDocument();
+
+        // Position trigger opens the sheet.
+        await user.click(screen.getByRole('button', { name: /3\/4/ }));
+        const listbox = await screen.findByRole('listbox', { name: 'Items' });
+        expect(listbox).toBeInTheDocument();
+    });
+
+    it('shows `–/total` when current is missing from the filtered subset', () => {
+        renderToolbar({ currentId: 'zzz' });
+        expect(screen.getByRole('button', { name: /–\/4/ })).toBeInTheDocument();
+    });
+
+    it('disables Prev for the first item', () => {
+        renderToolbar({ currentId: 'a' });
+        expect(screen.getByRole('button', { name: uiText('Previous') })).toBeDisabled();
+    });
+
+    it('disables Next for the last item', () => {
+        renderToolbar({ currentId: 'd' });
+        expect(screen.getByRole('button', { name: uiText('Next') })).toBeDisabled();
+    });
+
+    it('Next navigates to the next sibling preserving `?q=`', async () => {
+        const user = userEvent.setup();
+        renderToolbar({ currentId: 'a', filter: 'a' });
+
+        await user.click(screen.getByRole('button', { name: uiText('Next') }));
+
+        await waitFor(() => {
+            expect(screen.getByTestId('probe-location').textContent).toContain('/items/b');
+        });
+        expect(screen.getByTestId('probe-location').textContent).toContain('q=a');
+    });
+
+    it('disables the position button when the filter excludes every item', async () => {
+        renderToolbar({ currentId: 'c', filter: 'qqqqqqqqq' });
+
+        // After debounce settles, the empty subset disables the trigger.
+        await waitFor(() => {
+            expect(screen.getByRole('button', { name: /–\/0/ })).toBeDisabled();
+        });
+    });
+});

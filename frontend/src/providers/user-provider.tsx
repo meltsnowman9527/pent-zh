@@ -1,0 +1,412 @@
+import type { ReactNode } from 'react';
+
+import { createContext, use, useCallback, useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+
+import type { AuthInfo } from '@/models/info';
+import type { User } from '@/models/user';
+
+import { api, getApiErrorCode } from '@/lib/axios';
+import { routes } from '@/lib/routes';
+import { getReturnUrlParam } from '@/lib/utils/auth';
+import { uiText } from '@/locales/zh-CN';
+import { baseUrl } from '@/models/api';
+
+export interface LoginCredentials {
+    mail: string;
+    password: string;
+}
+
+export interface LoginResult {
+    error?: string;
+    passwordChangeRequired?: boolean;
+    success: boolean;
+}
+
+export type OAuthProvider = 'github' | 'google';
+
+interface UserContextType {
+    authInfo: AuthInfo | null;
+    clearAuth: () => void;
+    isAuthenticated: () => boolean;
+    isLoading: boolean;
+    login: (credentials: LoginCredentials) => Promise<LoginResult>;
+    loginWithOAuth: (provider: OAuthProvider) => Promise<LoginResult>;
+    logout: (returnUrl?: string) => Promise<void>;
+    patchUser: (patch: Partial<User>) => void;
+    refreshAuthInfo: () => Promise<void>;
+    setAuth: (authInfo: AuthInfo) => void;
+}
+
+const UserContext = createContext<undefined | UserContextType>(undefined);
+
+export const AUTH_STORAGE_KEY = 'auth';
+
+export const LOGIN_LOCKED_MESSAGE = 'Too many login attempts. Wait a few minutes and try again.';
+
+export function UserProvider({ children }: { children: ReactNode }) {
+    const navigate = useNavigate();
+    const location = useLocation();
+    const [authInfo, setAuthInfo] = useState<AuthInfo | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const initializeAuth = async () => {
+            let shouldFetchFromApi = false;
+
+            try {
+                const storedData = localStorage.getItem(AUTH_STORAGE_KEY);
+
+                if (storedData) {
+                    const parsedAuthInfo: AuthInfo = JSON.parse(storedData);
+
+                    if (parsedAuthInfo) {
+                        setAuthInfo(parsedAuthInfo);
+
+                        // Guests need a fresh /info to pick up updated OAuth providers list.
+                        if (parsedAuthInfo.type === 'guest') {
+                            shouldFetchFromApi = true;
+                        } else {
+                            setIsLoading(false);
+
+                            return;
+                        }
+                    }
+                } else {
+                    shouldFetchFromApi = true;
+                }
+            } catch {
+                localStorage.removeItem(AUTH_STORAGE_KEY);
+                shouldFetchFromApi = true;
+            }
+
+            if (shouldFetchFromApi) {
+                try {
+                    const info = await api.get<AuthInfo>('/info');
+
+                    if (info?.status === 'success' && info.data) {
+                        setAuthInfo(info.data);
+
+                        if (info.data.type === 'guest') {
+                            localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(info.data));
+                        }
+                    }
+                } catch {
+                    // swallow: /info is non-critical here, the rest of the app will retry on demand
+                } finally {
+                    setIsLoading(false);
+                }
+            }
+        };
+
+        initializeAuth();
+    }, []);
+
+    const setAuth = useCallback((newAuthInfo: AuthInfo) => {
+        setAuthInfo(newAuthInfo);
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(newAuthInfo));
+    }, []);
+
+    const clearAuth = useCallback(() => {
+        setAuthInfo(null);
+        localStorage.removeItem(AUTH_STORAGE_KEY);
+    }, []);
+
+    const isAuthenticated = useCallback(() => {
+        if (!authInfo?.user || !authInfo?.expires_at) {
+            return false;
+        }
+
+        const now = new Date();
+        const expirationDate = new Date(authInfo.expires_at);
+
+        return expirationDate > now;
+    }, [authInfo]);
+
+    const patchUser = useCallback(
+        (patch: Partial<User>) => {
+            if (!authInfo?.user) {
+                return;
+            }
+
+            setAuth({ ...authInfo, user: { ...authInfo.user, ...patch } });
+        },
+        [authInfo, setAuth],
+    );
+
+    const refreshAuthInfo = useCallback(async () => {
+        try {
+            const info = await api.get<AuthInfo>('/info');
+
+            if (info?.status === 'success' && info.data) {
+                setAuth(info.data);
+            } else {
+                clearAuth();
+            }
+        } catch {
+            // A transient /info failure (network, 5xx, timeout) is not auth loss — the axios
+            // interceptor hard-redirects on a real 401/403. Keep the current session.
+        }
+    }, [setAuth, clearAuth]);
+
+    useEffect(() => {
+        if (location.pathname === routes.login() && !isLoading) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- refreshAuthInfo's setState runs after an async fetch, not synchronously
+            refreshAuthInfo();
+        }
+    }, [location.pathname, isLoading, refreshAuthInfo]);
+
+    const logout = useCallback(
+        async (returnUrl?: string) => {
+            const currentPath = location.pathname;
+            const finalReturnUrl = returnUrl || getReturnUrlParam(currentPath);
+
+            try {
+                await api.post('/auth/logout');
+                toast.success(uiText('Successfully logged out'));
+            } catch {
+                toast.error(uiText('Logout failed, but clearing local session'));
+            } finally {
+                clearAuth();
+                window.location.href = `${routes.login()}${finalReturnUrl}`;
+            }
+        },
+        [clearAuth, location.pathname],
+    );
+
+    const login = useCallback(
+        async (credentials: LoginCredentials): Promise<LoginResult> => {
+            try {
+                const loginResponse = await api.post<unknown>('/auth/login', credentials);
+
+                if (loginResponse?.status !== 'success') {
+                    const errorMessage = uiText('Invalid login or password');
+                    toast.error(errorMessage);
+
+                    return { error: errorMessage, success: false };
+                }
+
+                // Backend sets the session cookie on /auth/login — fetch /info to materialize the user.
+                const infoResponse = await api.get<AuthInfo>('/info');
+
+                if (infoResponse?.status !== 'success' || !infoResponse.data) {
+                    const errorMessage = uiText('Failed to load user information');
+                    toast.error(errorMessage);
+
+                    return { error: errorMessage, success: false };
+                }
+
+                setAuth(infoResponse.data);
+
+                if (infoResponse.data.user?.type === 'local' && infoResponse.data.user.password_change_required) {
+                    toast.warning(uiText('Password change required'));
+
+                    return { passwordChangeRequired: true, success: true };
+                }
+
+                return { success: true };
+            } catch (error) {
+                const errorMessage =
+                    getApiErrorCode(error) === 'Auth.TooManyAttempts'
+                        ? LOGIN_LOCKED_MESSAGE
+                        : 'Login failed. Please try again.';
+                toast.error(errorMessage);
+
+                return { error: errorMessage, success: false };
+            }
+        },
+        [setAuth],
+    );
+
+    const loginWithOAuth = useCallback(
+        async (provider: OAuthProvider): Promise<LoginResult> => {
+            const returnOAuthUri = routes.oauthResult;
+            const width = 500;
+            const height = 600;
+            const left = window.screenX + (window.outerWidth - width) / 2;
+            const top = window.screenY + (window.outerHeight - height) / 2;
+
+            const popup = window.open(
+                `${baseUrl}/auth/authorize?provider=${provider}&return_uri=${returnOAuthUri}`,
+                `${provider} Sign In`,
+                `width=${width},height=${height},left=${left},top=${top}`,
+            );
+
+            if (!popup) {
+                const errorMessage = uiText('Popup blocked. Please allow popups for this site.');
+                toast.error(errorMessage);
+
+                return {
+                    error: errorMessage,
+                    success: false,
+                };
+            }
+
+            return new Promise<LoginResult>((resolve) => {
+                const popupCheckInterval = 500;
+                const popupTimeout = 300000;
+                let isResolved = false;
+
+                const popupCheck = setInterval(() => {
+                    if (popup?.closed && !isResolved) {
+                        isResolved = true;
+                        clearInterval(popupCheck);
+                        clearTimeout(timeoutId);
+                        window.removeEventListener('message', messageHandler);
+                        const errorMessage = uiText('Authentication cancelled');
+                        toast.info(errorMessage);
+                        resolve({
+                            error: errorMessage,
+                            success: false,
+                        });
+                    }
+                }, popupCheckInterval);
+
+                const timeoutId = setTimeout(() => {
+                    if (!isResolved) {
+                        isResolved = true;
+                        clearInterval(popupCheck);
+                        window.removeEventListener('message', messageHandler);
+
+                        if (popup && !popup.closed) {
+                            popup.close();
+                        }
+
+                        const errorMessage = uiText('Authentication timeout');
+                        toast.error(errorMessage);
+                        resolve({
+                            error: errorMessage,
+                            success: false,
+                        });
+                    }
+                }, popupTimeout);
+
+                const messageHandler = async (event: MessageEvent) => {
+                    if (event.origin !== window.location.origin || event.data?.type !== 'oauth-result') {
+                        return;
+                    }
+
+                    if (isResolved) {
+                        return;
+                    }
+
+                    isResolved = true;
+                    clearInterval(popupCheck);
+                    clearTimeout(timeoutId);
+                    window.removeEventListener('message', messageHandler);
+
+                    const cleanup = () => {
+                        if (popup && !popup.closed) {
+                            popup.close();
+                        }
+                    };
+
+                    if (event.data.status === 'success') {
+                        try {
+                            const info = await api.get<AuthInfo>('/info');
+
+                            if (info?.status === 'success' && info.data?.type === 'user') {
+                                setAuth(info.data);
+                                cleanup();
+                                resolve({ success: true });
+
+                                return;
+                            }
+                        } catch (error) {
+                            console.error('Error during OAuth result handling:', error);
+                        }
+                    }
+
+                    cleanup();
+                    const errorMessage = event.data.error || uiText('Authentication failed');
+                    toast.error(errorMessage);
+                    resolve({
+                        error: errorMessage,
+                        success: false,
+                    });
+                };
+
+                window.addEventListener('message', messageHandler);
+            });
+        },
+        [setAuth],
+    );
+
+    useEffect(() => {
+        const updateAuth = async () => {
+            const publicRoutes = [routes.login(), routes.oauthResult];
+
+            if (publicRoutes.includes(location.pathname)) {
+                return;
+            }
+
+            if (!isAuthenticated()) {
+                return;
+            }
+
+            try {
+                const info = await api.get<AuthInfo>('/info', {
+                    params: {
+                        refresh_cookie: true,
+                    },
+                });
+
+                if (info?.status === 'success' && info.data) {
+                    setAuth(info.data);
+                } else {
+                    clearAuth();
+                    toast.error(uiText('Session expired. Please login again.'));
+                    navigate(routes.login(location.pathname));
+                }
+            } catch {
+                // A transient /info failure on navigation must not log the user out — a network
+                // blip is not session expiry; the interceptor redirects on a real 401/403.
+            }
+        };
+
+        updateAuth();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [location.pathname]);
+
+    useEffect(() => {
+        const handleAuthRefresh = () => {
+            refreshAuthInfo();
+        };
+
+        window.addEventListener('auth:refresh', handleAuthRefresh);
+
+        return () => {
+            window.removeEventListener('auth:refresh', handleAuthRefresh);
+        };
+    }, [refreshAuthInfo]);
+
+    return (
+        <UserContext
+            value={{
+                authInfo,
+                clearAuth,
+                isAuthenticated,
+                isLoading,
+                login,
+                loginWithOAuth,
+                logout,
+                patchUser,
+                refreshAuthInfo,
+                setAuth,
+            }}
+        >
+            {children}
+        </UserContext>
+    );
+}
+
+export function useUser() {
+    const context = use(UserContext);
+
+    if (context === undefined) {
+        throw new Error('useUser must be used within a UserProvider');
+    }
+
+    return context;
+}

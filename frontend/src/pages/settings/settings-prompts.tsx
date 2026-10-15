@@ -1,0 +1,943 @@
+import type { ColumnDef, Row } from '@tanstack/react-table';
+
+import { useMutation, useQuery } from '@apollo/client/react';
+import {
+    ArrowDown,
+    ArrowUp,
+    Bot,
+    Code,
+    Ellipsis,
+    FileText,
+    Pencil,
+    RotateCcw,
+    Settings,
+    Trash2,
+    User,
+    Wrench,
+} from 'lucide-react';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+
+import type { DefaultPromptFragmentFragment as DefaultPrompt, PromptType } from '@/graphql/types';
+
+import { localizeUiErrorText } from '@/lib/errors';
+
+type AgentPrompts = { human?: DefaultPrompt; system: DefaultPrompt };
+
+import { AppHeader, AppHeaderContent, AppHeaderTitle } from '@/components/layouts/app/app-header';
+import ConfirmationDialog from '@/components/shared/confirmation-dialog';
+import { ErrorState } from '@/components/shared/error-state';
+import { LoadingState } from '@/components/shared/loading-state';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { ContextMenuItem, ContextMenuSeparator } from '@/components/ui/context-menu';
+import { DataTable } from '@/components/ui/data-table';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
+import { Spinner } from '@/components/ui/spinner';
+import { DeletePromptDocument, SettingsPromptsDocument } from '@/graphql/types';
+import { usePageStorageKeys } from '@/hooks/use-page-storage-keys';
+import { formatPromptId } from '@/lib/route-titles/format-prompt-id';
+import { routes } from '@/lib/routes';
+import { uiText } from '@/locales/zh-CN';
+
+// Status values stay machine-readable ('Custom' | 'Default' | 'N/A') so badge variants and
+// filtering keep working; only the rendered label goes through the copy table.
+const promptStatusLabel = (status: string): string =>
+    status === 'Custom' ? uiText('Custom') : status === 'Default' ? uiText('Default') : uiText('N/A');
+
+type AgentPromptTableData = {
+    displayName: string;
+    hasHuman: boolean;
+    hasSystem: boolean;
+    humanStatus: 'Custom' | 'Default' | 'N/A';
+    humanTemplate?: string;
+    humanType?: PromptType;
+    name: string;
+    systemStatus: 'Custom' | 'Default' | 'N/A';
+    systemTemplate: string;
+    systemType?: PromptType;
+};
+
+type ToolPromptTableData = {
+    displayName: string;
+    name: string;
+    promptType?: PromptType;
+    status: 'Custom' | 'Default' | 'N/A';
+    template: string;
+};
+
+function SettingsPrompts() {
+    const { data, error, loading: isLoading, refetch } = useQuery(SettingsPromptsDocument);
+    const [deletePrompt, { loading: isDeleteLoading }] = useMutation(DeletePromptDocument);
+    const navigate = useNavigate();
+    // Shared base key for the route; each DataTable appends its own suffix so
+    // sorting / column visibility / search-column narrowing live in distinct
+    // slots even though the page mounts two tables.
+    const { table: tableStorageBase } = usePageStorageKeys();
+
+    const [resetDialogOpen, setResetDialogOpen] = useState(false);
+    const [resetOperation, setResetOperation] = useState<null | {
+        displayName: string;
+        promptName: string;
+        type: 'all' | 'human' | 'system' | 'tool';
+    }>(null);
+
+    // Three-way sorting: null → asc → desc → null.
+    const handleColumnSort = (column: {
+        clearSorting: () => void;
+        getIsSorted: () => 'asc' | 'desc' | false;
+        toggleSorting: (desc?: boolean) => void;
+    }) => {
+        const sorted = column.getIsSorted();
+
+        if (sorted === 'asc') {
+            column.toggleSorting(true);
+        } else if (sorted === 'desc') {
+            column.clearSorting();
+        } else {
+            column.toggleSorting(false);
+        }
+    };
+
+    const handlePromptEdit = (promptName: string) => {
+        navigate(routes.settings.prompt(promptName));
+    };
+
+    const handleResetDialogOpen = (
+        type: 'all' | 'human' | 'system' | 'tool',
+        promptName: string,
+        displayName: string,
+    ) => {
+        setResetOperation({ displayName, promptName, type });
+        setResetDialogOpen(true);
+    };
+
+    const handleResetPrompt = async () => {
+        if (!resetOperation || !data?.settingsPrompts?.default) {
+            return;
+        }
+
+        try {
+            const { promptName, type } = resetOperation;
+            const { agents } = data.settingsPrompts.default;
+            const { tools } = data.settingsPrompts.default;
+            const userDefined = data.settingsPrompts.userDefined || [];
+
+            if (type === 'tool') {
+                const toolPrompt = tools?.[promptName as keyof typeof tools];
+
+                if (toolPrompt?.type) {
+                    const userPrompt = userDefined.find((p) => p.type === toolPrompt.type);
+
+                    if (userPrompt) {
+                        await deletePrompt({
+                            refetchQueries: ['settingsPrompts'],
+                            variables: { promptId: userPrompt.id },
+                        });
+                    }
+                }
+            } else {
+                const agentPrompts = agents?.[promptName as keyof typeof agents] as AgentPrompts;
+
+                if (agentPrompts) {
+                    const systemType = agentPrompts.system?.type;
+                    const humanType = agentPrompts.human?.type;
+
+                    if (type === 'system' && systemType) {
+                        const userPrompt = userDefined.find((p) => p.type === systemType);
+
+                        if (userPrompt) {
+                            await deletePrompt({
+                                refetchQueries: ['settingsPrompts'],
+                                variables: { promptId: userPrompt.id },
+                            });
+                        }
+                    } else if (type === 'human' && humanType) {
+                        const userPrompt = userDefined.find((p) => p.type === humanType);
+
+                        if (userPrompt) {
+                            await deletePrompt({
+                                refetchQueries: ['settingsPrompts'],
+                                variables: { promptId: userPrompt.id },
+                            });
+                        }
+                    } else if (type === 'all') {
+                        if (systemType) {
+                            const userSystemPrompt = userDefined.find((p) => p.type === systemType);
+
+                            if (userSystemPrompt) {
+                                await deletePrompt({
+                                    refetchQueries: ['settingsPrompts'],
+                                    variables: { promptId: userSystemPrompt.id },
+                                });
+                            }
+                        }
+
+                        if (humanType) {
+                            const userHumanPrompt = userDefined.find((p) => p.type === humanType);
+
+                            if (userHumanPrompt) {
+                                await deletePrompt({
+                                    refetchQueries: ['settingsPrompts'],
+                                    variables: { promptId: userHumanPrompt.id },
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+
+            setResetOperation(null);
+        } catch (error) {
+            toast.error(uiText('Failed to reset prompt'), {
+                description: error instanceof Error ? localizeUiErrorText(error.message) : undefined,
+            });
+        }
+    };
+
+    const canResetPrompt = (promptName: string, resetType: 'all' | 'human' | 'system' | 'tool'): boolean => {
+        if (!data?.settingsPrompts?.default || !data?.settingsPrompts?.userDefined) {
+            return false;
+        }
+
+        const { userDefined } = data.settingsPrompts;
+        const { agents } = data.settingsPrompts.default;
+        const { tools } = data.settingsPrompts.default;
+
+        if (resetType === 'tool') {
+            const toolPrompt = tools?.[promptName as keyof typeof tools];
+
+            return toolPrompt?.type ? userDefined.some((p) => p.type === toolPrompt.type) : false;
+        } else {
+            const agentPrompts = agents?.[promptName as keyof typeof agents] as AgentPrompts;
+
+            if (!agentPrompts) {
+                return false;
+            }
+
+            const systemType = agentPrompts.system?.type;
+            const humanType = agentPrompts.human?.type;
+
+            switch (resetType) {
+                case 'all': {
+                    const hasCustomSystem = systemType ? userDefined.some((p) => p.type === systemType) : false;
+                    const hasCustomHuman = humanType ? userDefined.some((p) => p.type === humanType) : false;
+
+                    return hasCustomSystem || hasCustomHuman;
+                }
+
+                case 'human': {
+                    return humanType ? userDefined.some((p) => p.type === humanType) : false;
+                }
+
+                case 'system': {
+                    return systemType ? userDefined.some((p) => p.type === systemType) : false;
+                }
+            }
+        }
+    };
+
+    const getAgentPromptsData = (): AgentPromptTableData[] => {
+        if (!data?.settingsPrompts?.default?.agents) {
+            return [];
+        }
+
+        const { agents } = data.settingsPrompts.default;
+        const userDefined = data.settingsPrompts.userDefined || [];
+        const agentEntries: AgentPromptTableData[] = [];
+
+        Object.entries(agents).forEach(([key, prompts]) => {
+            if (key === '__typename') {
+                return;
+            }
+
+            const systemType = (prompts as AgentPrompts)?.system?.type;
+            const humanType = (prompts as AgentPrompts)?.human?.type;
+
+            const hasCustomSystem = userDefined.some((p) => p.type === systemType);
+            const hasCustomHuman = humanType ? userDefined.some((p) => p.type === humanType) : false;
+
+            const agentData: AgentPromptTableData = {
+                displayName: formatPromptId(key),
+                hasHuman: !!(prompts as AgentPrompts)?.human,
+                hasSystem: !!(prompts as AgentPrompts)?.system,
+                humanStatus: (prompts as AgentPrompts)?.human ? (hasCustomHuman ? 'Custom' : 'Default') : 'N/A',
+                humanTemplate: (prompts as AgentPrompts)?.human?.template,
+                humanType,
+                name: key,
+                systemStatus: (prompts as AgentPrompts)?.system ? (hasCustomSystem ? 'Custom' : 'Default') : 'N/A',
+                systemTemplate: (prompts as AgentPrompts)?.system?.template || '',
+                systemType,
+            };
+
+            agentEntries.push(agentData);
+        });
+
+        return agentEntries.sort((a, b) => a.name.localeCompare(b.name));
+    };
+
+    const getToolPromptsData = (): ToolPromptTableData[] => {
+        if (!data?.settingsPrompts?.default?.tools) {
+            return [];
+        }
+
+        const { tools } = data.settingsPrompts.default;
+        const userDefined = data.settingsPrompts.userDefined || [];
+        const toolEntries: ToolPromptTableData[] = [];
+
+        Object.entries(tools).forEach(([key, prompt]) => {
+            if (key === '__typename') {
+                return;
+            }
+
+            const toolType = (prompt as DefaultPrompt)?.type;
+            const hasCustomTool = userDefined.some((p) => p.type === toolType);
+
+            const toolData: ToolPromptTableData = {
+                displayName: formatPromptId(key),
+                name: key,
+                promptType: toolType,
+                status: (prompt as DefaultPrompt)?.template ? (hasCustomTool ? 'Custom' : 'Default') : 'N/A',
+                template: (prompt as DefaultPrompt)?.template || '',
+            };
+
+            toolEntries.push(toolData);
+        });
+
+        return toolEntries.sort((a, b) => a.name.localeCompare(b.name));
+    };
+
+    const agentColumns: ColumnDef<AgentPromptTableData>[] = [
+        {
+            accessorKey: 'displayName',
+            cell: ({ row }) => (
+                <div className="flex min-w-0 items-center gap-2">
+                    <span className="truncate font-medium">{row.original.displayName}</span>
+                </div>
+            ),
+            enableHiding: false,
+            header: ({ column }) => {
+                const sorted = column.getIsSorted();
+
+                return (
+                    <Button
+                        className="text-muted-foreground hover:text-link flex items-center gap-2 p-0 no-underline hover:no-underline"
+                        onClick={() => handleColumnSort(column)}
+                        variant="link"
+                    >
+                        {uiText('Agent Name')}
+                        {sorted === 'asc' ? <ArrowDown /> : sorted === 'desc' ? <ArrowUp /> : null}
+                    </Button>
+                );
+            },
+            meta: { columnMenuLabel: uiText('Agent Name'), searchable: true },
+        },
+        {
+            accessorKey: 'systemStatus',
+            cell: ({ row }) => {
+                const status = row.getValue('systemStatus') as string;
+
+                return (
+                    <Badge variant={status === 'Custom' ? 'default' : status === 'Default' ? 'secondary' : 'outline'}>
+                        {promptStatusLabel(status)}
+                    </Badge>
+                );
+            },
+            header: uiText('System Prompt'),
+            meta: { columnMenuLabel: uiText('System Prompt'), searchable: true },
+            size: 100,
+        },
+        {
+            accessorKey: 'humanStatus',
+            cell: ({ row }) => {
+                const status = row.getValue('humanStatus') as string;
+
+                return (
+                    <Badge variant={status === 'Custom' ? 'default' : status === 'Default' ? 'secondary' : 'outline'}>
+                        {promptStatusLabel(status)}
+                    </Badge>
+                );
+            },
+            header: uiText('Human Prompt'),
+            meta: { columnMenuLabel: uiText('Human Prompt'), searchable: true },
+            size: 100,
+        },
+        {
+            cell: ({ row }) => {
+                const agent = row.original;
+
+                return (
+                    <div className="flex justify-end opacity-0 transition-opacity group-hover:opacity-100">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    aria-label={uiText('Open menu')}
+                                    className="size-8 p-0"
+                                    variant="ghost"
+                                >
+                                    <Ellipsis />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent
+                                align="end"
+                                className="min-w-24"
+                            >
+                                <DropdownMenuItem onClick={() => handlePromptEdit(agent.name)}>
+                                    <Pencil className="size-3" />
+                                    {uiText('Edit')}
+                                </DropdownMenuItem>
+                                {(canResetPrompt(agent.name, 'system') ||
+                                    canResetPrompt(agent.name, 'human') ||
+                                    canResetPrompt(agent.name, 'all')) && <DropdownMenuSeparator />}
+                                {canResetPrompt(agent.name, 'system') && (
+                                    <DropdownMenuItem
+                                        disabled={
+                                            isDeleteLoading &&
+                                            resetOperation?.promptName === agent.name &&
+                                            resetOperation?.type === 'system'
+                                        }
+                                        onClick={() => handleResetDialogOpen('system', agent.name, agent.displayName)}
+                                    >
+                                        {isDeleteLoading &&
+                                        resetOperation?.promptName === agent.name &&
+                                        resetOperation?.type === 'system' ? (
+                                            <>
+                                                <Spinner
+                                                    className="size-3"
+                                                    variant="circle"
+                                                />
+                                                {uiText('Resetting...')}
+                                            </>
+                                        ) : (
+                                            <>
+                                                <RotateCcw className="size-3" />
+                                                {uiText('Reset System')}
+                                            </>
+                                        )}
+                                    </DropdownMenuItem>
+                                )}
+                                {agent.hasHuman && canResetPrompt(agent.name, 'human') && (
+                                    <DropdownMenuItem
+                                        disabled={
+                                            isDeleteLoading &&
+                                            resetOperation?.promptName === agent.name &&
+                                            resetOperation?.type === 'human'
+                                        }
+                                        onClick={() => handleResetDialogOpen('human', agent.name, agent.displayName)}
+                                    >
+                                        {isDeleteLoading &&
+                                        resetOperation?.promptName === agent.name &&
+                                        resetOperation?.type === 'human' ? (
+                                            <>
+                                                <Spinner
+                                                    className="size-3"
+                                                    variant="circle"
+                                                />
+                                                {uiText('Resetting...')}
+                                            </>
+                                        ) : (
+                                            <>
+                                                <RotateCcw className="size-3" />
+                                                {uiText('Reset Human')}
+                                            </>
+                                        )}
+                                    </DropdownMenuItem>
+                                )}
+                                {canResetPrompt(agent.name, 'all') && (
+                                    <DropdownMenuItem
+                                        disabled={
+                                            isDeleteLoading &&
+                                            resetOperation?.promptName === agent.name &&
+                                            resetOperation?.type === 'all'
+                                        }
+                                        onClick={() => handleResetDialogOpen('all', agent.name, agent.displayName)}
+                                    >
+                                        {isDeleteLoading &&
+                                        resetOperation?.promptName === agent.name &&
+                                        resetOperation?.type === 'all' ? (
+                                            <>
+                                                <Spinner
+                                                    className="size-3"
+                                                    variant="circle"
+                                                />
+                                                {uiText('Resetting...')}
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Trash2 className="size-3" />
+                                                {uiText('Reset All')}
+                                            </>
+                                        )}
+                                    </DropdownMenuItem>
+                                )}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
+                );
+            },
+            enableHiding: false,
+            header: () => null,
+            id: 'actions',
+            meta: { preventRowClick: true },
+            size: 48,
+        },
+    ];
+
+    const toolColumns: ColumnDef<ToolPromptTableData>[] = [
+        {
+            accessorKey: 'displayName',
+            cell: ({ row }) => (
+                <div className="flex min-w-0 items-center gap-2">
+                    <span className="truncate font-medium">{row.original.displayName}</span>
+                </div>
+            ),
+            enableHiding: false,
+            header: ({ column }) => {
+                const sorted = column.getIsSorted();
+
+                return (
+                    <Button
+                        className="text-muted-foreground hover:text-link flex items-center gap-2 p-0 hover:no-underline"
+                        onClick={() => handleColumnSort(column)}
+                        variant="link"
+                    >
+                        {uiText('Tool Name')}
+                        {sorted === 'asc' ? <ArrowDown /> : sorted === 'desc' ? <ArrowUp /> : null}
+                    </Button>
+                );
+            },
+            meta: { columnMenuLabel: uiText('Tool Name'), searchable: true },
+        },
+        {
+            accessorKey: 'status',
+            cell: ({ row }) => {
+                const status = row.getValue('status') as string;
+
+                return (
+                    <Badge variant={status === 'Custom' ? 'default' : status === 'Default' ? 'secondary' : 'outline'}>
+                        {promptStatusLabel(status)}
+                    </Badge>
+                );
+            },
+            header: uiText('Prompt'),
+            meta: { columnMenuLabel: uiText('Prompt'), searchable: true },
+            size: 100,
+        },
+        {
+            cell: ({ row }) => {
+                const tool = row.original;
+
+                return (
+                    <div className="flex justify-end">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    aria-label={uiText('Open menu')}
+                                    className="size-8 p-0"
+                                    variant="ghost"
+                                >
+                                    <Ellipsis />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent
+                                align="end"
+                                className="min-w-24"
+                            >
+                                <DropdownMenuItem onClick={() => handlePromptEdit(tool.name)}>
+                                    <Pencil className="size-3" />
+                                    {uiText('Edit')}
+                                </DropdownMenuItem>
+                                {canResetPrompt(tool.name, 'tool') && (
+                                    <>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem
+                                            disabled={
+                                                isDeleteLoading &&
+                                                resetOperation?.promptName === tool.name &&
+                                                resetOperation?.type === 'tool'
+                                            }
+                                            onClick={() => handleResetDialogOpen('tool', tool.name, tool.displayName)}
+                                        >
+                                            {isDeleteLoading &&
+                                            resetOperation?.promptName === tool.name &&
+                                            resetOperation?.type === 'tool' ? (
+                                                <>
+                                                    <Spinner
+                                                        className="size-3"
+                                                        variant="circle"
+                                                    />
+                                                    {uiText('Resetting...')}
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <RotateCcw className="size-3" />
+                                                    {uiText('Reset')}
+                                                </>
+                                            )}
+                                        </DropdownMenuItem>
+                                    </>
+                                )}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
+                );
+            },
+            enableHiding: false,
+            header: () => null,
+            id: 'actions',
+            meta: { preventRowClick: true },
+            size: 48,
+        },
+    ];
+
+    const renderAgentSubComponent = ({ row }: { row: Row<AgentPromptTableData> }) => {
+        const agent = row.original;
+
+        const userSystemPrompt = data?.settingsPrompts?.userDefined?.find((p) => p.type === agent.systemType);
+        const userHumanPrompt = data?.settingsPrompts?.userDefined?.find((p) => p.type === agent.humanType);
+
+        const systemTemplate = userSystemPrompt?.template || agent.systemTemplate;
+        const humanTemplate = userHumanPrompt?.template || agent.humanTemplate;
+
+        return (
+            <div className="bg-muted/20 flex flex-col gap-4 border-t p-4">
+                <h4 className="font-medium">{uiText('Prompt Templates')}</h4>
+                <hr className="border-muted-foreground/20" />
+
+                <div className="flex flex-col gap-4">
+                    {agent.hasSystem && (
+                        <div>
+                            <h5 className="mb-2 flex items-center gap-2 text-sm font-medium">
+                                <Code className="size-3" />
+                                {uiText('System Prompt')}
+                                {userSystemPrompt && (
+                                    <Badge
+                                        className="text-xs"
+                                        variant="secondary"
+                                    >
+                                        {uiText('Custom')}
+                                    </Badge>
+                                )}
+                            </h5>
+                            <pre className="bg-muted max-h-64 overflow-auto rounded-md p-3 text-xs whitespace-pre-wrap">
+                                {systemTemplate}
+                            </pre>
+                        </div>
+                    )}
+
+                    {agent.hasHuman && humanTemplate && (
+                        <div>
+                            <h5 className="mb-2 flex items-center gap-2 text-sm font-medium">
+                                <User className="size-3" />
+                                {uiText('Human Prompt')}
+                                {userHumanPrompt && (
+                                    <Badge
+                                        className="text-xs"
+                                        variant="secondary"
+                                    >
+                                        {uiText('Custom')}
+                                    </Badge>
+                                )}
+                            </h5>
+                            <pre className="bg-muted max-h-64 overflow-auto rounded-md p-3 text-xs whitespace-pre-wrap">
+                                {humanTemplate}
+                            </pre>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
+    const renderToolSubComponent = ({ row }: { row: Row<ToolPromptTableData> }) => {
+        const tool = row.original;
+
+        const userToolPrompt = data?.settingsPrompts?.userDefined?.find((p) => p.type === tool.promptType);
+
+        const template = userToolPrompt?.template || tool.template;
+
+        return (
+            <div className="bg-muted/20 border-t p-4">
+                <div className="mb-2 flex items-center gap-2">
+                    <h5 className="text-sm font-medium">{uiText('Template')}</h5>
+                    {userToolPrompt && (
+                        <Badge
+                            className="text-xs"
+                            variant="secondary"
+                        >
+                            {uiText('Custom')}
+                        </Badge>
+                    )}
+                </div>
+                <pre className="bg-muted max-h-64 overflow-auto rounded-md p-3 text-xs whitespace-pre-wrap">
+                    {template}
+                </pre>
+            </div>
+        );
+    };
+
+    const renderAgentRowContextMenu = (agent: AgentPromptTableData) => {
+        const hasResetOptions =
+            canResetPrompt(agent.name, 'system') ||
+            canResetPrompt(agent.name, 'human') ||
+            canResetPrompt(agent.name, 'all');
+
+        return (
+            <>
+                <ContextMenuItem onClick={() => handlePromptEdit(agent.name)}>
+                    <Pencil className="size-3" />
+                    {uiText('Edit')}
+                </ContextMenuItem>
+                {hasResetOptions && <ContextMenuSeparator />}
+                {canResetPrompt(agent.name, 'system') && (
+                    <ContextMenuItem
+                        disabled={
+                            isDeleteLoading &&
+                            resetOperation?.promptName === agent.name &&
+                            resetOperation?.type === 'system'
+                        }
+                        onClick={() => handleResetDialogOpen('system', agent.name, agent.displayName)}
+                    >
+                        <RotateCcw className="size-3" />
+                        {isDeleteLoading &&
+                        resetOperation?.promptName === agent.name &&
+                        resetOperation?.type === 'system'
+                            ? uiText('Resetting...')
+                            : uiText('Reset System')}
+                    </ContextMenuItem>
+                )}
+                {agent.hasHuman && canResetPrompt(agent.name, 'human') && (
+                    <ContextMenuItem
+                        disabled={
+                            isDeleteLoading &&
+                            resetOperation?.promptName === agent.name &&
+                            resetOperation?.type === 'human'
+                        }
+                        onClick={() => handleResetDialogOpen('human', agent.name, agent.displayName)}
+                    >
+                        <RotateCcw className="size-3" />
+                        {isDeleteLoading &&
+                        resetOperation?.promptName === agent.name &&
+                        resetOperation?.type === 'human'
+                            ? uiText('Resetting...')
+                            : uiText('Reset Human')}
+                    </ContextMenuItem>
+                )}
+                {canResetPrompt(agent.name, 'all') && (
+                    <ContextMenuItem
+                        disabled={
+                            isDeleteLoading &&
+                            resetOperation?.promptName === agent.name &&
+                            resetOperation?.type === 'all'
+                        }
+                        onClick={() => handleResetDialogOpen('all', agent.name, agent.displayName)}
+                    >
+                        <Trash2 className="size-3" />
+                        {isDeleteLoading && resetOperation?.promptName === agent.name && resetOperation?.type === 'all'
+                            ? uiText('Resetting...')
+                            : uiText('Reset All')}
+                    </ContextMenuItem>
+                )}
+            </>
+        );
+    };
+
+    const renderToolRowContextMenu = (tool: ToolPromptTableData) => (
+        <>
+            <ContextMenuItem onClick={() => handlePromptEdit(tool.name)}>
+                <Pencil />
+                {uiText('Edit')}
+            </ContextMenuItem>
+            {canResetPrompt(tool.name, 'tool') && (
+                <>
+                    <ContextMenuSeparator />
+                    <ContextMenuItem
+                        disabled={
+                            isDeleteLoading &&
+                            resetOperation?.promptName === tool.name &&
+                            resetOperation?.type === 'tool'
+                        }
+                        onClick={() => handleResetDialogOpen('tool', tool.name, tool.displayName)}
+                    >
+                        <RotateCcw />
+                        {isDeleteLoading && resetOperation?.promptName === tool.name && resetOperation?.type === 'tool'
+                            ? uiText('Resetting...')
+                            : uiText('Reset')}
+                    </ContextMenuItem>
+                </>
+            )}
+        </>
+    );
+
+    const pageHeader = (
+        <AppHeader>
+            <AppHeaderContent>
+                <AppHeaderTitle icon={<FileText className="size-4 shrink-0" />}>{uiText('Prompts')}</AppHeaderTitle>
+            </AppHeaderContent>
+        </AppHeader>
+    );
+
+    if (isLoading && !data) {
+        return (
+            <>
+                {pageHeader}
+                <div className="flex flex-1 flex-col gap-6 p-4">
+                    <SettingsPromptsHeader />
+                    <LoadingState
+                        description={uiText('Please wait while we fetch your prompt templates')}
+                        title={uiText('Loading prompts...')}
+                    />
+                </div>
+            </>
+        );
+    }
+
+    // Error surface only when there's no data — a failed background refetch must not blank a working list.
+    if (error && !data) {
+        return (
+            <>
+                {pageHeader}
+                <div className="flex flex-1 flex-col gap-6 p-4">
+                    <SettingsPromptsHeader />
+                    <ErrorState
+                        message={error.message}
+                        onRetry={refetch}
+                        title={uiText('Error loading prompts')}
+                    />
+                </div>
+            </>
+        );
+    }
+
+    const agentPrompts = getAgentPromptsData();
+    const toolPrompts = getToolPromptsData();
+
+    if (agentPrompts.length === 0 && toolPrompts.length === 0) {
+        return (
+            <>
+                {pageHeader}
+                <div className="flex flex-1 flex-col gap-6 p-4">
+                    <SettingsPromptsHeader />
+                    <Empty>
+                        <EmptyHeader>
+                            <EmptyMedia variant="icon">
+                                <Settings />
+                            </EmptyMedia>
+                            <EmptyTitle>{uiText('No prompts available')}</EmptyTitle>
+                            <EmptyDescription>{uiText('Prompt templates could not be loaded')}</EmptyDescription>
+                        </EmptyHeader>
+                    </Empty>
+                </div>
+            </>
+        );
+    }
+
+    return (
+        <>
+            {pageHeader}
+            <div className="flex flex-1 flex-col gap-6 p-4">
+                <SettingsPromptsHeader />
+
+                {agentPrompts.length > 0 && (
+                    <div className="flex flex-col gap-2">
+                        <div className="flex items-center gap-2">
+                            <Bot className="text-muted-foreground size-5" />
+                            <h2 className="text-lg font-semibold">{uiText('Agent Prompts')}</h2>
+                            <Badge variant="secondary">{agentPrompts.length}</Badge>
+                        </div>
+                        <p className="text-muted-foreground text-sm">
+                            {uiText('System and human prompts for AI agents')}
+                        </p>
+                        <DataTable<AgentPromptTableData>
+                            columns={agentColumns}
+                            data={agentPrompts}
+                            empty={{ entityName: uiText('Agent Prompts') }}
+                            filterPlaceholder={uiText('Filter agents...')}
+                            initialPageSize={1000}
+                            label={uiText('Agent Prompts')}
+                            renderRowContextMenu={renderAgentRowContextMenu}
+                            renderSubComponent={renderAgentSubComponent}
+                            storageKey={`${tableStorageBase}:agents`}
+                        />
+                    </div>
+                )}
+
+                {toolPrompts.length > 0 && (
+                    <div className="flex flex-col gap-2">
+                        <div className="flex items-center gap-2">
+                            <Wrench className="text-muted-foreground size-5" />
+                            <h2 className="text-lg font-semibold">{uiText('Tool Prompts')}</h2>
+                            <Badge variant="secondary">{toolPrompts.length}</Badge>
+                        </div>
+                        <p className="text-muted-foreground text-sm">
+                            {uiText('Prompt templates for system tools and utilities')}
+                        </p>
+                        <DataTable<ToolPromptTableData>
+                            columns={toolColumns}
+                            data={toolPrompts}
+                            empty={{ entityName: uiText('Tool Prompts') }}
+                            filterPlaceholder={uiText('Filter tools...')}
+                            initialPageSize={1000}
+                            label={uiText('Tool Prompts')}
+                            renderRowContextMenu={renderToolRowContextMenu}
+                            renderSubComponent={renderToolSubComponent}
+                            storageKey={`${tableStorageBase}:tools`}
+                        />
+                    </div>
+                )}
+            </div>
+
+            <ConfirmationDialog
+                cancelText={uiText('Cancel')}
+                cancelVariant="outline"
+                confirmIcon={<RotateCcw />}
+                confirmText={uiText('Reset')}
+                confirmVariant="destructive"
+                description={
+                    resetOperation?.type === 'system'
+                        ? uiText(
+                              'Are you sure you want to reset the system prompt for "{name}"? This will revert it to the default template and cannot be undone.',
+                              { name: resetOperation.displayName },
+                          )
+                        : resetOperation?.type === 'human'
+                          ? uiText(
+                                'Are you sure you want to reset the human prompt for "{name}"? This will revert it to the default template and cannot be undone.',
+                                { name: resetOperation.displayName },
+                            )
+                          : resetOperation?.type === 'all'
+                            ? uiText(
+                                  'Are you sure you want to reset all prompts for "{name}"? This will revert both system and human prompts to their default templates and cannot be undone.',
+                                  { name: resetOperation.displayName },
+                              )
+                            : uiText(
+                                  'Are you sure you want to reset the prompt for "{name}"? This will revert it to the default template and cannot be undone.',
+                                  { name: resetOperation?.displayName ?? '' },
+                              )
+                }
+                handleConfirm={handleResetPrompt}
+                handleOpenChange={setResetDialogOpen}
+                isOpen={resetDialogOpen}
+                itemType={uiText('template')}
+                title={uiText('Reset {name}', { name: resetOperation?.displayName || uiText('Prompt') })}
+            />
+        </>
+    );
+}
+
+function SettingsPromptsHeader() {
+    return (
+        <div className="flex items-center justify-between">
+            <p className="text-muted-foreground">{uiText('Manage system and custom prompt templates')}</p>
+        </div>
+    );
+}
+
+export default SettingsPrompts;

@@ -1,0 +1,33 @@
+frontend/coverage
+frontend/dist
+!frontend/dist/
+!frontend/dist/**
+frontend/node_modules
+frontend/e2e/test-results
+frontend/e2e/playwright-report
+frontend/e2e/blob-report
+frontend/e2e/.auth
+**/*.tsbuildinfo
+frontend/ssl
+
+**/*.log
+**/*.env
+**/.env.*
+!**/.env.example
+**/.DS_Store
+**/Thumbs.db
+
+# Local baseline archives, Git history, credentials and research intermediates
+# must never enter the build context.
+.bak
+.git
+.env
+.env.report-review
+登录账号密码.txt
+.pnpm-store
+build
+# locally built helper binaries; the image builds its own
+backend/ctester
+backend/etester
+backend/ftester
+backend/*.exe
